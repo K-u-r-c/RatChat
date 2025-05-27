@@ -482,3 +482,7 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# custom added
+API/appsettings.json
+.vscode/settings.json
