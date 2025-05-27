@@ -6,6 +6,8 @@ namespace Persistance;
 
 public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(options)
 {
+    public required DbSet<Message> Messages { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
