@@ -11,8 +11,10 @@ import MenuItem from "@mui/material/MenuItem";
 import { useState } from "react";
 import { Link } from "react-router";
 import { Add, Password, Person } from "@mui/icons-material";
+import { useAccount } from "../../lib/hooks/useAccount";
 
 export default function UserMenu() {
+  const { currentUser, logoutUser } = useAccount();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -31,8 +33,8 @@ export default function UserMenu() {
         sx={{ fontSize: "1.1rem" }}
       >
         <Box display="flex" alignItems="center" gap={2}>
-          <Avatar src={""} alt="Current user image" />
-          User display name here
+          <Avatar src={currentUser?.imageUrl} alt="Current user image" />
+          {currentUser?.displayName}
         </Box>
       </Button>
       <Menu
@@ -73,6 +75,7 @@ export default function UserMenu() {
         <Divider />
         <MenuItem
           onClick={() => {
+            logoutUser.mutate();
             handleClose();
           }}
         >

@@ -1,14 +1,18 @@
+
+
 using API.Middleware;
 using Application.Core;
 using Application.Interfaces;
 using Application.Messages.Queries;
 using Domain;
+using Infrastructure.Email;
 using Infrastructure.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Persistance;
+using Resend;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,6 +32,13 @@ builder.Services.AddMediatR(x =>
     x.RegisterServicesFromAssemblyContaining<GetMessageList.Handler>();
     x.AddOpenBehavior(typeof(ValidationBehavior<,>));
 });
+builder.Services.AddHttpClient<ResendClient>();
+builder.Services.Configure<ResendClientOptions>(opt =>
+{
+    opt.ApiToken = builder.Configuration["Resend:ApiToken"]!;
+});
+builder.Services.AddTransient<IResend, ResendClient>();
+builder.Services.AddTransient<IEmailSender<User>, EmailSender>();
 builder.Services.AddScoped<IUserAccessor, UserAccessor>();
 builder.Services.AddAutoMapper(typeof(MappingProfiles).Assembly);
 builder.Services.AddTransient<ExceptionMiddleware>();
