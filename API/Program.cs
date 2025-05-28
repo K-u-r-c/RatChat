@@ -45,6 +45,10 @@ builder.Services.AddTransient<ExceptionMiddleware>();
 builder.Services.AddIdentityApiEndpoints<User>(opt =>
 {
     opt.User.RequireUniqueEmail = true;
+    if (builder.Environment.IsProduction())
+    {
+        opt.SignIn.RequireConfirmedEmail = true;
+    }
 })
 .AddRoles<IdentityRole>()
 .AddEntityFrameworkStores<AppDbContext>();
@@ -76,12 +80,15 @@ try
     var context = services.GetRequiredService<AppDbContext>();
     var userManager = services.GetRequiredService<UserManager<User>>();
     await context.Database.MigrateAsync();
-    await DbInitializer.SeedData(context, userManager);
+
+    if (app.Environment.IsDevelopment())
+    {
+        await DbInitializer.SeedData(context, userManager);
+    }
 }
 catch (Exception ex)
 {
     var logger = services.GetRequiredService<ILogger<Program>>();
     logger.LogError(ex, "An error occurred during migration");
 }
-
 app.Run();
