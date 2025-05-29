@@ -2,7 +2,7 @@ namespace Application.Core;
 
 public class PaginationParams<TCursor>
 {
-    private const int MaxPageSize = 50;
+    private const int MaxPageSize = 5;
     public TCursor? Cursor { get; set; }
     private int _pageSize = 3;
     public int PageSize

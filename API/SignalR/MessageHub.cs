@@ -7,9 +7,12 @@ namespace API.SignalR;
 
 public class MessageHub(IMediator mediator) : Hub
 {
-    public async Task SendComment(AddMessage.Command command)
+    public async Task SendMessage(AddMessage.Command command)
     {
         var message = await mediator.Send(command);
+
+        if (!message.IsSuccess || message.Value == null)
+            throw new HubException(message.Error ?? "Failed to add message");
 
         await Clients.Group(command.ChatRoomId).SendAsync("ReceiveMessage", message.Value);
     }

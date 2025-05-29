@@ -9,6 +9,7 @@ public class ChatRoomDto
     public DateTime Date { get; set; }
     public required string AdminDisplayName { get; set; }
     public required string AdminId { get; set; }
+    public required string JoinKey { get; set; }
 
     // Navigation properties
     public ICollection<UserProfileDto> Members { get; set; } = [];

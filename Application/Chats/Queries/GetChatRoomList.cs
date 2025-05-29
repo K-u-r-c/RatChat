@@ -3,6 +3,7 @@ using Application.Core;
 using Application.Interfaces;
 using AutoMapper;
 using AutoMapper.QueryableExtensions;
+using Domain;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Persistance;
@@ -24,32 +25,29 @@ public class GetChatRoomList
             CancellationToken cancellationToken
         )
         {
-            var query = context.ChatRooms
-                .OrderBy(x => x.Id)
-                .Where(x => x.Date >= (request.Params.Cursor ?? request.Params.StartDate))
-                .AsQueryable();
+            var userId = userAccessor.GetUserId();
 
-            if (!string.IsNullOrEmpty(request.Params.Filter))
-            {
-                query = request.Params.Filter switch
+            var baseQuery = context.ChatRooms
+                .Where(x => x.Members.Any(m => m.UserId == userId))
+                .Select(x => new
                 {
-                    "isMember" => query.Where(
-                        x => x.Members.Any(
-                            a => a.UserId == userAccessor.GetUserId()
-                        )
-                    ),
-                    "isAdmin" => query.Where(
-                        x => x.Members.Any(
-                            a => a.IsAdmin && a.UserId == userAccessor.GetUserId()
-                        )
-                    ),
-                    _ => query
-                };
+                    ChatRoom = x,
+                    DateJoined = x.Members.FirstOrDefault(m => m.UserId == userId)!.DateJoined
+                });
+
+            if (request.Params.Cursor.HasValue)
+            {
+                baseQuery = baseQuery.Where(x => x.DateJoined > request.Params.Cursor.Value);
             }
 
-            var projectedChatRooms = query.ProjectTo<ChatRoomDto>(
+            var orderedQuery = baseQuery
+                .OrderBy(x => x.DateJoined)
+                .Select(x => x.ChatRoom)
+                .AsQueryable();
+
+            var projectedChatRooms = orderedQuery.ProjectTo<ChatRoomDto>(
                 mapper.ConfigurationProvider,
-                new { currentUserId = userAccessor.GetUserId() }
+                new { currentUserId = userId }
             );
 
             var chatRooms = await projectedChatRooms
@@ -59,7 +57,15 @@ public class GetChatRoomList
             DateTime? nextCursor = null;
             if (chatRooms.Count > request.Params.PageSize)
             {
-                nextCursor = chatRooms.Last().Date;
+                var lastChatRoomId = chatRooms.Last().Id;
+                var lastDateJoined = await context.ChatRooms
+                    .Where(x => x.Id == lastChatRoomId)
+                    .SelectMany(x => x.Members)
+                    .Where(m => m.UserId == userId)
+                    .Select(m => m.DateJoined)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                nextCursor = lastDateJoined;
                 chatRooms.RemoveAt(chatRooms.Count - 1);
             }
 
