@@ -34,7 +34,7 @@ export default function HomePage() {
       <Typography variant="h1">Welcome to RatChat</Typography>
       <Button
         component={Link}
-        to="/activities"
+        to="/chat-rooms"
         size="large"
         variant="contained"
         sx={{

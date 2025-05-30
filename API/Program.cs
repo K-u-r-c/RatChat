@@ -1,6 +1,8 @@
 
 
 using API.Middleware;
+using API.SignalR;
+using Application.Chats.Queries;
 using Application.Core;
 using Application.Interfaces;
 using Application.Messages.Queries;
@@ -29,7 +31,7 @@ builder.Services.AddCors();
 builder.Services.AddSignalR();
 builder.Services.AddMediatR(x =>
 {
-    x.RegisterServicesFromAssemblyContaining<GetMessageList.Handler>();
+    x.RegisterServicesFromAssemblyContaining<GetChatRoomList.Handler>();
     x.AddOpenBehavior(typeof(ValidationBehavior<,>));
 });
 builder.Services.AddHttpClient<ResendClient>();
@@ -72,6 +74,7 @@ app.UseStaticFiles();
 
 app.MapControllers();
 app.MapGroup("api").MapIdentityApi<User>();
+app.MapHub<MessageHub>("/messages");
 
 using var scope = app.Services.CreateScope();
 var services = scope.ServiceProvider;
