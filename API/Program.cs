@@ -75,6 +75,7 @@ app.UseStaticFiles();
 app.MapControllers();
 app.MapGroup("api").MapIdentityApi<User>();
 app.MapHub<MessageHub>("/messages");
+app.MapFallbackToController("Index", "Fallback");
 
 using var scope = app.Services.CreateScope();
 var services = scope.ServiceProvider;
