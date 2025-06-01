@@ -13,6 +13,7 @@ public class MappingProfiles : Profile
         string? currentUserId = null;
 
         CreateMap<ChatRoom, ChatRoom>();
+        CreateMap<CreateChatRoomDto, ChatRoom>();
         CreateMap<ChatRoom, UserChatRoomDto>();
         CreateMap<ChatRoom, ChatRoomDto>()
             .ForMember(

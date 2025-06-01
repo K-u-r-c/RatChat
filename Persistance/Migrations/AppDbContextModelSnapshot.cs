@@ -61,7 +61,7 @@ namespace Persistance.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("ChatRoomMember");
+                    b.ToTable("ChatRoomMembers");
                 });
 
             modelBuilder.Entity("Domain.Message", b =>

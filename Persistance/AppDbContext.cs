@@ -8,7 +8,7 @@ namespace Persistance;
 public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(options)
 {
     public required DbSet<ChatRoom> ChatRooms { get; set; }
-    public required DbSet<ChatRoomMember> ChatRoomMember { get; set; }
+    public required DbSet<ChatRoomMember> ChatRoomMembers { get; set; }
     public required DbSet<Message> Messages { get; set; }
     public required DbSet<UserFollowing> UserFollowings { get; set; }
 

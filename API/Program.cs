@@ -1,12 +1,11 @@
-
-
 using API.Middleware;
 using API.SignalR;
 using Application.Chats.Queries;
+using Application.Chats.Validators;
 using Application.Core;
 using Application.Interfaces;
-using Application.Messages.Queries;
 using Domain;
+using FluentValidation;
 using Infrastructure.Email;
 using Infrastructure.Security;
 using Microsoft.AspNetCore.Authorization;
@@ -43,6 +42,7 @@ builder.Services.AddTransient<IResend, ResendClient>();
 builder.Services.AddTransient<IEmailSender<User>, EmailSender>();
 builder.Services.AddScoped<IUserAccessor, UserAccessor>();
 builder.Services.AddAutoMapper(typeof(MappingProfiles).Assembly);
+builder.Services.AddValidatorsFromAssemblyContaining<CreateChatRoomValidator>();
 builder.Services.AddTransient<ExceptionMiddleware>();
 builder.Services.AddIdentityApiEndpoints<User>(opt =>
 {
@@ -54,6 +54,14 @@ builder.Services.AddIdentityApiEndpoints<User>(opt =>
 })
 .AddRoles<IdentityRole>()
 .AddEntityFrameworkStores<AppDbContext>();
+builder.Services.AddAuthorization(opt =>
+{
+    opt.AddPolicy(IsAdminStrings.IsChatRoomAdmin, policy =>
+    {
+        policy.Requirements.Add(new IsAdminRequirement());
+    });
+});
+builder.Services.AddTransient<IAuthorizationHandler, IsAdminRequirementHandler>();
 
 var app = builder.Build();
 

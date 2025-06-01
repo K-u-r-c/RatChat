@@ -12,8 +12,8 @@ using Persistance;
 namespace Persistance.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250528221207_InitializeMigrations")]
-    partial class InitializeMigrations
+    [Migration("20250601181243_DomainInitialization")]
+    partial class DomainInitialization
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -32,6 +32,10 @@ namespace Persistance.Migrations
 
                     b.Property<DateTime>("Date")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("JoinKey")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -60,7 +64,7 @@ namespace Persistance.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("ChatRoomMember");
+                    b.ToTable("ChatRoomMembers");
                 });
 
             modelBuilder.Entity("Domain.Message", b =>
