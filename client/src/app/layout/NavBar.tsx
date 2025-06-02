@@ -63,7 +63,7 @@ export default function NavBar() {
               </MenuItem>
             </Box>
             <Box sx={{ display: "flex" }}>
-              <MenuItemLink to="/activities">Chats</MenuItemLink>
+              <MenuItemLink to="/chat-rooms">Chats</MenuItemLink>
             </Box>
             <Box display="flex" alignItems="center">
               {currentUser ? (

@@ -13,6 +13,8 @@ import ChangePasswordForm from "../../features/account/ChangePasswordForm";
 import AuthCallback from "../../features/account/AuthCallback";
 import ChatRoomsDashboard from "../../features/chatRooms/dashboard/ChatRoomsDashboard";
 import ChatRoomDetails from "../../features/chatRooms/details/ChatRoomDetails";
+import ChatRoomForm from "../../features/chatRooms/forms/ChatRoomForm";
+import JoinChatRoomPage from "../../features/chatRooms/join/JoinChatRoomPage";
 
 export const router = createBrowserRouter([
   {
@@ -24,6 +26,9 @@ export const router = createBrowserRouter([
         children: [
           { path: "chat-rooms", element: <ChatRoomsDashboard /> },
           { path: "chat-rooms/:id", element: <ChatRoomDetails /> },
+          { path: "create-chat-room", element: <ChatRoomForm key="create" /> },
+          { path: "chat-rooms/:id/:token/join", element: <JoinChatRoomPage /> },
+          { path: "manage/:id", element: <ChatRoomForm /> },
           { path: "change-password", element: <ChangePasswordForm /> },
         ],
       },

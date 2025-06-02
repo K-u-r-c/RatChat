@@ -55,19 +55,14 @@ public class UpdateMembership
             var isAdmin = chatRoom.Members.Any(x => x.IsAdmin && x.UserId == user.Id);
 
             if (membership != null)
+                return Result<Unit>.Failure("User is already part of this chat room", 401);
+
+            chatRoom.Members.Add(new ChatRoomMember
             {
-                if (!isAdmin) chatRoom.Members.Remove(membership);
-                // TODO: else pass administrator to oldest user and leave
-            }
-            else
-            {
-                chatRoom.Members.Add(new ChatRoomMember
-                {
-                    UserId = user.Id,
-                    ChatRoomId = chatRoom.Id,
-                    IsAdmin = false
-                });
-            }
+                UserId = user.Id,
+                ChatRoomId = chatRoom.Id,
+                IsAdmin = false
+            });
 
             var result = await context.SaveChangesAsync(cancellationToken) > 0;
 

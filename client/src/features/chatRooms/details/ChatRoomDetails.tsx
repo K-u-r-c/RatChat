@@ -1,7 +1,8 @@
 import { useParams } from "react-router";
 import { useChatRooms } from "../../../lib/hooks/useChatRooms";
-import { Grid, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import ChatRoomDetailsChat from "./ChatRoomDetailsChat";
+import ChatRoomManagement from "./ChatRoomManagement";
 
 export default function ChatRoomDetails() {
   const { id } = useParams();
@@ -11,13 +12,9 @@ export default function ChatRoomDetails() {
   if (!chatRoom) return <Typography>Activity not found</Typography>;
 
   return (
-    <Grid container spacing={3}>
-      <Grid size={8}>
-        <ChatRoomDetailsChat />
-      </Grid>
-      <Grid size={4}>
-        {/* <ActivityDetailsSidebar chatRoom={chatRoom} /> */}
-      </Grid>
-    </Grid>
+    <Box>
+      <ChatRoomManagement />
+      <ChatRoomDetailsChat />
+    </Box>
   );
 }

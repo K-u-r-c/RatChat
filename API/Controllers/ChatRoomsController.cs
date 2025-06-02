@@ -59,6 +59,12 @@ public class ChatRoomsController : BaseApiController
         ));
     }
 
+    [HttpPost("{id}/leave")]
+    public async Task<ActionResult<Unit>> LeaveChatRoom(string id)
+    {
+        return HandleResult(await Mediator.Send(new LeaveChatRoom.Command { Id = id }));
+    }
+
     [HttpPost("{id}/generateInviteLink")]
     [Authorize(Policy = IsAdminStrings.IsChatRoomAdmin)]
     public async Task<ActionResult<string>> GenerateInviteLink(string id)

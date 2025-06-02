@@ -24,7 +24,7 @@ public class GenerateInviteLink
             if (string.IsNullOrEmpty(clientUrl))
                 return Task.FromResult(Result<string>.Failure("Client URL is not configured", 400));
 
-            var url = $"{clientUrl}/api/chatRooms/{request.Id}/{encodedToken}/join";
+            var url = $"{clientUrl}/chat-rooms/{request.Id}/{encodedToken}/join";
             return Task.FromResult(Result<string>.Success(url));
         }
     }
