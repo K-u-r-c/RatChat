@@ -59,10 +59,10 @@ public class ChatRoomsController : BaseApiController
         ));
     }
 
-    [HttpPost("{id}/generateJoinLink")]
+    [HttpPost("{id}/generateInviteLink")]
     [Authorize(Policy = IsAdminStrings.IsChatRoomAdmin)]
-    public async Task<ActionResult<string>> GenerateJoinLink(string id)
+    public async Task<ActionResult<string>> GenerateInviteLink(string id)
     {
-        return HandleResult(await Mediator.Send(new GenerateJoinLink.Command { Id = id }));
+        return HandleResult(await Mediator.Send(new GenerateInviteLink.Command { Id = id }));
     }
 }

@@ -4,7 +4,7 @@ using Microsoft.Extensions.Configuration;
 
 namespace Application.Chats.Commands;
 
-public class GenerateJoinLink
+public class GenerateInviteLink
 {
     public class Command : IRequest<Result<string>>
     {
