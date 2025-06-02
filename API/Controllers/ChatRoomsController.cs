@@ -51,7 +51,7 @@ public class ChatRoomsController : BaseApiController
     public async Task<ActionResult<Unit>> JoinChatRoom(string id, string token)
     {
         return HandleResult(await Mediator.Send(
-            new UpdateMembership.Command
+            new JoinChatRoom.Command
             {
                 Id = id,
                 Token = token

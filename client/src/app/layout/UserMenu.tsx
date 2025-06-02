@@ -50,7 +50,7 @@ export default function UserMenu() {
           <ListItemIcon>
             <Add />
           </ListItemIcon>
-          <ListItemText>Create Activity</ListItemText>
+          <ListItemText>Create chat room</ListItemText>
         </MenuItem>
         <MenuItem
           component={Link}

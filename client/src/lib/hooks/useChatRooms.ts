@@ -146,6 +146,13 @@ export const useChatRooms = (id?: string) => {
       const response = await agent.post(`/chatRooms/${id}/${token}/join`);
       return response.data;
     },
+    onSuccess: (joinedChatRoomId: string) => {
+      navigate(`/chat-rooms/${joinedChatRoomId}`);
+      toast.success("Successfully joined the chat room!");
+    },
+    onError: () => {
+      toast.error("Failed to join the chat room");
+    },
   });
 
   const leaveChatRoom = useMutation({

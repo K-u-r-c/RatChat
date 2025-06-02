@@ -1,6 +1,7 @@
 using Application.Core;
 using MediatR;
 using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.WebUtilities;
 
 namespace Application.Chats.Commands;
 
@@ -18,7 +19,7 @@ public class GenerateInviteLink
             var expires = DateTime.UtcNow.AddMinutes(10);
             var token = Convert.ToBase64String(Guid.NewGuid().ToByteArray());
             var joinToken = $"{request.Id}:{token}:{expires:o}";
-            var encodedToken = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(joinToken));
+            var encodedToken = WebEncoders.Base64UrlEncode(System.Text.Encoding.UTF8.GetBytes(joinToken));
 
             var clientUrl = configuration["ClientAppUrl"];
             if (string.IsNullOrEmpty(clientUrl))
