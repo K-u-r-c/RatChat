@@ -12,7 +12,7 @@ using Persistance;
 namespace Persistance.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250601181243_DomainInitialization")]
+    [Migration("20250602182650_DomainInitialization")]
     partial class DomainInitialization
     {
         /// <inheritdoc />
@@ -32,10 +32,6 @@ namespace Persistance.Migrations
 
                     b.Property<DateTime>("Date")
                         .HasColumnType("datetime2");
-
-                    b.Property<string>("JoinKey")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Title")
                         .IsRequired()

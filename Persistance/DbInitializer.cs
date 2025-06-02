@@ -30,7 +30,6 @@ public class DbInitializer
             new ()
             {
             Title = "Sewers chat",
-            JoinKey = Guid.NewGuid().ToString("N")[..16],
             Date = now.AddMonths(-2),
             Members =
             [
@@ -51,7 +50,6 @@ public class DbInitializer
             new ()
             {
             Title = "Trash chat",
-            JoinKey = Guid.NewGuid().ToString("N")[..16],
             Date = now.AddMonths(-1).AddDays(-3),
             Members =
             [
@@ -66,7 +64,6 @@ public class DbInitializer
             new ()
             {
             Title = "Cheese lovers",
-            JoinKey = Guid.NewGuid().ToString("N")[..16],
             Date = now.AddMonths(-1).AddDays(-10),
             Members =
             [
@@ -81,7 +78,6 @@ public class DbInitializer
             new ()
             {
             Title = "Stinky pipers",
-            JoinKey = Guid.NewGuid().ToString("N")[..16],
             Date = now.AddMonths(-1).AddDays(-15),
             Members =
             [
@@ -102,7 +98,6 @@ public class DbInitializer
             new ()
             {
             Title = "Trafic enjoyers",
-            JoinKey = Guid.NewGuid().ToString("N")[..16],
             Date = now.AddDays(-20),
             Members =
             [
@@ -117,7 +112,6 @@ public class DbInitializer
             new ()
             {
             Title = "Palm oil eaters",
-            JoinKey = Guid.NewGuid().ToString("N")[..16],
             Date = now.AddDays(-18),
             Members =
             [
@@ -132,7 +126,6 @@ public class DbInitializer
             new ()
             {
             Title = "Trash chat",
-            JoinKey = Guid.NewGuid().ToString("N")[..16],
             Date = now.AddDays(-17),
             Members =
             [
@@ -147,7 +140,6 @@ public class DbInitializer
             new ()
             {
             Title = "Movie watchers",
-            JoinKey = Guid.NewGuid().ToString("N")[..16],
             Date = now.AddDays(-16),
             Members =
             [
@@ -162,7 +154,6 @@ public class DbInitializer
             new ()
             {
             Title = "Degenerates",
-            JoinKey = Guid.NewGuid().ToString("N")[..16],
             Date = now.AddDays(-15),
             Members =
             [
@@ -183,7 +174,6 @@ public class DbInitializer
             new ()
             {
             Title = "Magic rats",
-            JoinKey = Guid.NewGuid().ToString("N")[..16],
             Date = now.AddDays(-14),
             Members =
             [
@@ -198,7 +188,6 @@ public class DbInitializer
             new ()
             {
             Title = "Wonderfull world",
-            JoinKey = Guid.NewGuid().ToString("N")[..16],
             Date = now.AddDays(-13),
             Members =
             [
@@ -213,7 +202,6 @@ public class DbInitializer
             new ()
             {
             Title = "Mewtwo",
-            JoinKey = Guid.NewGuid().ToString("N")[..16],
             Date = now.AddDays(-12),
             Members =
             [
@@ -228,7 +216,6 @@ public class DbInitializer
             ,new ()
             {
             Title = "Charizard",
-            JoinKey = Guid.NewGuid().ToString("N")[..16],
             Date = now.AddDays(-11),
             Members =
             [
@@ -243,7 +230,6 @@ public class DbInitializer
             new ()
             {
             Title = "Torchick",
-            JoinKey = Guid.NewGuid().ToString("N")[..16],
             Date = now.AddDays(-10),
             Members =
             [
@@ -258,7 +244,6 @@ public class DbInitializer
             new ()
             {
             Title = "Turtwig",
-            JoinKey = Guid.NewGuid().ToString("N")[..16],
             Date = now.AddDays(-9),
             Members =
             [
@@ -273,7 +258,6 @@ public class DbInitializer
             new ()
             {
             Title = "Squirtle",
-            JoinKey = Guid.NewGuid().ToString("N")[..16],
             Date = now.AddDays(-8),
             Members =
             [
@@ -288,7 +272,6 @@ public class DbInitializer
             new ()
             {
             Title = "Bulbasaur",
-            JoinKey = Guid.NewGuid().ToString("N")[..16],
             Date = now.AddDays(-7),
             Members =
             [
@@ -303,7 +286,6 @@ public class DbInitializer
             new ()
             {
             Title = "Ratata",
-            JoinKey = Guid.NewGuid().ToString("N")[..16],
             Date = now.AddDays(-6),
             Members =
             [
@@ -318,7 +300,6 @@ public class DbInitializer
             new ()
             {
             Title = "Magnemite",
-            JoinKey = Guid.NewGuid().ToString("N")[..16],
             Date = now.AddDays(-5),
             Members =
             [
