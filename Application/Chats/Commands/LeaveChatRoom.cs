@@ -30,7 +30,7 @@ public class LeaveChatRoom
             if (membership == null)
                 return Result<Unit>.Failure("User is not a member of this chat room", 400);
 
-            bool isAdmin = membership.IsAdmin;
+            var isAdmin = membership.IsAdmin;
 
             chatRoom.Members.Remove(membership);
 
