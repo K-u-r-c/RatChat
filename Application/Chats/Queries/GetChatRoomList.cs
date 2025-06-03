@@ -37,7 +37,7 @@ public class GetChatRoomList
 
             if (request.Params.Cursor.HasValue)
             {
-                baseQuery = baseQuery.Where(x => x.DateJoined > request.Params.Cursor.Value);
+                baseQuery = baseQuery.Where(x => x.DateJoined >= request.Params.Cursor.Value);
             }
 
             var orderedQuery = baseQuery

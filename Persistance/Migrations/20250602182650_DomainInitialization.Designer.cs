@@ -12,8 +12,8 @@ using Persistance;
 namespace Persistance.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250528221207_InitializeMigrations")]
-    partial class InitializeMigrations
+    [Migration("20250602182650_DomainInitialization")]
+    partial class DomainInitialization
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -60,7 +60,7 @@ namespace Persistance.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("ChatRoomMember");
+                    b.ToTable("ChatRoomMembers");
                 });
 
             modelBuilder.Entity("Domain.Message", b =>

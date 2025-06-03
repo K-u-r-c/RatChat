@@ -46,11 +46,11 @@ export default function UserMenu() {
           "aria-labelledby": "basic-button",
         }}
       >
-        <MenuItem component={Link} to="/createActivity" onClick={handleClose}>
+        <MenuItem component={Link} to="/create-chat-room" onClick={handleClose}>
           <ListItemIcon>
             <Add />
           </ListItemIcon>
-          <ListItemText>Create Activity</ListItemText>
+          <ListItemText>Create chat room</ListItemText>
         </MenuItem>
         <MenuItem
           component={Link}

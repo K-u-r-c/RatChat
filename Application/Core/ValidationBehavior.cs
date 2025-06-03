@@ -12,7 +12,7 @@ public class ValidationBehavior<TRequest, TResponse>(IValidator<TRequest>? valid
         CancellationToken cancellationToken
     )
     {
-        if (validator == null) return await next();
+        if (validator == null) return await next(cancellationToken);
 
         var validationResult = await validator.ValidateAsync(request, cancellationToken);
 
@@ -21,6 +21,6 @@ public class ValidationBehavior<TRequest, TResponse>(IValidator<TRequest>? valid
             throw new ValidationException(validationResult.Errors);
         }
 
-        return await next();
+        return await next(cancellationToken);
     }
 }

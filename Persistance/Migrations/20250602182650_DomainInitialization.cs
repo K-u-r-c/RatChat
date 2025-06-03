@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Persistance.Migrations
 {
     /// <inheritdoc />
-    public partial class InitializeMigrations : Migration
+    public partial class DomainInitialization : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -196,7 +196,7 @@ namespace Persistance.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "ChatRoomMember",
+                name: "ChatRoomMembers",
                 columns: table => new
                 {
                     UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
@@ -206,15 +206,15 @@ namespace Persistance.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_ChatRoomMember", x => new { x.ChatRoomId, x.UserId });
+                    table.PrimaryKey("PK_ChatRoomMembers", x => new { x.ChatRoomId, x.UserId });
                     table.ForeignKey(
-                        name: "FK_ChatRoomMember_AspNetUsers_UserId",
+                        name: "FK_ChatRoomMembers_AspNetUsers_UserId",
                         column: x => x.UserId,
                         principalTable: "AspNetUsers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_ChatRoomMember_ChatRooms_ChatRoomId",
+                        name: "FK_ChatRoomMembers_ChatRooms_ChatRoomId",
                         column: x => x.ChatRoomId,
                         principalTable: "ChatRooms",
                         principalColumn: "Id",
@@ -288,8 +288,8 @@ namespace Persistance.Migrations
                 filter: "[NormalizedUserName] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
-                name: "IX_ChatRoomMember_UserId",
-                table: "ChatRoomMember",
+                name: "IX_ChatRoomMembers_UserId",
+                table: "ChatRoomMembers",
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
@@ -327,7 +327,7 @@ namespace Persistance.Migrations
                 name: "AspNetUserTokens");
 
             migrationBuilder.DropTable(
-                name: "ChatRoomMember");
+                name: "ChatRoomMembers");
 
             migrationBuilder.DropTable(
                 name: "Messages");

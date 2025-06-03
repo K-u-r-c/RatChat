@@ -1,20 +1,30 @@
 import {
   keepPreviousData,
   useInfiniteQuery,
+  useMutation,
   useQuery,
+  useQueryClient,
 } from "@tanstack/react-query";
 import agent from "../api/agent";
-import { useLocation } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { useAccount } from "./useAccount";
 import type { ChatRoom, PagedList } from "../types";
 import { useStore } from "./useStore";
+import type { FieldValues } from "react-hook-form";
+import { useState } from "react";
+import { toast } from "react-toastify";
 
 export const useChatRooms = (id?: string) => {
+  const queryClient = useQueryClient();
   const { currentUser } = useAccount();
   const location = useLocation();
+  const navigate = useNavigate();
   const {
     chatRoomsStore: { filter, startDate },
   } = useStore();
+
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [isGeneratingInvite, setIsGeneratingInvite] = useState(false);
 
   const {
     data: chatRoomsGroup,
@@ -77,6 +87,87 @@ export const useChatRooms = (id?: string) => {
     },
   });
 
+  const updateChatRoom = useMutation({
+    mutationFn: async (chatRoom: ChatRoom) => {
+      await agent.put("/chatRooms", chatRoom);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["chatRooms"],
+      });
+    },
+  });
+
+  const createChatRoom = useMutation({
+    mutationFn: async (chatRoom: FieldValues) => {
+      const response = await agent.post("/chatRooms", chatRoom);
+      return response.data;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["chatRooms"],
+      });
+    },
+  });
+
+  const deleteChatRooms = useMutation({
+    mutationFn: async (id: string) => {
+      await agent.delete(`/chatRooms/${id}`);
+    },
+    onSuccess: async () => {
+      navigate("/chat-rooms");
+      toast.success("Chat room deleted successfully");
+    },
+    onError: () => {
+      toast.error("Failed to delete chat room");
+    },
+  });
+
+  const generateInviteLink = useMutation({
+    mutationFn: async (id: string) => {
+      setIsGeneratingInvite(true);
+      setInviteLink(null);
+      const response = await agent.post<string>(
+        `/chatRooms/${id}/generateInviteLink`
+      );
+      return response.data;
+    },
+    onSuccess: (data) => {
+      setInviteLink(data);
+      setIsGeneratingInvite(false);
+    },
+    onError: () => {
+      setIsGeneratingInvite(false);
+    },
+  });
+
+  const joinChatRoom = useMutation({
+    mutationFn: async ({ id, token }: { id: string; token: string }) => {
+      const response = await agent.post(`/chatRooms/${id}/${token}/join`);
+      return response.data;
+    },
+    onSuccess: (joinedChatRoomId: string) => {
+      navigate(`/chat-rooms/${joinedChatRoomId}`);
+      toast.success("Successfully joined the chat room!");
+    },
+    onError: () => {
+      toast.error("Failed to join the chat room");
+    },
+  });
+
+  const leaveChatRoom = useMutation({
+    mutationFn: async (id: string) => {
+      await agent.post(`/chatRooms/${id}/leave`);
+    },
+    onSuccess: async () => {
+      navigate("/chat-rooms");
+      toast.success("You have left the chat room");
+    },
+    onError: () => {
+      toast.error("Failed to leave chat room");
+    },
+  });
+
   return {
     chatRoomsGroup: chatRoomsGroup,
     isLoading,
@@ -85,5 +176,13 @@ export const useChatRooms = (id?: string) => {
     hasNextPage,
     chatRoom,
     isLoadingChatRoom,
+    updateChatRoom,
+    createChatRoom,
+    deleteChatRooms,
+    generateInviteLink,
+    inviteLink,
+    isGeneratingInvite,
+    joinChatRoom,
+    leaveChatRoom,
   };
 };

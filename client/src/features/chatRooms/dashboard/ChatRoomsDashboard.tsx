@@ -11,7 +11,7 @@ export default function ChatRoomsDashboard() {
         size={4}
         sx={{ position: "sticky", top: 112, alignSelf: "flex-start" }}
       >
-        {/* <ActivityFilters /> */}
+        {/* <ChatRoomFilters /> */}
       </Grid>
     </Grid>
   );
