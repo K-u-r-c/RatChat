@@ -1,6 +1,6 @@
 using Application.Core;
 
-namespace Application.Chats.Queries;
+namespace Application.ChatRooms.Queries;
 
 public class ChatRoomParams : PaginationParams<DateTime?>
 {

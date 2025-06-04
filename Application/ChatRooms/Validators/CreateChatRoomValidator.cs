@@ -1,7 +1,7 @@
-using Application.Chats.Commands;
-using Application.Chats.DTOs;
+using Application.ChatRooms.Commands;
+using Application.ChatRooms.DTOs;
 
-namespace Application.Chats.Validators;
+namespace Application.ChatRooms.Validators;
 
 public class CreateChatRoomValidator : BaseChatRoomValidator<CreateChatRoom.Command, CreateChatRoomDto>
 {

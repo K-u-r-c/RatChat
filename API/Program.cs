@@ -1,7 +1,7 @@
 using API.Middleware;
 using API.SignalR;
-using Application.Chats.Queries;
-using Application.Chats.Validators;
+using Application.ChatRooms.Queries;
+using Application.ChatRooms.Validators;
 using Application.Core;
 using Application.Interfaces;
 using Domain;

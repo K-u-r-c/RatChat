@@ -1,7 +1,7 @@
-using Application.Chats.DTOs;
+using Application.ChatRooms.DTOs;
 using FluentValidation;
 
-namespace Application.Chats.Validators;
+namespace Application.ChatRooms.Validators;
 
 public class BaseChatRoomValidator<T, TDto> : AbstractValidator<T> where TDto : BaseChatRoomDto
 {

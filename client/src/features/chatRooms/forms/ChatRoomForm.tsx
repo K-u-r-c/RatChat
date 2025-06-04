@@ -42,7 +42,9 @@ export default function ChatRoomForm() {
         });
       }
     } catch (error) {
-      console.log(error);
+      if (import.meta.env.DEV) {
+        console.log(error);
+      }
     }
   };
 

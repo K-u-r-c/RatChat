@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Persistance;
 using Microsoft.AspNetCore.WebUtilities;
 
-namespace Application.Chats.Commands;
+namespace Application.ChatRooms.Commands;
 
 public class JoinChatRoom
 {

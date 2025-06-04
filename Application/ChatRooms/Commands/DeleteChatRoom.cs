@@ -2,7 +2,7 @@ using Application.Core;
 using MediatR;
 using Persistance;
 
-namespace Application.Chats.Commands;
+namespace Application.ChatRooms.Commands;
 
 public class DeleteChatRoom
 {
