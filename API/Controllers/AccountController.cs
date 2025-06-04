@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using static Application.Account.OAuth.GitHubInfo;
+using static Application.Account.OAuth.GoogleInfo;
 
 namespace API.Controllers;
 
@@ -95,6 +96,76 @@ public class AccountController(
                 UserName = user.Email,
                 DisplayName = user.Name,
                 ImageUrl = user.ImageUrl
+            };
+
+            var createdResult = await signInManager.UserManager.CreateAsync(existingUser);
+
+            if (!createdResult.Succeeded)
+                return BadRequest("Failed to create user");
+        }
+
+        await signInManager.SignInAsync(existingUser, false);
+
+        return Ok();
+    }
+
+    [AllowAnonymous]
+    [HttpPost("google-login")]
+    public async Task<ActionResult> LoginWithGoogle(string code)
+    {
+        if (string.IsNullOrEmpty(code)) return BadRequest("Missing authorization code");
+
+        using var httpClient = new HttpClient();
+        httpClient.DefaultRequestHeaders.Accept
+            .Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+        var tokenRequest = new GoogleAuthRequest
+        {
+            Code = code,
+            ClientId = configuration["Authentication:Google:ClientId"]!,
+            ClientSecret = configuration["Authentication:Google:ClientSecret"]!,
+            RedirectUri = $"{configuration["ClientAppUrl"]}/auth-callback"
+        };
+
+        var tokenResponse = await httpClient.PostAsJsonAsync(
+            "https://oauth2.googleapis.com/token",
+            tokenRequest
+        );
+
+        if (!tokenResponse.IsSuccessStatusCode)
+            return BadRequest("Failed to get access token from Google");
+
+        var tokenContent = await tokenResponse.Content.ReadFromJsonAsync<GoogleTokenResponse>();
+
+        if (string.IsNullOrEmpty(tokenContent?.AccessToken))
+            return BadRequest("Failed to retrieve access token from Google");
+
+        httpClient.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", tokenContent.AccessToken);
+
+        var userResponse = await httpClient.GetAsync("https://www.googleapis.com/oauth2/v2/userinfo");
+
+        if (!userResponse.IsSuccessStatusCode)
+            return BadRequest("Failed to fetch user from Google");
+
+        var googleUser = await userResponse.Content.ReadFromJsonAsync<GoogleUser>();
+
+        if (googleUser == null || string.IsNullOrEmpty(googleUser.Email))
+            return BadRequest("Failed to read user from Google");
+
+        if (!googleUser.VerifiedEmail)
+            return BadRequest("Google account email is not verified");
+
+        var existingUser = await signInManager.UserManager.FindByEmailAsync(googleUser.Email);
+
+        if (existingUser == null)
+        {
+            existingUser = new User
+            {
+                Email = googleUser.Email,
+                UserName = googleUser.Email,
+                DisplayName = googleUser.Name,
+                ImageUrl = googleUser.Picture
             };
 
             var createdResult = await signInManager.UserManager.CreateAsync(existingUser);

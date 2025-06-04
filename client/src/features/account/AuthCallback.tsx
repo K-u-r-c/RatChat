@@ -2,21 +2,40 @@ import { useNavigate, useSearchParams } from "react-router";
 import { useAccount } from "../../lib/hooks/useAccount";
 import { useEffect, useRef, useState } from "react";
 import { Box, CircularProgress, Paper, Typography } from "@mui/material";
-import { GitHub } from "@mui/icons-material";
+import { GitHub, Google } from "@mui/icons-material";
 
 export default function AuthCallback() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const { fetchGithubToken } = useAccount();
+  const { fetchGithubToken, fetchGoogleToken } = useAccount();
   const code = params.get("code");
+  const scope = params.get("scope");
   const [loading, setLoading] = useState(true);
+  const [provider, setProvider] = useState<"github" | "google" | null>(null);
   const fetched = useRef(false);
 
   useEffect(() => {
-    if (!code || fetched.current) return;
-    fetched.current = true;
+    if (scope?.includes("read:user")) {
+      setProvider("github");
+    } else if (scope?.includes("openid") || scope?.includes("email")) {
+      setProvider("google");
+    } else {
+      const referrer = document.referrer;
+      if (referrer.includes("github.com")) {
+        setProvider("github");
+      } else if (referrer.includes("accounts.google.com")) {
+        setProvider("google");
+      }
+    }
+  }, [scope]);
 
-    fetchGithubToken
+  useEffect(() => {
+    if (!code || fetched.current || !provider) return;
+    fetched.current = true;
+    const tokenMutation =
+      provider === "github" ? fetchGithubToken : fetchGoogleToken;
+
+    tokenMutation
       .mutateAsync(code)
       .then(() => {
         navigate("/activities");
@@ -25,9 +44,13 @@ export default function AuthCallback() {
         if (import.meta.env.DEV) console.log(error);
         setLoading(false);
       });
-  }, [code, fetchGithubToken, navigate]);
+  }, [code, provider, fetchGithubToken, fetchGoogleToken, navigate]);
 
-  if (!code) return <Typography>Problem authenticating with github</Typography>;
+  if (!code)
+    return <Typography>Problem authenticating with OAuth provider</Typography>;
+
+  const ProviderIcon = provider === "github" ? GitHub : Google;
+  const providerName = provider === "github" ? "GitHub" : "Google";
 
   return (
     <Paper
@@ -50,13 +73,13 @@ export default function AuthCallback() {
         justifyContent={"center"}
         gap={3}
       >
-        <GitHub fontSize="large" />
-        <Typography variant="h4">Loggin in with GitHub</Typography>
+        <ProviderIcon fontSize="large" />
+        <Typography variant="h4">Logging in with {providerName}</Typography>
       </Box>
       {loading ? (
         <CircularProgress />
       ) : (
-        <Typography>Problem signing in with GitHub</Typography>
+        <Typography>Problem signing in with {providerName}</Typography>
       )}
     </Paper>
   );
