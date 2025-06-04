@@ -49,8 +49,14 @@ export default function AuthCallback() {
   if (!code)
     return <Typography>Problem authenticating with OAuth provider</Typography>;
 
-  const ProviderIcon = provider === "github" ? GitHub : Google;
-  const providerName = provider === "github" ? "GitHub" : "Google";
+  const ProviderIcon =
+    provider === "github" ? GitHub : provider === "google" ? Google : null;
+  const providerName =
+    provider === "github"
+      ? "GitHub"
+      : provider === "google"
+      ? "Google"
+      : "Unknown Provider";
 
   return (
     <Paper
@@ -73,7 +79,7 @@ export default function AuthCallback() {
         justifyContent={"center"}
         gap={3}
       >
-        <ProviderIcon fontSize="large" />
+        {ProviderIcon ? <ProviderIcon fontSize="large" /> : null}
         <Typography variant="h4">Logging in with {providerName}</Typography>
       </Box>
       {loading ? (
