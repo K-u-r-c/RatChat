@@ -2,7 +2,6 @@ using Application.Core;
 using Application.Messages.Commands;
 using Application.Messages.DTOs;
 using MediatR;
-using Microsoft.AspNetCore.SignalR;
 
 namespace Application.Messages.SignalR;
 
@@ -19,13 +18,3 @@ public class HandleSendMessage
         return message;
     }
 }
-
-public class SendMessageHubException : HubException
-    {
-        public int ErrorCode { get; }
-
-        public SendMessageHubException(string message, int errorCode) : base(message)
-        {
-            ErrorCode = errorCode;
-        }
-    }
