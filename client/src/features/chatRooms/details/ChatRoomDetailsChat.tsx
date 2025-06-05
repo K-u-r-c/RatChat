@@ -25,15 +25,18 @@ const ChatRoomDetailsChat = observer(function ChatRoomDetailsChat() {
   } = useForm();
 
   const addComment = async (data: FieldValues) => {
+    const trimmedBody = data.body?.trimEnd();
     try {
-      await messageStore.hubConnection?.invoke("SendMessage", {
-        chatRoomId: id,
-        body: data.body,
-      });
-
-      reset();
+      if (trimmedBody) {
+        await messageStore.hubConnection?.invoke("SendMessage", {
+          chatRoomId: id,
+          body: trimmedBody,
+        });
+      }
     } catch (error) {
       console.log(error);
+    } finally {
+      reset();
     }
   };
 
