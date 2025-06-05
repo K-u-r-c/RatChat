@@ -9,25 +9,9 @@ export default function AuthCallback() {
   const navigate = useNavigate();
   const { fetchGithubToken, fetchGoogleToken } = useAccount();
   const code = params.get("code");
-  const scope = params.get("scope");
   const [loading, setLoading] = useState(true);
-  const [provider, setProvider] = useState<"github" | "google" | null>(null);
+  const provider = params.get("provider") as "github" | "google" | null;
   const fetched = useRef(false);
-
-  useEffect(() => {
-    if (scope?.includes("read:user")) {
-      setProvider("github");
-    } else if (scope?.includes("openid") || scope?.includes("email")) {
-      setProvider("google");
-    } else {
-      const referrer = document.referrer;
-      if (referrer.includes("github.com")) {
-        setProvider("github");
-      } else if (referrer.includes("accounts.google.com")) {
-        setProvider("google");
-      }
-    }
-  }, [scope]);
 
   useEffect(() => {
     if (!code || fetched.current || !provider) return;
@@ -46,7 +30,7 @@ export default function AuthCallback() {
       });
   }, [code, provider, fetchGithubToken, fetchGoogleToken, navigate]);
 
-  if (!code)
+  if (!code || !provider)
     return <Typography>Problem authenticating with OAuth provider</Typography>;
 
   const ProviderIcon =
