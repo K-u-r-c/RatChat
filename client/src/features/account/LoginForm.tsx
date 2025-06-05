@@ -50,7 +50,7 @@ export default function LoginForm() {
     const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
     const redirectUrl = import.meta.env.VITE_REDIRECT_URL;
 
-    window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirectUri=${redirectUrl}&scope=read:user user:email`;
+    window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUrl}?provider=github&scope=read:user user:email`;
   };
 
   const loginWithGoogle = () => {
@@ -58,7 +58,7 @@ export default function LoginForm() {
     const redirectUrl = import.meta.env.VITE_REDIRECT_URL;
     const scope = "openid email profile";
 
-    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUrl}&scope=${scope}&response_type=code`;
+    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUrl}?provider=google&scope=${scope}&response_type=code`;
   };
 
   return (
