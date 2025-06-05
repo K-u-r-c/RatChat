@@ -124,7 +124,7 @@ public class AccountController(
             Code = code,
             ClientId = configuration["Authentication:Google:ClientId"]!,
             ClientSecret = configuration["Authentication:Google:ClientSecret"]!,
-            RedirectUri = $"{configuration["ClientAppUrl"]}/auth-callback"
+            RedirectUri = $"{configuration["ClientAppUrl"]}/auth-callback?provider=google"
         };
 
         var tokenResponse = await httpClient.PostAsJsonAsync(
@@ -245,7 +245,16 @@ public class AccountController(
 
         if (user == null) return Unauthorized();
 
-        return Ok(new { user.DisplayName, user.Email, user.Id, user.ImageUrl });
+        var hasPassword = await signInManager.UserManager.HasPasswordAsync(user);
+
+        return Ok(new
+        {
+            user.DisplayName,
+            user.Email,
+            user.Id,
+            user.ImageUrl,
+            HasPassword = hasPassword
+        });
     }
 
     [HttpPost("logout")]
