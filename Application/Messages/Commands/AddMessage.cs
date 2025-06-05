@@ -22,6 +22,9 @@ public class AddMessage
     {
         public async Task<Result<MessageDto>> Handle(Command request, CancellationToken cancellationToken)
         {
+            if (string.IsNullOrWhiteSpace(request.Body))
+                return Result<MessageDto>.Failure("Can't send empty message", 422);
+
             var chatRoom = await context.ChatRooms
                 .Include(x => x.Messages)
                 .ThenInclude(x => x.User)
