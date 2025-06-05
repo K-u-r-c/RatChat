@@ -14,6 +14,7 @@ export type User = {
   email: string;
   displayName: string;
   imageUrl?: string;
+  hasPassword: boolean;
 };
 
 export type ChatRoom = {
