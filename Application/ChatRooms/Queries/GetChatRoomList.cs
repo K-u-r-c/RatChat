@@ -1,14 +1,13 @@
-using Application.Chats.DTOs;
+using Application.ChatRooms.DTOs;
 using Application.Core;
 using Application.Interfaces;
 using AutoMapper;
 using AutoMapper.QueryableExtensions;
-using Domain;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Persistance;
 
-namespace Application.Chats.Queries;
+namespace Application.ChatRooms.Queries;
 
 public class GetChatRoomList
 {
@@ -32,7 +31,7 @@ public class GetChatRoomList
                 .Select(x => new
                 {
                     ChatRoom = x,
-                    DateJoined = x.Members.FirstOrDefault(m => m.UserId == userId)!.DateJoined
+                    x.Members.FirstOrDefault(m => m.UserId == userId)!.DateJoined
                 });
 
             if (request.Params.Cursor.HasValue)

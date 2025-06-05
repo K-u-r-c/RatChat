@@ -89,7 +89,7 @@ export const useChatRooms = (id?: string) => {
 
   const updateChatRoom = useMutation({
     mutationFn: async (chatRoom: ChatRoom) => {
-      await agent.put("/chatRooms", chatRoom);
+      await agent.put(`/chatRooms/${chatRoom.id}`, chatRoom);
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({

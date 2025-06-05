@@ -1,4 +1,4 @@
-using Application.Chats.DTOs;
+using Application.ChatRooms.DTOs;
 using Application.Messages.DTOs;
 using Application.Profiles.DTOs;
 using AutoMapper;
@@ -14,6 +14,7 @@ public class MappingProfiles : Profile
 
         CreateMap<ChatRoom, ChatRoom>();
         CreateMap<CreateChatRoomDto, ChatRoom>();
+        CreateMap<EditChatRoomDto, ChatRoom>();
         CreateMap<ChatRoom, UserChatRoomDto>();
         CreateMap<ChatRoom, ChatRoomDto>()
             .ForMember(

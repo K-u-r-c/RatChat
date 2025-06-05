@@ -1,6 +1,7 @@
+using Application.ChatRooms.Commands;
+using Application.ChatRooms.DTOs;
+using Application.ChatRooms.Queries;
 using Application.Chats.Commands;
-using Application.Chats.DTOs;
-using Application.Chats.Queries;
 using Application.Core;
 using Infrastructure.Security;
 using MediatR;
@@ -37,6 +38,16 @@ public class ChatRoomsController : BaseApiController
                     CreateChatRoomDto = createChatRoomDto
                 }
             )
+        );
+    }
+
+    [HttpPut("{id}")]
+    [Authorize(Policy = IsAdminStrings.IsChatRoomAdmin)]
+    public async Task<ActionResult<Unit>> UpdateChatRoom(string id, EditChatRoomDto chatRoomDto)
+    {
+        chatRoomDto.Id = id;
+        return HandleResult(
+            await Mediator.Send(new EditChatRoom.Command { ChatRoomDto = chatRoomDto })
         );
     }
 

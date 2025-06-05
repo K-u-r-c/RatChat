@@ -38,7 +38,7 @@ export default function AuthCallback() {
     tokenMutation
       .mutateAsync(code)
       .then(() => {
-        navigate("/activities");
+        navigate("/chat-rooms");
       })
       .catch((error) => {
         if (import.meta.env.DEV) console.log(error);
