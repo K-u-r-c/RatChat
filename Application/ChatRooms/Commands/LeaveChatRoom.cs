@@ -4,7 +4,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Persistance;
 
-namespace Application.Chats.Commands;
+namespace Application.ChatRooms.Commands;
 
 public class LeaveChatRoom
 {

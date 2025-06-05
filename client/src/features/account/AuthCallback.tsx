@@ -2,32 +2,45 @@ import { useNavigate, useSearchParams } from "react-router";
 import { useAccount } from "../../lib/hooks/useAccount";
 import { useEffect, useRef, useState } from "react";
 import { Box, CircularProgress, Paper, Typography } from "@mui/material";
-import { GitHub } from "@mui/icons-material";
+import { GitHub, Google } from "@mui/icons-material";
 
 export default function AuthCallback() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const { fetchGithubToken } = useAccount();
+  const { fetchGithubToken, fetchGoogleToken } = useAccount();
   const code = params.get("code");
   const [loading, setLoading] = useState(true);
+  const provider = params.get("provider") as "github" | "google" | null;
   const fetched = useRef(false);
 
   useEffect(() => {
-    if (!code || fetched.current) return;
+    if (!code || fetched.current || !provider) return;
     fetched.current = true;
+    const tokenMutation =
+      provider === "github" ? fetchGithubToken : fetchGoogleToken;
 
-    fetchGithubToken
+    tokenMutation
       .mutateAsync(code)
       .then(() => {
-        navigate("/activities");
+        navigate("/chat-rooms");
       })
       .catch((error) => {
         if (import.meta.env.DEV) console.log(error);
         setLoading(false);
       });
-  }, [code, fetchGithubToken, navigate]);
+  }, [code, provider, fetchGithubToken, fetchGoogleToken, navigate]);
 
-  if (!code) return <Typography>Problem authenticating with github</Typography>;
+  if (!code || !provider)
+    return <Typography>Problem authenticating with OAuth provider</Typography>;
+
+  const ProviderIcon =
+    provider === "github" ? GitHub : provider === "google" ? Google : null;
+  const providerName =
+    provider === "github"
+      ? "GitHub"
+      : provider === "google"
+      ? "Google"
+      : "Unknown Provider";
 
   return (
     <Paper
@@ -50,13 +63,13 @@ export default function AuthCallback() {
         justifyContent={"center"}
         gap={3}
       >
-        <GitHub fontSize="large" />
-        <Typography variant="h4">Loggin in with GitHub</Typography>
+        {ProviderIcon ? <ProviderIcon fontSize="large" /> : null}
+        <Typography variant="h4">Logging in with {providerName}</Typography>
       </Box>
       {loading ? (
         <CircularProgress />
       ) : (
-        <Typography>Problem signing in with GitHub</Typography>
+        <Typography>Problem signing in with {providerName}</Typography>
       )}
     </Paper>
   );

@@ -1,4 +1,4 @@
-using Application.Chats.DTOs;
+using Application.ChatRooms.DTOs;
 using Application.Core;
 using Application.Interfaces;
 using AutoMapper;
@@ -7,7 +7,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Persistance;
 
-namespace Application.Chats.Queries;
+namespace Application.ChatRooms.Queries;
 
 public class GetChatRoomDetails
 {

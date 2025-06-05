@@ -104,6 +104,18 @@ export const useAccount = () => {
     },
   });
 
+  const fetchGoogleToken = useMutation({
+    mutationFn: async (code: string) => {
+      const response = await agent.post(`/account/google-login?code=${code}`);
+      return response.data;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["user"],
+      });
+    },
+  });
+
   return {
     loginUser,
     logoutUser,
@@ -116,5 +128,6 @@ export const useAccount = () => {
     forgotPassword,
     resetPassword,
     fetchGithubToken,
+    fetchGoogleToken,
   };
 };

@@ -1,4 +1,4 @@
-namespace Application.Chats.DTOs;
+namespace Application.ChatRooms.DTOs;
 
 public class BaseChatRoomDto
 {

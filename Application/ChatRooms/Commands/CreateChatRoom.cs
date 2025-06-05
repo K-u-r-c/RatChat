@@ -1,4 +1,4 @@
-using Application.Chats.DTOs;
+using Application.ChatRooms.DTOs;
 using Application.Core;
 using Application.Interfaces;
 using AutoMapper;
@@ -6,7 +6,7 @@ using Domain;
 using MediatR;
 using Persistance;
 
-namespace Application.Chats.Commands;
+namespace Application.ChatRooms.Commands;
 
 public class CreateChatRoom
 {
