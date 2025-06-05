@@ -1,5 +1,6 @@
 using Application.Messages.Commands;
 using Application.Messages.Queries;
+using Application.Messages.SignalR;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
 
@@ -9,12 +10,18 @@ public class MessageHub(IMediator mediator) : Hub
 {
     public async Task SendMessage(AddMessage.Command command)
     {
-        var message = await mediator.Send(command);
+        try
+        {
+            var message = await HandleSendMessage.TrySendMessageAsync(mediator, command);
 
-        if (!message.IsSuccess || message.Value == null)
-            throw new HubException(message.Error ?? "Failed to add message");
+            await Clients.Group(command.ChatRoomId).SendAsync("ReceiveMessage", message.Value);
+        }
+        catch (SendMessageHubException hubException)
+        {
+            if (hubException.ErrorCode == 422) return;
 
-        await Clients.Group(command.ChatRoomId).SendAsync("ReceiveMessage", message.Value);
+            await Clients.Caller.SendAsync("ReceiveError", hubException.ErrorCode, hubException.Message);
+        }
     }
 
     public override async Task OnConnectedAsync()
