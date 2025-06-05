@@ -263,6 +263,13 @@ public class AccountController(
 
         if (user == null) return Unauthorized();
 
+        var hasPassword = await signInManager.UserManager.HasPasswordAsync(user);
+
+        if (!hasPassword)
+        {
+            return BadRequest("Password change is not available for users authenticated through external providers. Please manage your password through your authentication provider.");
+        }
+
         var result = await signInManager.UserManager
             .ChangePasswordAsync(user, passwordDto.CurrentPassword, passwordDto.NewPassword);
 
