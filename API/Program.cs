@@ -4,6 +4,7 @@ using Application.ChatRooms.Queries;
 using Application.ChatRooms.Validators;
 using Application.Core;
 using Application.Interfaces;
+using Application.Profiles.Validators;
 using Domain;
 using FluentValidation;
 using Infrastructure.Email;
@@ -55,6 +56,7 @@ builder.Services.AddSingleton<IMinioClient>(sp =>
 builder.Services.AddScoped<IFileStorage, MinioStorage>();
 builder.Services.AddAutoMapper(typeof(MappingProfiles).Assembly);
 builder.Services.AddValidatorsFromAssemblyContaining<CreateChatRoomValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<UpdateProfileValidator>();
 builder.Services.AddTransient<ExceptionMiddleware>();
 builder.Services.AddIdentityApiEndpoints<User>(opt =>
 {

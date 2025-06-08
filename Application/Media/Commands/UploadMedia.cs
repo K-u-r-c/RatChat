@@ -35,13 +35,11 @@ public class UploadMedia
             if (file == null || file.Length == 0)
                 return Result<MediaUploadResultDto>.Failure("No file provided", 400);
 
-            // Validate if chat room media requires chatRoomId
             if (MediaHelpers.IsChatRoomMedia(category))
             {
                 if (string.IsNullOrEmpty(request.MediaUploadDto.ChatRoomId))
                     return Result<MediaUploadResultDto>.Failure("ChatRoomId is required for chat room media", 400);
 
-                // Verify user has access to the chat room
                 var hasAccess = await context.ChatRoomMembers
                     .AnyAsync(m => m.ChatRoomId == request.MediaUploadDto.ChatRoomId &&
                                   m.UserId == user.Id, cancellationToken);

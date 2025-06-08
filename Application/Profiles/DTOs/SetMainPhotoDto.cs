@@ -1,4 +1,4 @@
-namespace Application.Media.DTOs;
+namespace Application.Profiles.DTOs;
 
 public class SetMainPhotoDto
 {
