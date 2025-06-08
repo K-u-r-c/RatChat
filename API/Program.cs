@@ -5,6 +5,7 @@ using Application.ChatRooms.Validators;
 using Application.Core;
 using Application.Interfaces;
 using Application.Profiles.Validators;
+using Azure.Storage.Blobs;
 using Domain;
 using FluentValidation;
 using Infrastructure.Email;
@@ -47,14 +48,25 @@ builder.Services.AddTransient<IResend, ResendClient>();
 builder.Services.AddTransient<IEmailSender<User>, EmailSender>();
 builder.Services.AddScoped<IUserAccessor, UserAccessor>();
 builder.Services.AddScoped<IMediaValidator, MediaValidator>();
-var minioConfig = builder.Configuration.GetSection("MinIO");
-builder.Services.AddSingleton<IMinioClient>(sp =>
-    new MinioClient()
-        .WithEndpoint(minioConfig["Endpoint"])
-        .WithCredentials(minioConfig["AccessKey"], minioConfig["SecretKey"])
-        .Build()
-);
-builder.Services.AddScoped<IFileStorage, MinioStorage>();
+if (builder.Environment.IsDevelopment())
+{
+    // MinIO for development
+    var minioConfig = builder.Configuration.GetSection("MinIO");
+    builder.Services.AddSingleton<IMinioClient>(sp =>
+        new MinioClient()
+            .WithEndpoint(minioConfig["Endpoint"])
+            .WithCredentials(minioConfig["AccessKey"], minioConfig["SecretKey"])
+            .Build()
+    );
+    builder.Services.AddScoped<IFileStorage, MinioStorage>();
+}
+else
+{
+    // Azure Blob Storage for production
+    builder.Services.AddSingleton(sp =>
+        new BlobServiceClient(builder.Configuration.GetConnectionString("AzureStorage")));
+    builder.Services.AddScoped<IFileStorage, AzureBlobStorage>();
+}
 builder.Services.AddAutoMapper(typeof(MappingProfiles).Assembly);
 builder.Services.AddValidatorsFromAssemblyContaining<CreateChatRoomValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<UpdateProfileValidator>();

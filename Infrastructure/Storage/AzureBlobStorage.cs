@@ -3,13 +3,17 @@ using Application.Interfaces;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace Infrastructure.Storage;
 
-public class AzureBlobStorage(BlobServiceClient blobServiceClient, IConfiguration configuration)
+public class AzureBlobStorage(
+    BlobServiceClient blobServiceClient,
+    IConfiguration configuration)
     : IFileStorage
 {
     private readonly string _containerName = configuration["AzureStorage:ContainerName"] ?? "media-files";
+    private readonly string _baseUrl = configuration["AzureStorage:BaseUrl"] ?? "";
 
     public async Task<Result<string>> UploadFileAsync(
         Stream fileStream,
@@ -19,22 +23,40 @@ public class AzureBlobStorage(BlobServiceClient blobServiceClient, IConfiguratio
     {
         try
         {
-            var containerClient = await GetContainerClientAsync();
-            var blobName = string.IsNullOrEmpty(folder) ? fileName : $"{folder}/{fileName}";
+            var containerClient = blobServiceClient.GetBlobContainerClient(_containerName);
+            await containerClient.CreateIfNotExistsAsync(PublicAccessType.Blob);
+
+            var blobName = string.IsNullOrEmpty(folder)
+                ? fileName
+                : $"{folder.Trim('/')}/{fileName}";
+
             var blobClient = containerClient.GetBlobClient(blobName);
 
-            var uploadOptions = new BlobUploadOptions
+            var blobUploadOptions = new BlobUploadOptions
             {
-                HttpHeaders = new BlobHttpHeaders { ContentType = contentType }
+                HttpHeaders = new BlobHttpHeaders
+                {
+                    ContentType = contentType,
+                    CacheControl = "public, max-age=31536000" // Cache for 1 year
+                },
+                Metadata = new Dictionary<string, string>
+                {
+                    { "UploadedAt", DateTime.UtcNow.ToString("O") },
+                    { "OriginalName", fileName }
+                }
             };
 
-            await blobClient.UploadAsync(fileStream, uploadOptions);
+            await blobClient.UploadAsync(fileStream, blobUploadOptions);
 
-            return Result<string>.Success(blobClient.Uri.ToString());
+            var blobUrl = string.IsNullOrEmpty(_baseUrl)
+                ? blobClient.Uri.ToString()
+                : $"{_baseUrl.TrimEnd('/')}/{blobName}";
+
+            return Result<string>.Success(blobUrl);
         }
-        catch
+        catch (Exception ex)
         {
-            return Result<string>.Failure("Failed to upload file", 500);
+            return Result<string>.Failure($"Failed to upload file: {ex.Message}", 500);
         }
     }
 
@@ -42,16 +64,28 @@ public class AzureBlobStorage(BlobServiceClient blobServiceClient, IConfiguratio
     {
         try
         {
-            var containerClient = await GetContainerClientAsync();
-            var blobName = string.IsNullOrEmpty(folder) ? fileName : $"{folder}/{fileName}";
+            var containerClient = blobServiceClient.GetBlobContainerClient(_containerName);
+
+            var blobName = string.IsNullOrEmpty(folder)
+                ? fileName
+                : $"{folder.Trim('/')}/{fileName}";
+
             var blobClient = containerClient.GetBlobClient(blobName);
 
-            await blobClient.DeleteIfExistsAsync();
-            return Result<string>.Success("File deleted successfully");
+            var response = await blobClient.DeleteIfExistsAsync();
+
+            if (response.Value)
+            {
+                return Result<string>.Success("File deleted successfully");
+            }
+            else
+            {
+                return Result<string>.Success("File not found (already deleted)");
+            }
         }
-        catch
+        catch (Exception ex)
         {
-            return Result<string>.Failure("Failed to delete file", 500);
+            return Result<string>.Failure($"Failed to delete file: {ex.Message}", 500);
         }
     }
 
@@ -59,31 +93,47 @@ public class AzureBlobStorage(BlobServiceClient blobServiceClient, IConfiguratio
     {
         try
         {
-            var containerClient = await GetContainerClientAsync();
-            var blobName = string.IsNullOrEmpty(folder) ? fileName : $"{folder}/{fileName}";
+            var containerClient = blobServiceClient.GetBlobContainerClient(_containerName);
+
+            var blobName = string.IsNullOrEmpty(folder)
+                ? fileName
+                : $"{folder.Trim('/')}/{fileName}";
+
             var blobClient = containerClient.GetBlobClient(blobName);
 
+            var exists = await blobClient.ExistsAsync();
+            if (!exists.Value)
+            {
+                return Result<Stream>.Failure("File not found", 404);
+            }
+
             var response = await blobClient.DownloadStreamingAsync();
+
             return Result<Stream>.Success(response.Value.Content);
         }
-        catch
+        catch (Exception ex)
         {
-            return Result<Stream>.Failure("Failed to get file", 500);
+            return Result<Stream>.Failure($"Failed to retrieve file: {ex.Message}", 500);
         }
     }
 
     public string GetFileUrl(string fileName, string folder = "")
     {
-        var containerClient = blobServiceClient.GetBlobContainerClient(_containerName);
-        var blobName = string.IsNullOrEmpty(folder) ? fileName : $"{folder}/{fileName}";
-        var blobClient = containerClient.GetBlobClient(blobName);
-        return blobClient.Uri.ToString();
-    }
+        try
+        {
+            var blobName = string.IsNullOrEmpty(folder)
+                ? fileName
+                : $"{folder.Trim('/')}/{fileName}";
 
-    private async Task<BlobContainerClient> GetContainerClientAsync()
-    {
-        var containerClient = blobServiceClient.GetBlobContainerClient(_containerName);
-        await containerClient.CreateIfNotExistsAsync(PublicAccessType.Blob);
-        return containerClient;
+            var publicUrl = string.IsNullOrEmpty(_baseUrl)
+                ? $"https://{blobServiceClient.AccountName}.blob.core.windows.net/{_containerName}/{blobName}"
+                : $"{_baseUrl.TrimEnd('/')}/{blobName}";
+
+            return publicUrl;
+        }
+        catch
+        {
+            return string.Empty;
+        }
     }
 }
