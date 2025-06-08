@@ -7,6 +7,7 @@ import {
 import { useEffect, useRef } from "react";
 import type { ChatMessage } from "../types";
 import { runInAction } from "mobx";
+import { toast} from "react-toastify";
 
 export const useMessages = (chatRoomId?: string) => {
   const created = useRef(false);
@@ -44,6 +45,11 @@ export const useMessages = (chatRoomId?: string) => {
         runInAction(() => {
           this.messages.unshift(message);
         });
+      });
+
+      this.hubConnection.on("ReceiveError", (errorCode, message) => {
+        if (import.meta.env.DEV) console.log(errorCode, message);
+        toast.error(`Error ${errorCode} - ${message}`);
       });
     },
     stopHubConnection() {
