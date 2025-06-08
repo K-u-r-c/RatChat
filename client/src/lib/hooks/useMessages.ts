@@ -49,7 +49,7 @@ export const useMessages = (chatRoomId?: string) => {
 
       this.hubConnection.on("ReceiveError", (errorCode, message) => {
         if (import.meta.env.DEV) console.log(errorCode, message);
-        toast.error(`Error ${errorCode} - ${message}`);
+        toast.error(message);
       });
     },
     stopHubConnection() {
