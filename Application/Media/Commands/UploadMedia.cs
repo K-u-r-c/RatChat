@@ -5,6 +5,7 @@ using Application.Media.Helpers;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Persistance;
+using System.Security.Cryptography;
 
 namespace Application.Media.Commands;
 
@@ -62,6 +63,30 @@ public class UploadMedia
                     $"File size must be less than {maxSize}MB for {category}", 400);
             }
 
+            using var stream = file.OpenReadStream();
+            var fileHash = await CalculateFileHashAsync(stream, cancellationToken);
+            stream.Position = 0;
+
+            var existingMedia = await context.MediaFiles
+                .FirstOrDefaultAsync(m => m.FileHash == fileHash &&
+                                        m.Category == category.ToString(),
+                                   cancellationToken);
+
+            if (existingMedia != null)
+            {
+                return Result<MediaUploadResultDto>.Success(new MediaUploadResultDto
+                {
+                    Url = existingMedia.Url,
+                    PublicId = existingMedia.PublicId,
+                    MediaType = existingMedia.MediaType,
+                    FileSize = existingMedia.FileSize,
+                    OriginalFileName = file.FileName,
+                    Category = category,
+                    ChatRoomId = request.MediaUploadDto.ChatRoomId,
+                    ChannelId = request.MediaUploadDto.ChannelId
+                });
+            }
+
             var folderPath = MediaHelpers.GetFolderPath(
                 category,
                 user.Id,
@@ -71,12 +96,29 @@ public class UploadMedia
             var fileExtension = Path.GetExtension(file.FileName);
             var fileName = $"{Guid.NewGuid()}{fileExtension}";
 
-            using var stream = file.OpenReadStream();
-            var uploadResult =
-                await fileStorage.UploadFileAsync(stream, fileName, file.ContentType, folderPath);
+            var uploadResult = await fileStorage.UploadFileAsync(stream, fileName, file.ContentType, folderPath);
 
             if (!uploadResult.IsSuccess)
                 return Result<MediaUploadResultDto>.Failure(uploadResult.Error!, uploadResult.Code);
+
+            var mediaFile = new Domain.MediaFile
+            {
+                Id = Guid.NewGuid().ToString(),
+                PublicId = fileName,
+                Url = uploadResult.Value!,
+                MediaType = file.ContentType,
+                FileSize = file.Length,
+                OriginalFileName = file.FileName,
+                Category = category.ToString(),
+                ChatRoomId = request.MediaUploadDto.ChatRoomId,
+                ChannelId = request.MediaUploadDto.ChannelId,
+                UploadedById = user.Id,
+                FileHash = fileHash,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            context.MediaFiles.Add(mediaFile);
+            await context.SaveChangesAsync(cancellationToken);
 
             return Result<MediaUploadResultDto>.Success(new MediaUploadResultDto
             {
@@ -89,6 +131,13 @@ public class UploadMedia
                 ChatRoomId = request.MediaUploadDto.ChatRoomId,
                 ChannelId = request.MediaUploadDto.ChannelId
             });
+        }
+
+        private static async Task<string> CalculateFileHashAsync(Stream stream, CancellationToken cancellationToken)
+        {
+            using var sha256 = SHA256.Create();
+            var hashBytes = await sha256.ComputeHashAsync(stream, cancellationToken);
+            return Convert.ToBase64String(hashBytes);
         }
     }
 }

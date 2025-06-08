@@ -18,6 +18,7 @@ public class DeleteMedia
         public MediaCategory Category { get; set; }
         public string? ChatRoomId { get; set; }
         public string? ChannelId { get; set; }
+        public bool ForceDelete { get; set; } = false;
     }
 
     public class Handler(
@@ -31,7 +32,6 @@ public class DeleteMedia
         {
             var user = await userAccessor.GetUserAsync();
 
-            // Validate access for chat room media
             if (MediaHelpers.IsChatRoomMedia(request.Category))
             {
                 if (string.IsNullOrEmpty(request.ChatRoomId))
@@ -45,23 +45,50 @@ public class DeleteMedia
                     return Result<Unit>.Failure("User does not have access to this chat room", 403);
             }
 
-            var folderPath = MediaHelpers.GetFolderPath(
-                request.Category,
-                user.Id,
-                request.ChatRoomId,
-                request.ChannelId);
+            var mediaFile = await context.MediaFiles
+                .FirstOrDefaultAsync(m => m.PublicId == request.PublicId, cancellationToken);
 
-            var deleteResult = await fileStorage.DeleteFileAsync(request.PublicId, folderPath);
-
-            if (!deleteResult.IsSuccess)
-                return Result<Unit>.Failure(deleteResult.Error!, deleteResult.Code);
-
-            // Update user profile if it's a profile image
-            if (request.Category == MediaCategory.ProfileImage &&
-                user.ImageUrl?.Contains(request.PublicId) == true)
+            if (mediaFile != null)
             {
-                user.ImageUrl = null;
-                await userManager.UpdateAsync(user);
+                mediaFile.ReferenceCount--;
+
+                if (mediaFile.ReferenceCount <= 0 || request.ForceDelete)
+                {
+                    var folderPath = MediaHelpers.GetFolderPath(
+                        request.Category,
+                        user.Id,
+                        request.ChatRoomId,
+                        request.ChannelId);
+
+                    var deleteResult = await fileStorage.DeleteFileAsync(request.PublicId, folderPath);
+
+                    if (!deleteResult.IsSuccess && !request.ForceDelete)
+                        return Result<Unit>.Failure(deleteResult.Error!, deleteResult.Code);
+
+                    context.MediaFiles.Remove(mediaFile);
+
+                    if (request.Category == MediaCategory.ProfileImage &&
+                        user.ImageUrl?.Contains(request.PublicId) == true)
+                    {
+                        user.ImageUrl = null;
+                        await userManager.UpdateAsync(user);
+                    }
+                }
+
+                await context.SaveChangesAsync(cancellationToken);
+            }
+            else
+            {
+                var folderPath = MediaHelpers.GetFolderPath(
+                    request.Category,
+                    user.Id,
+                    request.ChatRoomId,
+                    request.ChannelId);
+
+                var deleteResult = await fileStorage.DeleteFileAsync(request.PublicId, folderPath);
+
+                if (!deleteResult.IsSuccess)
+                    return Result<Unit>.Failure(deleteResult.Error!, deleteResult.Code);
             }
 
             return Result<Unit>.Success(Unit.Value);

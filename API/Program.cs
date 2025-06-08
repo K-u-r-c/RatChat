@@ -10,6 +10,7 @@ using FluentValidation;
 using Infrastructure.Email;
 using Infrastructure.Media;
 using Infrastructure.Security;
+using Infrastructure.Services;
 using Infrastructure.Storage;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -58,6 +59,7 @@ builder.Services.AddAutoMapper(typeof(MappingProfiles).Assembly);
 builder.Services.AddValidatorsFromAssemblyContaining<CreateChatRoomValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<UpdateProfileValidator>();
 builder.Services.AddTransient<ExceptionMiddleware>();
+builder.Services.AddHostedService<MediaCleanupService>();
 builder.Services.AddIdentityApiEndpoints<User>(opt =>
 {
     opt.User.RequireUniqueEmail = true;
