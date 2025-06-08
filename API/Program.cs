@@ -7,11 +7,14 @@ using Application.Interfaces;
 using Domain;
 using FluentValidation;
 using Infrastructure.Email;
+using Infrastructure.Media;
 using Infrastructure.Security;
+using Infrastructure.Storage;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Minio;
 using Persistance;
 using Resend;
 
@@ -41,6 +44,15 @@ builder.Services.Configure<ResendClientOptions>(opt =>
 builder.Services.AddTransient<IResend, ResendClient>();
 builder.Services.AddTransient<IEmailSender<User>, EmailSender>();
 builder.Services.AddScoped<IUserAccessor, UserAccessor>();
+builder.Services.AddScoped<IMediaValidator, MediaValidator>();
+var minioConfig = builder.Configuration.GetSection("MinIO");
+builder.Services.AddSingleton<IMinioClient>(sp =>
+    new MinioClient()
+        .WithEndpoint(minioConfig["Endpoint"])
+        .WithCredentials(minioConfig["AccessKey"], minioConfig["SecretKey"])
+        .Build()
+);
+builder.Services.AddScoped<IFileStorage, MinioStorage>();
 builder.Services.AddAutoMapper(typeof(MappingProfiles).Assembly);
 builder.Services.AddValidatorsFromAssemblyContaining<CreateChatRoomValidator>();
 builder.Services.AddTransient<ExceptionMiddleware>();
