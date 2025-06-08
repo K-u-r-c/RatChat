@@ -11,6 +11,7 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
     public required DbSet<ChatRoomMember> ChatRoomMembers { get; set; }
     public required DbSet<Message> Messages { get; set; }
     public required DbSet<UserFollowing> UserFollowings { get; set; }
+    public required DbSet<MediaFile> MediaFiles { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -41,6 +42,35 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
                 .HasForeignKey(o => o.TargetId)
                 .OnDelete(DeleteBehavior.NoAction);
         });
+
+        builder.Entity<MediaFile>(x =>
+       {
+           x.HasKey(m => m.Id);
+           x.Property(m => m.PublicId).IsRequired();
+           x.Property(m => m.Url).IsRequired();
+           x.Property(m => m.MediaType).IsRequired();
+           x.Property(m => m.OriginalFileName).IsRequired();
+           x.Property(m => m.Category).IsRequired();
+           x.Property(m => m.UploadedById).IsRequired();
+           x.Property(m => m.FileHash).IsRequired();
+           x.Property(m => m.ReferenceCount).HasDefaultValue(1);
+
+           // Index for performance
+           x.HasIndex(m => m.FileHash);
+           x.HasIndex(m => m.PublicId);
+           x.HasIndex(m => new { m.Category, m.ChatRoomId });
+
+           // Relationships
+           x.HasOne(m => m.UploadedBy)
+               .WithMany()
+               .HasForeignKey(m => m.UploadedById)
+               .OnDelete(DeleteBehavior.Cascade);
+
+           x.HasOne(m => m.ChatRoom)
+               .WithMany()
+               .HasForeignKey(m => m.ChatRoomId)
+               .OnDelete(DeleteBehavior.Cascade);
+       });
 
         var dateTimeConverter = new ValueConverter<DateTime, DateTime>(
             v => v.ToUniversalTime(),

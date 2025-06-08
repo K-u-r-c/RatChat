@@ -54,7 +54,7 @@ export default function UserMenu() {
         </MenuItem>
         <MenuItem
           component={Link}
-          to={`/profiles/idhere`}
+          to={`/profiles/${currentUser?.id}`}
           onClick={handleClose}
         >
           <ListItemIcon>

@@ -4,14 +4,20 @@ using Application.ChatRooms.Queries;
 using Application.ChatRooms.Validators;
 using Application.Core;
 using Application.Interfaces;
+using Application.Profiles.Validators;
+using Azure.Storage.Blobs;
 using Domain;
 using FluentValidation;
 using Infrastructure.Email;
+using Infrastructure.Media;
 using Infrastructure.Security;
+using Infrastructure.Services;
+using Infrastructure.Storage;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Minio;
 using Persistance;
 using Resend;
 
@@ -41,9 +47,31 @@ builder.Services.Configure<ResendClientOptions>(opt =>
 builder.Services.AddTransient<IResend, ResendClient>();
 builder.Services.AddTransient<IEmailSender<User>, EmailSender>();
 builder.Services.AddScoped<IUserAccessor, UserAccessor>();
+builder.Services.AddScoped<IMediaValidator, MediaValidator>();
+if (builder.Environment.IsDevelopment())
+{
+    // MinIO for development
+    var minioConfig = builder.Configuration.GetSection("MinIO");
+    builder.Services.AddSingleton<IMinioClient>(sp =>
+        new MinioClient()
+            .WithEndpoint(minioConfig["Endpoint"])
+            .WithCredentials(minioConfig["AccessKey"], minioConfig["SecretKey"])
+            .Build()
+    );
+    builder.Services.AddScoped<IFileStorage, MinioStorage>();
+}
+else
+{
+    // Azure Blob Storage for production
+    builder.Services.AddSingleton(sp =>
+        new BlobServiceClient(builder.Configuration.GetConnectionString("AzureStorage")));
+    builder.Services.AddScoped<IFileStorage, AzureBlobStorage>();
+}
 builder.Services.AddAutoMapper(typeof(MappingProfiles).Assembly);
 builder.Services.AddValidatorsFromAssemblyContaining<CreateChatRoomValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<UpdateProfileValidator>();
 builder.Services.AddTransient<ExceptionMiddleware>();
+builder.Services.AddHostedService<MediaCleanupService>();
 builder.Services.AddIdentityApiEndpoints<User>(opt =>
 {
     opt.User.RequireUniqueEmail = true;
