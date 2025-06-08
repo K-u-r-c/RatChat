@@ -3,6 +3,8 @@ using Application.Interfaces;
 using Application.Media.DTOs;
 using Application.Media.Helpers;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
+using Persistance;
 
 namespace Application.Media.Commands;
 
@@ -16,7 +18,8 @@ public class UploadMedia
     public class Handler(
         IFileStorage fileStorage,
         IUserAccessor userAccessor,
-        IMediaValidator mediaValidator)
+        IMediaValidator mediaValidator,
+        AppDbContext context)
         : IRequestHandler<Command, Result<MediaUploadResultDto>>
     {
         public async Task<Result<MediaUploadResultDto>> Handle(Command request, CancellationToken cancellationToken)
@@ -32,6 +35,21 @@ public class UploadMedia
             if (file == null || file.Length == 0)
                 return Result<MediaUploadResultDto>.Failure("No file provided", 400);
 
+            // Validate if chat room media requires chatRoomId
+            if (MediaHelpers.IsChatRoomMedia(category))
+            {
+                if (string.IsNullOrEmpty(request.MediaUploadDto.ChatRoomId))
+                    return Result<MediaUploadResultDto>.Failure("ChatRoomId is required for chat room media", 400);
+
+                // Verify user has access to the chat room
+                var hasAccess = await context.ChatRoomMembers
+                    .AnyAsync(m => m.ChatRoomId == request.MediaUploadDto.ChatRoomId &&
+                                  m.UserId == user.Id, cancellationToken);
+
+                if (!hasAccess)
+                    return Result<MediaUploadResultDto>.Failure("User does not have access to this chat room", 403);
+            }
+
             if (!mediaValidator.IsValidMediaType(file.ContentType, category))
             {
                 var allowedExtensions = string.Join(", ", mediaValidator.GetAllowedExtensions(category));
@@ -46,17 +64,18 @@ public class UploadMedia
                     $"File size must be less than {maxSize}MB for {category}", 400);
             }
 
-            var folder = MediaHelpers.GetFolderName(category);
-
-            if (string.IsNullOrEmpty(folder))
-                return Result<MediaUploadResultDto>.Failure("Invalid media category", 400);
+            var folderPath = MediaHelpers.GetFolderPath(
+                category,
+                user.Id,
+                request.MediaUploadDto.ChatRoomId,
+                request.MediaUploadDto.ChannelId);
 
             var fileExtension = Path.GetExtension(file.FileName);
-            var fileName = $"{user.Id}_{Guid.NewGuid()}{fileExtension}";
+            var fileName = $"{Guid.NewGuid()}{fileExtension}";
 
             using var stream = file.OpenReadStream();
             var uploadResult =
-                await fileStorage.UploadFileAsync(stream, fileName, file.ContentType, folder);
+                await fileStorage.UploadFileAsync(stream, fileName, file.ContentType, folderPath);
 
             if (!uploadResult.IsSuccess)
                 return Result<MediaUploadResultDto>.Failure(uploadResult.Error!, uploadResult.Code);
@@ -67,7 +86,10 @@ public class UploadMedia
                 PublicId = fileName,
                 MediaType = file.ContentType,
                 FileSize = file.Length,
-                OriginalFileName = file.FileName
+                OriginalFileName = file.FileName,
+                Category = category,
+                ChatRoomId = request.MediaUploadDto.ChatRoomId,
+                ChannelId = request.MediaUploadDto.ChannelId
             });
         }
     }
