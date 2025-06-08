@@ -26,14 +26,17 @@ const ChatRoomDetailsChat = observer(function ChatRoomDetailsChat() {
 
   const addComment = async (data: FieldValues) => {
     try {
-      await messageStore.hubConnection?.invoke("SendMessage", {
-        chatRoomId: id,
-        body: data.body,
-      });
-
-      reset();
+      const trimmedBody = data.body?.trimEnd();
+      if (trimmedBody) {
+        await messageStore.hubConnection?.invoke("SendMessage", {
+          chatRoomId: id,
+          body: trimmedBody,
+        });
+      }
     } catch (error) {
       console.log(error);
+    } finally {
+      reset();
     }
   };
 
