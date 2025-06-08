@@ -1,3 +1,4 @@
+using Application.Core;
 using Application.Messages.Commands;
 using Application.Messages.Queries;
 using Application.Messages.SignalR;
@@ -18,7 +19,7 @@ public class MessageHub(IMediator mediator) : Hub
         }
         catch (SendMessageHubException hubException)
         {
-            if (hubException.ErrorCode == 422) return;
+            if (hubException.ErrorCode == ErrorCodes.WillNotBeProcessed) return;
 
             await Clients.Caller.SendAsync("ReceiveError", hubException.ErrorCode, hubException.Message);
         }
