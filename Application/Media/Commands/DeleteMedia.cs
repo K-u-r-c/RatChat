@@ -50,6 +50,11 @@ public class DeleteMedia
 
             if (mediaFile != null)
             {
+                if (!MediaHelpers.IsChatRoomMedia(request.Category) && mediaFile.UploadedById != user.Id)
+                {
+                    return Result<Unit>.Failure("You do not have permission to delete this media file.", 403);
+                }
+
                 mediaFile.ReferenceCount--;
 
                 if (mediaFile.ReferenceCount <= 0 || request.ForceDelete)

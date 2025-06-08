@@ -1,6 +1,6 @@
-using System.Reactive;
 using Application.Media.Commands;
 using Application.Media.DTOs;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
 namespace API.Controllers;

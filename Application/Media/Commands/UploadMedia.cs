@@ -74,6 +74,9 @@ public class UploadMedia
 
             if (existingMedia != null)
             {
+                existingMedia.ReferenceCount++;
+                await context.SaveChangesAsync(cancellationToken);
+
                 return Result<MediaUploadResultDto>.Success(new MediaUploadResultDto
                 {
                     Url = existingMedia.Url,

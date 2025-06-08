@@ -1,6 +1,7 @@
 using Application.Core;
 using Application.Interfaces;
 using MediatR;
+using Domain;
 using Application.Profiles.DTOs;
 using Persistance;
 using Microsoft.EntityFrameworkCore;
@@ -38,15 +39,6 @@ public class SetMainPhoto
 
             user.ImageUrl = request.SetMainPhotoDto.MediaUrl;
 
-            var newMediaFile = await context.MediaFiles
-                .FirstOrDefaultAsync(m => m.PublicId == request.SetMainPhotoDto.PublicId,
-                                   cancellationToken);
-
-            if (newMediaFile != null)
-            {
-                newMediaFile.ReferenceCount++;
-            }
-
             if (!string.IsNullOrEmpty(oldPublicId))
             {
                 var oldMediaFile = await context.MediaFiles
@@ -59,7 +51,7 @@ public class SetMainPhoto
                     if (oldMediaFile.ReferenceCount <= 0)
                     {
                         var folderPath = MediaHelpers.GetFolderPath(
-                            Enum.Parse<Application.Media.DTOs.MediaCategory>(oldMediaFile.Category),
+                            Enum.Parse<Media.DTOs.MediaCategory>(oldMediaFile.Category),
                             user.Id);
 
                         await fileStorage.DeleteFileAsync(oldMediaFile.PublicId, folderPath);
@@ -67,6 +59,15 @@ public class SetMainPhoto
                         context.MediaFiles.Remove(oldMediaFile);
                     }
                 }
+            }
+
+            var newMediaFile = await context.MediaFiles
+                .FirstOrDefaultAsync(m => m.PublicId == request.SetMainPhotoDto.PublicId,
+                                   cancellationToken);
+
+            if (newMediaFile != null && await IsFileUsedElsewhere(context, newMediaFile.PublicId, user.Id, cancellationToken))
+            {
+                newMediaFile.ReferenceCount++;
             }
 
             var result = await context.SaveChangesAsync(cancellationToken) > 0;
@@ -89,6 +90,15 @@ public class SetMainPhoto
             {
                 return null;
             }
+        }
+
+        private static async Task<bool> IsFileUsedElsewhere(AppDbContext context, string publicId, string userId, CancellationToken cancellationToken)
+        {
+            var isUsedByOtherUsers = await context.Users
+                .AnyAsync(u => u.Id != userId && u.ImageUrl != null && u.ImageUrl.Contains(publicId),
+                         cancellationToken);
+
+            return isUsedByOtherUsers;
         }
     }
 }
