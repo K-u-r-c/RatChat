@@ -1,8 +1,9 @@
 import Popover from "@mui/material/Popover";
 import type { Profile } from "../../../lib/types";
 import { useState, type MouseEvent } from "react";
-import { Avatar, Typography } from "@mui/material";
+import { Avatar } from "@mui/material";
 import { Link } from "react-router";
+import ProfileCard from "./ProfileCard";
 
 type Props = {
   profile: Profile;
@@ -50,8 +51,13 @@ export default function AvatarPopover({ profile }: Props) {
         }}
         onClose={handlePopoverClose}
         disableRestoreFocus
+        slotProps={{
+          paper: {
+            sx: { borderRadius: 4 },
+          },
+        }}
       >
-        <Typography>Profile card goes here</Typography>
+        <ProfileCard profile={profile} />
       </Popover>
     </>
   );

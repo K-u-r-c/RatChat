@@ -17,16 +17,26 @@ import { useAccount } from "../../lib/hooks/useAccount";
 
 type Props = {
   onUploadComplete: () => void;
+  imageType: "profile" | "banner";
 };
 
-export default function PhotoUploadWidget({ onUploadComplete }: Props) {
+export default function ImageUploadWidget({
+  onUploadComplete,
+  imageType,
+}: Props) {
   const { currentUser } = useAccount();
   const [preview, setPreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [croppedImage, setCroppedImage] = useState<string | null>(null);
   const cropperRef = useRef<ReactCropperElement>(null);
   const { uploadMedia } = useMedia();
-  const { setMainPhoto } = useProfiles();
+  const { setProfileImage } = useProfiles();
+
+  const isProfileImage = imageType === "profile";
+  const aspectRatio = isProfileImage ? 1 : 16 / 9;
+  const category = isProfileImage
+    ? MediaCategory.ProfileImage
+    : MediaCategory.ProfileBackground;
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -44,7 +54,7 @@ export default function PhotoUploadWidget({ onUploadComplete }: Props) {
       "image/*": [".jpeg", ".jpg", ".png", ".gif", ".webp"],
     },
     maxFiles: 1,
-    maxSize: 5 * 1024 * 1024, // 5MB
+    maxSize: isProfileImage ? 5 * 1024 * 1024 : 25 * 1024 * 1024, // 5MB for profile, 25MB for banner
   });
 
   const handleCrop = () => {
@@ -61,18 +71,23 @@ export default function PhotoUploadWidget({ onUploadComplete }: Props) {
     try {
       const res = await fetch(croppedImage);
       const blob = await res.blob();
-      const file = new File([blob], selectedFile?.name || "cropped-image.png", {
-        type: blob.type,
-      });
+      const file = new File(
+        [blob],
+        selectedFile?.name || `cropped-${imageType}.png`,
+        {
+          type: blob.type,
+        }
+      );
 
       const uploadResult = await uploadMedia.mutateAsync({
         file,
-        category: MediaCategory.ProfileImage,
+        category,
       });
 
-      await setMainPhoto.mutateAsync({
+      await setProfileImage.mutateAsync({
         mediaUrl: uploadResult.url,
         publicId: uploadResult.publicId,
+        imageType,
         userId: currentUser?.id ?? "",
       });
 
@@ -91,7 +106,9 @@ export default function PhotoUploadWidget({ onUploadComplete }: Props) {
     }
   };
 
-  const isUploading = uploadMedia.isPending || setMainPhoto.isPending;
+  const isUploading = uploadMedia.isPending || setProfileImage.isPending;
+  const maxSize = isProfileImage ? "5MB" : "10MB";
+  const title = isProfileImage ? "profile photo" : "banner";
 
   return (
     <Box>
@@ -108,26 +125,44 @@ export default function PhotoUploadWidget({ onUploadComplete }: Props) {
             "&:hover": {
               backgroundColor: "action.hover",
             },
+            minHeight: isProfileImage ? 200 : 150,
           }}
         >
           <input {...getInputProps()} />
           <CloudUpload sx={{ fontSize: 48, color: "grey.400", mb: 1 }} />
           <Typography variant="h6" gutterBottom>
-            Drop your image here
+            Drop your {title} here
           </Typography>
           <Typography variant="body2" color="text.secondary">
             or click to select a file
           </Typography>
           <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-            Accepted formats: JPEG, PNG, GIF, WebP (max 5MB)
+            Accepted formats: JPEG, PNG, GIF, WebP (max {maxSize})
           </Typography>
+          {!isProfileImage && (
+            <Typography variant="caption" display="block" color="primary">
+              Recommended size: 1920 x 1080 pixels
+            </Typography>
+          )}
         </Paper>
       ) : !croppedImage ? (
-        <Box textAlign="center">
+        <Box
+          textAlign="center"
+          sx={{
+            width: isProfileImage ? 320 : 700,
+            mx: "auto",
+            mb: 2,
+            maxWidth: "100%",
+          }}
+        >
           <Cropper
             src={preview}
-            style={{ height: 300, width: "100%" }}
-            aspectRatio={1}
+            style={{
+              height: isProfileImage ? 320 : 400,
+              width: isProfileImage ? 320 : 700,
+              margin: "0 auto",
+            }}
+            aspectRatio={aspectRatio}
             guides={false}
             viewMode={1}
             background={false}
@@ -154,15 +189,31 @@ export default function PhotoUploadWidget({ onUploadComplete }: Props) {
         </Box>
       ) : (
         <Box textAlign="center">
-          <Avatar
-            src={croppedImage}
-            sx={{
-              width: 200,
-              height: 200,
-              mx: "auto",
-              mb: 2,
-            }}
-          />
+          {isProfileImage ? (
+            <Avatar
+              src={croppedImage}
+              sx={{
+                width: 200,
+                height: 200,
+                mx: "auto",
+                mb: 2,
+              }}
+            />
+          ) : (
+            <Box
+              sx={{
+                width: "100%",
+                height: 200,
+                backgroundImage: `url(${croppedImage})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                borderRadius: 2,
+                mb: 2,
+                border: "1px solid",
+                borderColor: "grey.300",
+              }}
+            />
+          )}
           <Box display="flex" gap={2} justifyContent="center">
             <Button
               variant="contained"

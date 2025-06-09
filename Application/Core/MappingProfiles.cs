@@ -30,6 +30,7 @@ public class MappingProfiles : Profile
             .ForMember(d => d.Bio, o => o.MapFrom(s => s.User.Bio))
             .ForMember(d => d.Id, o => o.MapFrom(s => s.User.Id))
             .ForMember(d => d.ImageUrl, o => o.MapFrom(s => s.User.ImageUrl))
+            .ForMember(d => d.BannerUrl, o => o.MapFrom(s => s.User.BannerUrl))
             .ForMember(
                 d => d.FollowersCount,
                 o => o.MapFrom(s => s.User.Followers.Count)
