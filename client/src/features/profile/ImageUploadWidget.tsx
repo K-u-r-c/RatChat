@@ -107,7 +107,7 @@ export default function ImageUploadWidget({
   };
 
   const isUploading = uploadMedia.isPending || setProfileImage.isPending;
-  const maxSize = isProfileImage ? "5MB" : "10MB";
+  const maxSize = isProfileImage ? "5MB" : "25MB";
   const title = isProfileImage ? "profile photo" : "banner";
 
   return (

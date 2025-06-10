@@ -5,9 +5,11 @@ public class SetProfileImageDto
     public required string MediaUrl { get; set; }
     public required string PublicId { get; set; }
 
-    /** 
-    * "profile" - for profile picture
-    * "banner"  - for banner image
-    */
+    /// <summary>
+    /// <para>
+    /// "profile" - for profile picture<br/>
+    /// "banner"  - for banner image
+    /// </para>
+    /// </summary>
     public required string ImageType { get; set; }
 }

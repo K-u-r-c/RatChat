@@ -16,7 +16,7 @@ public class MediaValidator : IMediaValidator
         [MediaCategory.ProfileBackground] = new MediaConfig
         {
             AllowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"],
-            MaxFileSize = 10 * 1024 * 1024, // 10MB
+            MaxFileSize = 25 * 1024 * 1024, // 25MB
             AllowedExtensions = [".jpg", ".jpeg", ".png", ".gif", ".webp"]
         },
         [MediaCategory.ChatRoomImage] = new MediaConfig
@@ -34,7 +34,7 @@ public class MediaValidator : IMediaValidator
         [MediaCategory.ChatRoomAudio] = new MediaConfig
         {
             AllowedTypes = ["audio/mpeg", "audio/wav", "audio/flac", "audio/aac", "audio/ogg"],
-            MaxFileSize = 50 * 1024 * 1024, // 50MB
+            MaxFileSize = 10 * 1024 * 1024, // 10MB
             AllowedExtensions = [".mp3", ".wav", ".flac", ".aac", ".ogg"]
         },
         [MediaCategory.ChatRoomDocument] = new MediaConfig
