@@ -4,7 +4,6 @@ using Application.Account.DTOs;
 using Domain;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
@@ -253,6 +252,7 @@ public class AccountController(
             user.Email,
             user.Id,
             user.ImageUrl,
+            user.BannerUrl,
             HasPassword = hasPassword
         });
     }

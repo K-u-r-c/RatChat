@@ -22,11 +22,11 @@ public class ProfilesController : BaseApiController
         ));
     }
 
-    [HttpPost("set-main-photo")]
-    public async Task<ActionResult<Unit>> SetMainPhoto(SetMainPhotoDto setMainPhotoDto)
+    [HttpPost("set-profile-image")]
+    public async Task<ActionResult<Unit>> SetMainPhoto(SetProfileImageDto setProfileImageDto)
     {
         return HandleResult(await Mediator.Send(
-            new SetMainPhoto.Command { SetMainPhotoDto = setMainPhotoDto }
+            new SetProfileImage.Command { SetProfileImageDto = setProfileImageDto }
         ));
     }
 }

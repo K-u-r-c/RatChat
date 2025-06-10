@@ -1,7 +1,6 @@
 using Application.Core;
 using Application.Interfaces;
 using MediatR;
-using Domain;
 using Application.Profiles.DTOs;
 using Persistance;
 using Microsoft.EntityFrameworkCore;
@@ -9,11 +8,11 @@ using Application.Media.Helpers;
 
 namespace Application.Profiles.Commands;
 
-public class SetMainPhoto
+public class SetProfileImage
 {
     public class Command : IRequest<Result<Unit>>
     {
-        public required SetMainPhotoDto SetMainPhotoDto { get; set; }
+        public required SetProfileImageDto SetProfileImageDto { get; set; }
     }
 
     public class Handler(
@@ -29,7 +28,8 @@ public class SetMainPhoto
             if (user == null)
                 return Result<Unit>.Failure("User not found", 404);
 
-            string? oldImageUrl = user.ImageUrl;
+            var imageType = request.SetProfileImageDto.ImageType.ToLower();
+            string? oldImageUrl = imageType == "profile" ? user.ImageUrl : user.BannerUrl;
             string? oldPublicId = null;
 
             if (!string.IsNullOrEmpty(oldImageUrl))
@@ -37,7 +37,18 @@ public class SetMainPhoto
                 oldPublicId = ExtractPublicIdFromUrl(oldImageUrl);
             }
 
-            user.ImageUrl = request.SetMainPhotoDto.MediaUrl;
+            if (imageType == "profile")
+            {
+                user.ImageUrl = request.SetProfileImageDto.MediaUrl;
+            }
+            else if (imageType == "banner")
+            {
+                user.BannerUrl = request.SetProfileImageDto.MediaUrl;
+            }
+            else
+            {
+                return Result<Unit>.Failure("Invalid image type.", 400);
+            }
 
             if (!string.IsNullOrEmpty(oldPublicId))
             {
@@ -50,9 +61,11 @@ public class SetMainPhoto
 
                     if (oldMediaFile.ReferenceCount <= 0)
                     {
-                        var folderPath = MediaHelpers.GetFolderPath(
-                            Enum.Parse<Media.DTOs.MediaCategory>(oldMediaFile.Category),
-                            user.Id);
+                        var category = imageType == "profile"
+                            ? Media.DTOs.MediaCategory.ProfileImage
+                            : Media.DTOs.MediaCategory.ProfileBackground;
+
+                        var folderPath = MediaHelpers.GetFolderPath(category, user.Id);
 
                         await fileStorage.DeleteFileAsync(oldMediaFile.PublicId, folderPath);
 
@@ -62,10 +75,11 @@ public class SetMainPhoto
             }
 
             var newMediaFile = await context.MediaFiles
-                .FirstOrDefaultAsync(m => m.PublicId == request.SetMainPhotoDto.PublicId,
+                .FirstOrDefaultAsync(m => m.PublicId == request.SetProfileImageDto.PublicId,
                                    cancellationToken);
 
-            if (newMediaFile != null && await IsFileUsedElsewhere(context, newMediaFile.PublicId, user.Id, cancellationToken))
+            if (newMediaFile != null &&
+                await IsFileUsedElsewhere(context, newMediaFile.PublicId, user.Id, cancellationToken))
             {
                 newMediaFile.ReferenceCount++;
             }
@@ -74,7 +88,7 @@ public class SetMainPhoto
 
             return result
                 ? Result<Unit>.Success(Unit.Value)
-                : Result<Unit>.Failure("Failed to set main photo", 400);
+                : Result<Unit>.Failure("Failed to set profile image", 400);
         }
 
         private static string? ExtractPublicIdFromUrl(string url)
@@ -92,10 +106,16 @@ public class SetMainPhoto
             }
         }
 
-        private static async Task<bool> IsFileUsedElsewhere(AppDbContext context, string publicId, string userId, CancellationToken cancellationToken)
+        private static async Task<bool> IsFileUsedElsewhere(
+            AppDbContext context,
+            string publicId,
+            string userId,
+            CancellationToken cancellationToken)
         {
             var isUsedByOtherUsers = await context.Users
-                .AnyAsync(u => u.Id != userId && u.ImageUrl != null && u.ImageUrl.Contains(publicId),
+                .AnyAsync(u => u.Id != userId &&
+                              ((u.ImageUrl != null && u.ImageUrl.Contains(publicId)) ||
+                               (u.BannerUrl != null && u.BannerUrl.Contains(publicId))),
                          cancellationToken);
 
             return isUsedByOtherUsers;

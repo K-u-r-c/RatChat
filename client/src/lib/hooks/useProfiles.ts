@@ -8,9 +8,10 @@ export type UpdateProfileData = {
   bio?: string;
 };
 
-export type SetMainPhotoData = {
+export type SetProfileImageData = {
   mediaUrl: string;
   publicId: string;
+  imageType: "profile" | "banner";
   userId: string;
 };
 
@@ -44,16 +45,18 @@ export const useProfiles = (id?: string) => {
     },
   });
 
-  const setMainPhoto = useMutation({
-    mutationFn: async (data: SetMainPhotoData) => {
-      await agent.post("/profiles/set-main-photo", data);
+  const setProfileImage = useMutation({
+    mutationFn: async (data: SetProfileImageData) => {
+      await agent.post("/profiles/set-profile-image", data);
     },
     onSuccess: async (_, data) => {
       queryClient.setQueryData(["user"], (user: User) => {
         if (!user) return user;
         return {
           ...user,
-          imageUrl: data.mediaUrl,
+          ...(data.imageType === "profile"
+            ? { imageUrl: data.mediaUrl }
+            : { bannerUrl: data.mediaUrl }),
         };
       });
       if (data.userId) {
@@ -63,7 +66,9 @@ export const useProfiles = (id?: string) => {
             if (!profile) return profile;
             return {
               ...profile,
-              imageUrl: data.mediaUrl,
+              ...(data.imageType === "profile"
+                ? { imageUrl: data.mediaUrl }
+                : { bannerUrl: data.mediaUrl }),
             };
           }
         );
@@ -72,10 +77,14 @@ export const useProfiles = (id?: string) => {
         });
       }
       await queryClient.invalidateQueries({ queryKey: ["profiles"] });
-      toast.success("Profile photo updated successfully");
+      const message =
+        data.imageType === "profile"
+          ? "Profile photo updated successfully"
+          : "Banner updated successfully";
+      toast.success(message);
     },
     onError: () => {
-      toast.error("Failed to update profile photo");
+      toast.error("Failed to update image");
     },
   });
 
@@ -83,6 +92,6 @@ export const useProfiles = (id?: string) => {
     profile,
     isLoadingProfile,
     updateProfile,
-    setMainPhoto,
+    setProfileImage,
   };
 };

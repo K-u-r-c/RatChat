@@ -14,6 +14,7 @@ export type User = {
   email: string;
   displayName: string;
   imageUrl?: string;
+  bannerUrl?: string;
   hasPassword: boolean;
 };
 
@@ -42,6 +43,7 @@ export type Profile = {
   displayName: string;
   bio?: string;
   imageUrl?: string;
+  bannerUrl?: string;
   followersCount?: number;
   followingCount?: number;
   following?: boolean;
