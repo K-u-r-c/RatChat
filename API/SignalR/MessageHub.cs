@@ -25,6 +25,27 @@ public class MessageHub(IMediator mediator) : Hub
         }
     }
 
+    public async Task LoadMoreMessages(string chatRoomId, DateTime? cursor, int pageSize = 20)
+    {
+        try
+        {
+            var result = await mediator.Send(
+                new GetMessages.Query
+                {
+                    ChatRoomId = chatRoomId,
+                    Cursor = cursor,
+                    PageSize = pageSize
+                }
+            );
+
+            await Clients.Caller.SendAsync("ReceiveOlderMessages", result.Value);
+        }
+        catch
+        {
+            await Clients.Caller.SendAsync("ReceiveError", 500, "Failed to load more messages");
+        }
+    }
+
     public override async Task OnConnectedAsync()
     {
         var httpContext = Context.GetHttpContext();
@@ -34,8 +55,16 @@ public class MessageHub(IMediator mediator) : Hub
 
         await Groups.AddToGroupAsync(Context.ConnectionId, chatRoomId!);
 
-        var result =
-            await mediator.Send(new GetMessages.Query { ChatRoomId = chatRoomId! });
+        var initialPageSize =
+            int.TryParse(httpContext?.Request.Query["initialPageSize"], out var size) ? size : 20;
+
+        var result = await mediator.Send(
+            new GetMessages.Query
+            {
+                ChatRoomId = chatRoomId!,
+                PageSize = initialPageSize
+            }
+        );
 
         await Clients.Caller.SendAsync("LoadMessages", result.Value);
     }

@@ -2,5 +2,5 @@ namespace Application.Core;
 
 public static class ErrorCodes
 {
-    public static int WillNotBeProcessed = 422;
+    public const int WillNotBeProcessed = 422;
 }
