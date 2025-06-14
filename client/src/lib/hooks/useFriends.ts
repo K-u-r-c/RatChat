@@ -8,9 +8,11 @@ import type {
   SendFriendRequestRequest,
   RespondToFriendRequestRequest,
 } from "../types";
+import { useAccount } from "./useAccount";
 
 export const useFriends = () => {
   const queryClient = useQueryClient();
+  const { currentUser } = useAccount();
 
   const { data: friends, isLoading: isLoadingFriends } = useQuery({
     queryKey: ["friends"],
@@ -42,15 +44,71 @@ export const useFriends = () => {
   const sendFriendRequest = useMutation({
     mutationFn: async (data: SendFriendRequestRequest) => {
       await agent.post("/friends/request", data);
+      return data;
+    },
+    onSuccess: async (requestData) => {
+      queryClient.setQueryData(
+        ["friend-requests"],
+        (old: FriendRequestsResponse | undefined) => {
+          if (!old) return old;
+
+          const tempRequest = {
+            id: `temp-${Date.now()}`,
+            senderId: currentUser?.id || "",
+            senderDisplayName: currentUser?.displayName || "",
+            senderImageUrl: currentUser?.imageUrl,
+            receiverId: "",
+            receiverDisplayName: "",
+            receiverImageUrl: undefined,
+            status: "Pending" as const,
+            createdAt: new Date(),
+            message: requestData.message,
+          };
+
+          return {
+            ...old,
+            sent: [tempRequest, ...old.sent],
+          };
+        }
+      );
+
+      await queryClient.invalidateQueries({
+        queryKey: ["friend-requests"],
+      });
     },
     onError: () => {
       toast.error("Failed to send friend request");
+      queryClient.invalidateQueries({
+        queryKey: ["friend-requests"],
+      });
     },
   });
 
   const respondToFriendRequest = useMutation({
     mutationFn: async (data: RespondToFriendRequestRequest) => {
       await agent.post("/friends/request/respond", data);
+      return data;
+    },
+    onSuccess: async (responseData) => {
+      queryClient.setQueryData(
+        ["friend-requests"],
+        (old: FriendRequestsResponse | undefined) => {
+          if (!old) return old;
+
+          return {
+            ...old,
+            received: old.received.filter(
+              (req) => req.id !== responseData.requestId
+            ),
+          };
+        }
+      );
+
+      if (responseData.accept) {
+        await queryClient.invalidateQueries({
+          queryKey: ["friends"],
+        });
+      }
     },
     onError: () => {
       toast.error("Failed to respond to friend request");
@@ -60,6 +118,20 @@ export const useFriends = () => {
   const cancelFriendRequest = useMutation({
     mutationFn: async (requestId: string) => {
       await agent.delete(`/friends/request/${requestId}`);
+      return requestId;
+    },
+    onSuccess: async (requestId) => {
+      queryClient.setQueryData(
+        ["friend-requests"],
+        (old: FriendRequestsResponse | undefined) => {
+          if (!old) return old;
+
+          return {
+            ...old,
+            sent: old.sent.filter((req) => req.id !== requestId),
+          };
+        }
+      );
     },
     onError: () => {
       toast.error("Failed to cancel friend request");
@@ -69,8 +141,9 @@ export const useFriends = () => {
   const removeFriend = useMutation({
     mutationFn: async (friendId: string) => {
       await agent.delete(`/friends/${friendId}`);
+      return friendId;
     },
-    onSuccess: (_, friendId) => {
+    onSuccess: (friendId) => {
       queryClient.setQueryData(["friends"], (old: Friend[] | undefined) => {
         if (!old) return old;
         return old.filter((friend) => friend.id !== friendId);

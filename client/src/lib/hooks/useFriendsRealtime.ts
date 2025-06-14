@@ -17,7 +17,6 @@ export const useFriendsRealtime = () => {
     hubConnection: null as HubConnection | null,
 
     createHubConnection() {
-      // Create SignalR connection
       this.hubConnection = new HubConnectionBuilder()
         .withUrl(
           import.meta.env.VITE_FRIENDS_URL || "https://localhost:5001/friends",
@@ -28,23 +27,13 @@ export const useFriendsRealtime = () => {
         .withAutomaticReconnect()
         .build();
 
-      // Start connection
-      this.hubConnection
-        .start()
-        .then(() => {
-          console.log("Friends SignalR connection established");
-        })
-        .catch((error) => {
-          console.error("Error establishing friends connection:", error);
-        });
+      this.hubConnection.start().catch((error) => {
+        console.error("Error establishing friends connection:", error);
+      });
 
-      // Handle friend request received
       this.hubConnection.on(
         "FriendRequestReceived",
         (friendRequest: FriendRequest) => {
-          console.log("Friend request received:", friendRequest);
-
-          // Update friend requests cache
           queryClient.setQueryData(
             ["friend-requests"],
             (old: FriendRequestsResponse | undefined) => {
@@ -56,7 +45,6 @@ export const useFriendsRealtime = () => {
             }
           );
 
-          // Show notification
           toast.info(
             `${friendRequest.senderDisplayName} sent you a friend request!`,
             {
@@ -66,13 +54,9 @@ export const useFriendsRealtime = () => {
         }
       );
 
-      // Handle friend request accepted
       this.hubConnection.on(
         "FriendRequestAccepted",
         (receiverId: string, newFriend: Friend) => {
-          console.log("Friend request accepted:", newFriend);
-
-          // Add to friends list
           queryClient.setQueryData(["friends"], (old: Friend[] | undefined) => {
             if (!old) return [newFriend];
             return [newFriend, ...old].sort((a, b) =>
@@ -80,7 +64,6 @@ export const useFriendsRealtime = () => {
             );
           });
 
-          // Remove from sent requests
           queryClient.setQueryData(
             ["friend-requests"],
             (old: FriendRequestsResponse | undefined) => {
@@ -98,11 +81,7 @@ export const useFriendsRealtime = () => {
         }
       );
 
-      // Handle friend request declined
       this.hubConnection.on("FriendRequestDeclined", (receiverId: string) => {
-        console.log("Friend request declined by:", receiverId);
-
-        // Remove from sent requests
         queryClient.setQueryData(
           ["friend-requests"],
           (old: FriendRequestsResponse | undefined) => {
@@ -117,13 +96,9 @@ export const useFriendsRealtime = () => {
         toast.info("Your friend request was declined");
       });
 
-      // Handle friend request removed (after accept/decline)
       this.hubConnection.on(
         "FriendRequestRemoved",
         (receiverId: string, senderId: string) => {
-          console.log("Friend request removed:", { receiverId, senderId });
-
-          // Remove from both sent and received requests
           queryClient.setQueryData(
             ["friend-requests"],
             (old: FriendRequestsResponse | undefined) => {
@@ -147,11 +122,7 @@ export const useFriendsRealtime = () => {
         }
       );
 
-      // Handle friend request cancelled
       this.hubConnection.on("FriendRequestCancelled", (requestId: string) => {
-        console.log("Friend request cancelled:", requestId);
-
-        // Remove from received requests
         queryClient.setQueryData(
           ["friend-requests"],
           (old: FriendRequestsResponse | undefined) => {
@@ -164,11 +135,7 @@ export const useFriendsRealtime = () => {
         );
       });
 
-      // Handle friend added (when current user accepts a request)
       this.hubConnection.on("FriendAdded", (newFriend: Friend) => {
-        console.log("Friend added:", newFriend);
-
-        // Add to friends list
         queryClient.setQueryData(["friends"], (old: Friend[] | undefined) => {
           if (!old) return [newFriend];
           return [newFriend, ...old].sort((a, b) =>
@@ -177,11 +144,7 @@ export const useFriendsRealtime = () => {
         });
       });
 
-      // Handle friend removed
       this.hubConnection.on("FriendRemoved", (removedByUserId: string) => {
-        console.log("Friend removed by:", removedByUserId);
-
-        // Remove from friends list
         queryClient.setQueryData(["friends"], (old: Friend[] | undefined) => {
           if (!old) return old;
           const removedFriend = old.find(
