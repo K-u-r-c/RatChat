@@ -13,7 +13,10 @@ public class RemoveFriend
         public required string FriendId { get; set; }
     }
 
-    public class Handler(AppDbContext context, IUserAccessor userAccessor)
+    public class Handler(
+        AppDbContext context,
+        IUserAccessor userAccessor,
+        IFriendsNotificationService notificationService)
         : IRequestHandler<Command, Result<Unit>>
     {
         public async Task<Result<Unit>> Handle(Command request, CancellationToken cancellationToken)
@@ -33,9 +36,13 @@ public class RemoveFriend
 
             var result = await context.SaveChangesAsync(cancellationToken) > 0;
 
-            return result
-                ? Result<Unit>.Success(Unit.Value)
-                : Result<Unit>.Failure("Failed to remove friend", 400);
+            if (result)
+            {
+                await notificationService.NotifyFriendRemoved(request.FriendId, currentUser.Id);
+                return Result<Unit>.Success(Unit.Value);
+            }
+
+            return Result<Unit>.Failure("Failed to remove friend", 400);
         }
     }
 }

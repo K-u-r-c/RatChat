@@ -1,6 +1,7 @@
 using Application.Core;
 using Application.Friends.DTOs;
 using Application.Interfaces;
+using AutoMapper;
 using Domain;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -15,7 +16,11 @@ public class SendFriendRequest
         public required SendFriendRequestDto SendFriendRequestDto { get; set; }
     }
 
-    public class Handler(AppDbContext context, IUserAccessor userAccessor)
+    public class Handler(
+        AppDbContext context,
+        IUserAccessor userAccessor,
+        IFriendsNotificationService notificationService,
+        IMapper mapper)
         : IRequestHandler<Command, Result<Unit>>
     {
         public async Task<Result<Unit>> Handle(Command request, CancellationToken cancellationToken)
@@ -65,9 +70,23 @@ public class SendFriendRequest
 
             var result = await context.SaveChangesAsync(cancellationToken) > 0;
 
-            return result
-                ? Result<Unit>.Success(Unit.Value)
-                : Result<Unit>.Failure("Failed to send friend request", 400);
+            if (result)
+            {
+                var friendRequestWithDetails = await context.FriendRequests
+                    .Include(fr => fr.Sender)
+                    .Include(fr => fr.Receiver)
+                    .FirstOrDefaultAsync(fr => fr.Id == friendRequest.Id, cancellationToken);
+
+                if (friendRequestWithDetails != null)
+                {
+                    var friendRequestDto = mapper.Map<FriendRequestDto>(friendRequestWithDetails);
+                    await notificationService.NotifyFriendRequestSent(targetUser.Id, friendRequestDto);
+                }
+
+                return Result<Unit>.Success(Unit.Value);
+            }
+
+            return Result<Unit>.Failure("Failed to send friend request", 400);
         }
     }
 }

@@ -13,6 +13,7 @@ using Infrastructure.Email;
 using Infrastructure.Media;
 using Infrastructure.Security;
 using Infrastructure.Services;
+using Infrastructure.SignalR;
 using Infrastructure.Storage;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -49,6 +50,7 @@ builder.Services.AddTransient<IResend, ResendClient>();
 builder.Services.AddTransient<IEmailSender<User>, EmailSender>();
 builder.Services.AddScoped<IUserAccessor, UserAccessor>();
 builder.Services.AddScoped<IMediaValidator, MediaValidator>();
+builder.Services.AddScoped<IFriendsNotificationService, FriendsNotificationService>();
 if (builder.Environment.IsDevelopment())
 {
     // MinIO for development
@@ -113,6 +115,7 @@ app.UseStaticFiles();
 app.MapControllers();
 app.MapGroup("api").MapIdentityApi<User>();
 app.MapHub<MessageHub>("/messages");
+app.MapHub<FriendsHub>("/friends");
 app.MapFallbackToController("Index", "Fallback");
 
 using var scope = app.Services.CreateScope();

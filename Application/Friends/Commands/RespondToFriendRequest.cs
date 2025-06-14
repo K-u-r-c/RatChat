@@ -1,6 +1,7 @@
 using Application.Core;
 using Application.Friends.DTOs;
 using Application.Interfaces;
+using AutoMapper;
 using Domain;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -15,7 +16,10 @@ public class RespondToFriendRequest
         public required RespondToFriendRequestDto RespondToFriendRequestDto { get; set; }
     }
 
-    public class Handler(AppDbContext context, IUserAccessor userAccessor)
+    public class Handler(
+        AppDbContext context,
+        IUserAccessor userAccessor,
+        IFriendsNotificationService notificationService)
         : IRequestHandler<Command, Result<Unit>>
     {
         public async Task<Result<Unit>> Handle(Command request, CancellationToken cancellationToken)
@@ -24,6 +28,7 @@ public class RespondToFriendRequest
 
             var friendRequest = await context.FriendRequests
                 .Include(fr => fr.Sender)
+                .Include(fr => fr.Receiver)
                 .FirstOrDefaultAsync(fr =>
                     fr.Id == request.RespondToFriendRequestDto.RequestId &&
                     fr.ReceiverId == currentUser.Id &&
@@ -31,6 +36,9 @@ public class RespondToFriendRequest
 
             if (friendRequest == null)
                 return Result<Unit>.Failure("Friend request not found", 404);
+
+            FriendDto? newFriendForSender = null;
+            FriendDto? newFriendForReceiver = null;
 
             if (request.RespondToFriendRequestDto.Accept)
             {
@@ -52,6 +60,31 @@ public class RespondToFriendRequest
                 };
 
                 context.UserFriends.AddRange(friendship1, friendship2);
+
+                // Prepare friend DTOs for real-time notifications
+                newFriendForSender = new FriendDto
+                {
+                    Id = currentUser.Id,
+                    DisplayName = currentUser.DisplayName ?? "",
+                    Bio = currentUser.Bio,
+                    ImageUrl = currentUser.ImageUrl,
+                    BannerUrl = currentUser.BannerUrl,
+                    FriendsSince = friendship2.FriendsSince,
+                    IsOnline = false, // TODO: Implement online status
+                    LastSeen = null // TODO: Implement last seen
+                };
+
+                newFriendForReceiver = new FriendDto
+                {
+                    Id = friendRequest.Sender.Id,
+                    DisplayName = friendRequest.Sender.DisplayName ?? "",
+                    Bio = friendRequest.Sender.Bio,
+                    ImageUrl = friendRequest.Sender.ImageUrl,
+                    BannerUrl = friendRequest.Sender.BannerUrl,
+                    FriendsSince = friendship1.FriendsSince,
+                    IsOnline = false, // TODO: Implement online status
+                    LastSeen = null // TODO: Implement last seen
+                };
             }
             else
             {
@@ -62,9 +95,28 @@ public class RespondToFriendRequest
 
             var result = await context.SaveChangesAsync(cancellationToken) > 0;
 
-            return result
-                ? Result<Unit>.Success(Unit.Value)
-                : Result<Unit>.Failure("Failed to respond to friend request", 400);
+            if (result)
+            {
+                if (request.RespondToFriendRequestDto.Accept && newFriendForSender != null)
+                {
+                    await notificationService.NotifyFriendRequestResponded(
+                        friendRequest.SenderId,
+                        currentUser.Id,
+                        true,
+                        newFriendForSender);
+                }
+                else
+                {
+                    await notificationService.NotifyFriendRequestResponded(
+                        friendRequest.SenderId,
+                        currentUser.Id,
+                        false);
+                }
+
+                return Result<Unit>.Success(Unit.Value);
+            }
+
+            return Result<Unit>.Failure("Failed to respond to friend request", 400);
         }
     }
 }

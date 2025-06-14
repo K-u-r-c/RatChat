@@ -101,6 +101,7 @@ export default function FriendsList() {
       setSearchCode("");
       setFriendRequestMessage("");
       setShowAddDialog(false);
+      toast.success("Friend request sent!");
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error("Error searching for friend:", error);
@@ -110,12 +111,53 @@ export default function FriendsList() {
 
   const handleStartChat = async () => {
     // TODO: Implement chat room creation or navigation logic
+    toast.info("Direct messaging coming soon!");
   };
 
   const copyFriendCode = () => {
     if (currentUser?.friendCode) {
       navigator.clipboard.writeText(currentUser.friendCode);
       toast.success("Friend code copied to clipboard!");
+    }
+  };
+
+  const handleAcceptRequest = async (requestId: string) => {
+    try {
+      await respondToFriendRequest.mutateAsync({
+        requestId,
+        accept: true,
+      });
+    } catch (error) {
+      console.error("Error accepting friend request:", error);
+    }
+  };
+
+  const handleDeclineRequest = async (requestId: string) => {
+    try {
+      await respondToFriendRequest.mutateAsync({
+        requestId,
+        accept: false,
+      });
+    } catch (error) {
+      console.error("Error declining friend request:", error);
+    }
+  };
+
+  const handleCancelRequest = async (requestId: string) => {
+    try {
+      await cancelFriendRequest.mutateAsync(requestId);
+    } catch (error) {
+      console.error("Error cancelling friend request:", error);
+    }
+  };
+
+  const handleRemoveFriend = async (friendId: string) => {
+    if (window.confirm("Are you sure you want to remove this friend?")) {
+      try {
+        await removeFriend.mutateAsync(friendId);
+      } catch (error) {
+        console.error("Error removing friend:", error);
+      }
     }
   };
 
@@ -217,8 +259,9 @@ export default function FriendsList() {
                           <Message />
                         </IconButton>
                         <IconButton
-                          onClick={() => removeFriend.mutate(friend.id)}
+                          onClick={() => handleRemoveFriend(friend.id)}
                           color="error"
+                          disabled={removeFriend.isPending}
                         >
                           <PersonRemove />
                         </IconButton>
@@ -277,24 +320,16 @@ export default function FriendsList() {
                           <ListItemSecondaryAction>
                             <Box sx={{ display: "flex", gap: 1 }}>
                               <IconButton
-                                onClick={() =>
-                                  respondToFriendRequest.mutate({
-                                    requestId: request.id,
-                                    accept: true,
-                                  })
-                                }
+                                onClick={() => handleAcceptRequest(request.id)}
                                 color="success"
+                                disabled={respondToFriendRequest.isPending}
                               >
                                 <Check />
                               </IconButton>
                               <IconButton
-                                onClick={() =>
-                                  respondToFriendRequest.mutate({
-                                    requestId: request.id,
-                                    accept: false,
-                                  })
-                                }
+                                onClick={() => handleDeclineRequest(request.id)}
                                 color="error"
+                                disabled={respondToFriendRequest.isPending}
                               >
                                 <Close />
                               </IconButton>
@@ -347,9 +382,8 @@ export default function FriendsList() {
                             <Button
                               size="small"
                               color="error"
-                              onClick={() =>
-                                cancelFriendRequest.mutate(request.id)
-                              }
+                              onClick={() => handleCancelRequest(request.id)}
+                              disabled={cancelFriendRequest.isPending}
                             >
                               Cancel
                             </Button>
@@ -437,6 +471,7 @@ export default function FriendsList() {
               onClick={() => regenerateFriendCode.mutate()}
               variant="text"
               color="warning"
+              disabled={regenerateFriendCode.isPending}
             >
               Generate New Code
             </Button>

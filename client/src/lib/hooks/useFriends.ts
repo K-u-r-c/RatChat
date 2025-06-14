@@ -43,10 +43,6 @@ export const useFriends = () => {
     mutationFn: async (data: SendFriendRequestRequest) => {
       await agent.post("/friends/request", data);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["friend-requests"] });
-      toast.success("Friend request sent!");
-    },
     onError: () => {
       toast.error("Failed to send friend request");
     },
@@ -55,15 +51,6 @@ export const useFriends = () => {
   const respondToFriendRequest = useMutation({
     mutationFn: async (data: RespondToFriendRequestRequest) => {
       await agent.post("/friends/request/respond", data);
-    },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["friend-requests"] });
-      queryClient.invalidateQueries({ queryKey: ["friends"] });
-      toast.success(
-        variables.accept
-          ? "Friend request accepted!"
-          : "Friend request declined"
-      );
     },
     onError: () => {
       toast.error("Failed to respond to friend request");
@@ -74,10 +61,6 @@ export const useFriends = () => {
     mutationFn: async (requestId: string) => {
       await agent.delete(`/friends/request/${requestId}`);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["friend-requests"] });
-      toast.success("Friend request cancelled");
-    },
     onError: () => {
       toast.error("Failed to cancel friend request");
     },
@@ -87,12 +70,16 @@ export const useFriends = () => {
     mutationFn: async (friendId: string) => {
       await agent.delete(`/friends/${friendId}`);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["friends"] });
+    onSuccess: (_, friendId) => {
+      queryClient.setQueryData(["friends"], (old: Friend[] | undefined) => {
+        if (!old) return old;
+        return old.filter((friend) => friend.id !== friendId);
+      });
       toast.success("Friend removed");
     },
     onError: () => {
       toast.error("Failed to remove friend");
+      queryClient.invalidateQueries({ queryKey: ["friends"] });
     },
   });
 

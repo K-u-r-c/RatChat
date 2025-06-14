@@ -14,7 +14,10 @@ public class CancelFriendRequest
         public required string RequestId { get; set; }
     }
 
-    public class Handler(AppDbContext context, IUserAccessor userAccessor)
+    public class Handler(
+        AppDbContext context,
+        IUserAccessor userAccessor,
+        IFriendsNotificationService notificationService)
         : IRequestHandler<Command, Result<Unit>>
     {
         public async Task<Result<Unit>> Handle(Command request, CancellationToken cancellationToken)
@@ -30,13 +33,20 @@ public class CancelFriendRequest
             if (friendRequest == null)
                 return Result<Unit>.Failure("Friend request not found", 404);
 
+            var receiverId = friendRequest.ReceiverId;
+
             friendRequest.Status = FriendRequestStatus.Cancelled;
 
             var result = await context.SaveChangesAsync(cancellationToken) > 0;
 
-            return result
-                ? Result<Unit>.Success(Unit.Value)
-                : Result<Unit>.Failure("Failed to cancel friend request", 400);
+            if (result)
+            {
+                await notificationService.NotifyFriendRequestCancelled(receiverId, request.RequestId);
+
+                return Result<Unit>.Success(Unit.Value);
+            }
+
+            return Result<Unit>.Failure("Failed to cancel friend request", 400);
         }
     }
 }
