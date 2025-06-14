@@ -3,6 +3,7 @@ using API.SignalR;
 using Application.ChatRooms.Queries;
 using Application.ChatRooms.Validators;
 using Application.Core;
+using Application.Friends.Validators;
 using Application.Interfaces;
 using Application.Profiles.Validators;
 using Azure.Storage.Blobs;
@@ -70,6 +71,7 @@ else
 builder.Services.AddAutoMapper(typeof(MappingProfiles).Assembly);
 builder.Services.AddValidatorsFromAssemblyContaining<CreateChatRoomValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<UpdateProfileValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<SendFriendRequestValidator>();
 builder.Services.AddTransient<ExceptionMiddleware>();
 builder.Services.AddHostedService<MediaCleanupService>();
 builder.Services.AddIdentityApiEndpoints<User>(opt =>
