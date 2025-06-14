@@ -253,8 +253,27 @@ public class AccountController(
             user.Id,
             user.ImageUrl,
             user.BannerUrl,
+            user.FriendCode,
             HasPassword = hasPassword
         });
+    }
+
+    [HttpPost("regenerate-friend-code")]
+    public async Task<ActionResult> RegenerateFriendCode()
+    {
+        var user = await signInManager.UserManager.GetUserAsync(User);
+
+        if (user == null) return Unauthorized();
+
+        user.RegenerateFriendCode();
+        var result = await signInManager.UserManager.UpdateAsync(user);
+
+        if (result.Succeeded)
+        {
+            return Ok(new { FriendCode = user.FriendCode });
+        }
+
+        return BadRequest("Failed to regenerate friend code");
     }
 
     [HttpPost("logout")]

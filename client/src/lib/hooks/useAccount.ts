@@ -116,6 +116,25 @@ export const useAccount = () => {
     },
   });
 
+  const regenerateFriendCode = useMutation({
+    mutationFn: async () => {
+      const response = await agent.post<{ friendCode: string }>(
+        "/account/regenerate-friend-code"
+      );
+      return response.data;
+    },
+    onSuccess: async (data) => {
+      queryClient.setQueryData(["user"], (user: User) => {
+        if (!user) return user;
+        return { ...user, friendCode: data.friendCode };
+      });
+      toast.success("Friend code regenerated!");
+    },
+    onError: () => {
+      toast.error("Failed to regenerate friend code");
+    },
+  });
+
   return {
     loginUser,
     logoutUser,
@@ -129,5 +148,6 @@ export const useAccount = () => {
     resetPassword,
     fetchGithubToken,
     fetchGoogleToken,
+    regenerateFriendCode,
   };
 };

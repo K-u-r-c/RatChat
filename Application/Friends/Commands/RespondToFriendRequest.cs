@@ -1,0 +1,122 @@
+using Application.Core;
+using Application.Friends.DTOs;
+using Application.Interfaces;
+using AutoMapper;
+using Domain;
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+using Persistance;
+
+namespace Application.Friends.Commands;
+
+public class RespondToFriendRequest
+{
+    public class Command : IRequest<Result<Unit>>
+    {
+        public required RespondToFriendRequestDto RespondToFriendRequestDto { get; set; }
+    }
+
+    public class Handler(
+        AppDbContext context,
+        IUserAccessor userAccessor,
+        IFriendsNotificationService notificationService)
+        : IRequestHandler<Command, Result<Unit>>
+    {
+        public async Task<Result<Unit>> Handle(Command request, CancellationToken cancellationToken)
+        {
+            var currentUser = await userAccessor.GetUserAsync();
+
+            var friendRequest = await context.FriendRequests
+                .Include(fr => fr.Sender)
+                .Include(fr => fr.Receiver)
+                .FirstOrDefaultAsync(fr =>
+                    fr.Id == request.RespondToFriendRequestDto.RequestId &&
+                    fr.ReceiverId == currentUser.Id &&
+                    fr.Status == FriendRequestStatus.Pending, cancellationToken);
+
+            if (friendRequest == null)
+                return Result<Unit>.Failure("Friend request not found", 404);
+
+            FriendDto? newFriendForSender = null;
+            FriendDto? newFriendForReceiver = null;
+
+            if (request.RespondToFriendRequestDto.Accept)
+            {
+                // Accept the request
+                friendRequest.Status = FriendRequestStatus.Accepted;
+                friendRequest.RespondedAt = DateTime.UtcNow;
+
+                // Create friendship both ways
+                var friendship1 = new UserFriend
+                {
+                    UserId = currentUser.Id,
+                    FriendId = friendRequest.SenderId
+                };
+
+                var friendship2 = new UserFriend
+                {
+                    UserId = friendRequest.SenderId,
+                    FriendId = currentUser.Id
+                };
+
+                context.UserFriends.AddRange(friendship1, friendship2);
+
+                // Prepare friend DTOs for real-time notifications
+                newFriendForSender = new FriendDto
+                {
+                    Id = currentUser.Id,
+                    DisplayName = currentUser.DisplayName ?? "",
+                    Bio = currentUser.Bio,
+                    ImageUrl = currentUser.ImageUrl,
+                    BannerUrl = currentUser.BannerUrl,
+                    FriendsSince = friendship2.FriendsSince,
+                    IsOnline = false, // TODO: Implement online status
+                    LastSeen = null // TODO: Implement last seen
+                };
+
+                newFriendForReceiver = new FriendDto
+                {
+                    Id = friendRequest.Sender.Id,
+                    DisplayName = friendRequest.Sender.DisplayName ?? "",
+                    Bio = friendRequest.Sender.Bio,
+                    ImageUrl = friendRequest.Sender.ImageUrl,
+                    BannerUrl = friendRequest.Sender.BannerUrl,
+                    FriendsSince = friendship1.FriendsSince,
+                    IsOnline = false, // TODO: Implement online status
+                    LastSeen = null // TODO: Implement last seen
+                };
+            }
+            else
+            {
+                // Decline the request
+                friendRequest.Status = FriendRequestStatus.Declined;
+                friendRequest.RespondedAt = DateTime.UtcNow;
+            }
+
+            var result = await context.SaveChangesAsync(cancellationToken) > 0;
+
+            if (result)
+            {
+                if (request.RespondToFriendRequestDto.Accept && newFriendForSender != null)
+                {
+                    await notificationService.NotifyFriendRequestResponded(
+                        friendRequest.SenderId,
+                        currentUser.Id,
+                        true,
+                        newFriendForSender);
+                }
+                else
+                {
+                    await notificationService.NotifyFriendRequestResponded(
+                        friendRequest.SenderId,
+                        currentUser.Id,
+                        false);
+                }
+
+                return Result<Unit>.Success(Unit.Value);
+            }
+
+            return Result<Unit>.Failure("Failed to respond to friend request", 400);
+        }
+    }
+}

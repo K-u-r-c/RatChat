@@ -10,8 +10,9 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
     public required DbSet<ChatRoom> ChatRooms { get; set; }
     public required DbSet<ChatRoomMember> ChatRoomMembers { get; set; }
     public required DbSet<Message> Messages { get; set; }
-    public required DbSet<UserFollowing> UserFollowings { get; set; }
     public required DbSet<MediaFile> MediaFiles { get; set; }
+    public required DbSet<UserFriend> UserFriends { get; set; }
+    public required DbSet<FriendRequest> FriendRequests { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -29,48 +30,72 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
             .WithMany(x => x.Members)
             .HasForeignKey(x => x.ChatRoomId);
 
-        builder.Entity<UserFollowing>(x =>
+        builder.Entity<UserFriend>(x =>
         {
-            x.HasKey(k => new { k.ObserverId, k.TargetId });
-            x.HasOne(o => o.Observer)
-                .WithMany(f => f.Followings)
-                .HasForeignKey(o => o.ObserverId)
+            x.HasKey(k => new { k.UserId, k.FriendId });
+
+            x.HasOne(f => f.User)
+                .WithMany(u => u.Friends)
+                .HasForeignKey(f => f.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            x.HasOne(o => o.Target)
-                .WithMany(f => f.Followers)
-                .HasForeignKey(o => o.TargetId)
+            x.HasOne(f => f.Friend)
+                .WithMany(u => u.FriendOf)
+                .HasForeignKey(f => f.FriendId)
                 .OnDelete(DeleteBehavior.NoAction);
         });
 
+        builder.Entity<FriendRequest>(x =>
+        {
+            x.HasKey(fr => fr.Id);
+
+            x.HasOne(fr => fr.Sender)
+                .WithMany(u => u.SentFriendRequests)
+                .HasForeignKey(fr => fr.SenderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            x.HasOne(fr => fr.Receiver)
+                .WithMany(u => u.ReceivedFriendRequests)
+                .HasForeignKey(fr => fr.ReceiverId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            // Prevent duplicate friend requests
+            x.HasIndex(fr => new { fr.SenderId, fr.ReceiverId })
+                .IsUnique()
+                .HasFilter("[Status] = 0"); // Only for pending requests
+        });
+
+        builder.Entity<User>()
+            .HasIndex(u => u.FriendCode)
+            .IsUnique();
+
         builder.Entity<MediaFile>(x =>
-       {
-           x.HasKey(m => m.Id);
-           x.Property(m => m.PublicId).IsRequired();
-           x.Property(m => m.Url).IsRequired();
-           x.Property(m => m.MediaType).IsRequired();
-           x.Property(m => m.OriginalFileName).IsRequired();
-           x.Property(m => m.Category).IsRequired();
-           x.Property(m => m.UploadedById).IsRequired();
-           x.Property(m => m.FileHash).IsRequired();
-           x.Property(m => m.ReferenceCount).HasDefaultValue(1);
+        {
+            x.HasKey(m => m.Id);
+            x.Property(m => m.PublicId).IsRequired();
+            x.Property(m => m.Url).IsRequired();
+            x.Property(m => m.MediaType).IsRequired();
+            x.Property(m => m.OriginalFileName).IsRequired();
+            x.Property(m => m.Category).IsRequired();
+            x.Property(m => m.UploadedById).IsRequired();
+            x.Property(m => m.FileHash).IsRequired();
+            x.Property(m => m.ReferenceCount).HasDefaultValue(1);
 
-           // Index for performance
-           x.HasIndex(m => m.FileHash);
-           x.HasIndex(m => m.PublicId);
-           x.HasIndex(m => new { m.Category, m.ChatRoomId });
+            // Index for performance
+            x.HasIndex(m => m.FileHash);
+            x.HasIndex(m => m.PublicId);
+            x.HasIndex(m => new { m.Category, m.ChatRoomId });
 
-           // Relationships
-           x.HasOne(m => m.UploadedBy)
-               .WithMany()
-               .HasForeignKey(m => m.UploadedById)
-               .OnDelete(DeleteBehavior.Cascade);
+            x.HasOne(m => m.UploadedBy)
+                .WithMany()
+                .HasForeignKey(m => m.UploadedById)
+                .OnDelete(DeleteBehavior.Cascade);
 
-           x.HasOne(m => m.ChatRoom)
-               .WithMany()
-               .HasForeignKey(m => m.ChatRoomId)
-               .OnDelete(DeleteBehavior.Cascade);
-       });
+            x.HasOne(m => m.ChatRoom)
+                .WithMany()
+                .HasForeignKey(m => m.ChatRoomId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
 
         var dateTimeConverter = new ValueConverter<DateTime, DateTime>(
             v => v.ToUniversalTime(),

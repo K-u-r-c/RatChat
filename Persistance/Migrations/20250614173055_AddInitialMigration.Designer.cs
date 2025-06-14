@@ -12,8 +12,8 @@ using Persistance;
 namespace Persistance.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250609220251_AddProfileBanners")]
-    partial class AddProfileBanners
+    [Migration("20250614173055_AddInitialMigration")]
+    partial class AddInitialMigration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -61,6 +61,42 @@ namespace Persistance.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("ChatRoomMembers");
+                });
+
+            modelBuilder.Entity("Domain.FriendRequest", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Message")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ReceiverId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime?>("RespondedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SenderId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReceiverId");
+
+                    b.HasIndex("SenderId", "ReceiverId")
+                        .IsUnique()
+                        .HasFilter("[Status] = 0");
+
+                    b.ToTable("FriendRequests");
                 });
 
             modelBuilder.Entity("Domain.MediaFile", b =>
@@ -185,6 +221,10 @@ namespace Persistance.Migrations
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("bit");
 
+                    b.Property<string>("FriendCode")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
                     b.Property<string>("ImageUrl")
                         .HasColumnType("nvarchar(max)");
 
@@ -223,6 +263,9 @@ namespace Persistance.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("FriendCode")
+                        .IsUnique();
+
                     b.HasIndex("NormalizedEmail")
                         .HasDatabaseName("EmailIndex");
 
@@ -234,19 +277,22 @@ namespace Persistance.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
-            modelBuilder.Entity("Domain.UserFollowing", b =>
+            modelBuilder.Entity("Domain.UserFriend", b =>
                 {
-                    b.Property<string>("ObserverId")
+                    b.Property<string>("UserId")
                         .HasColumnType("nvarchar(450)");
 
-                    b.Property<string>("TargetId")
+                    b.Property<string>("FriendId")
                         .HasColumnType("nvarchar(450)");
 
-                    b.HasKey("ObserverId", "TargetId");
+                    b.Property<DateTime>("FriendsSince")
+                        .HasColumnType("datetime2");
 
-                    b.HasIndex("TargetId");
+                    b.HasKey("UserId", "FriendId");
 
-                    b.ToTable("UserFollowings");
+                    b.HasIndex("FriendId");
+
+                    b.ToTable("UserFriends");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -401,6 +447,25 @@ namespace Persistance.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Domain.FriendRequest", b =>
+                {
+                    b.HasOne("Domain.User", "Receiver")
+                        .WithMany("ReceivedFriendRequests")
+                        .HasForeignKey("ReceiverId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Domain.User", "Sender")
+                        .WithMany("SentFriendRequests")
+                        .HasForeignKey("SenderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Receiver");
+
+                    b.Navigation("Sender");
+                });
+
             modelBuilder.Entity("Domain.MediaFile", b =>
                 {
                     b.HasOne("Domain.ChatRoom", "ChatRoom")
@@ -438,23 +503,23 @@ namespace Persistance.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Domain.UserFollowing", b =>
+            modelBuilder.Entity("Domain.UserFriend", b =>
                 {
-                    b.HasOne("Domain.User", "Observer")
-                        .WithMany("Followings")
-                        .HasForeignKey("ObserverId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Domain.User", "Target")
-                        .WithMany("Followers")
-                        .HasForeignKey("TargetId")
+                    b.HasOne("Domain.User", "Friend")
+                        .WithMany("FriendOf")
+                        .HasForeignKey("FriendId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
-                    b.Navigation("Observer");
+                    b.HasOne("Domain.User", "User")
+                        .WithMany("Friends")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
-                    b.Navigation("Target");
+                    b.Navigation("Friend");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -519,9 +584,13 @@ namespace Persistance.Migrations
                 {
                     b.Navigation("ChatRooms");
 
-                    b.Navigation("Followers");
+                    b.Navigation("FriendOf");
 
-                    b.Navigation("Followings");
+                    b.Navigation("Friends");
+
+                    b.Navigation("ReceivedFriendRequests");
+
+                    b.Navigation("SentFriendRequests");
                 });
 #pragma warning restore 612, 618
         }
