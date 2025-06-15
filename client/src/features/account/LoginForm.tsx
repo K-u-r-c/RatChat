@@ -141,6 +141,7 @@ export default function LoginForm() {
               placeholder="Enter your email"
               control={control}
               name="email"
+              tabIndex={1}
             />
           </Box>
 
@@ -167,6 +168,7 @@ export default function LoginForm() {
                     cursor: "pointer",
                     fontSize: isMobile ? "14px" : "inherit",
                   }}
+                  tabIndex={3}
                 >
                   Forgot?
                 </Link>
@@ -176,6 +178,7 @@ export default function LoginForm() {
               placeholder="Enter your password"
               control={control}
               name="password"
+              tabIndex={2}
             />
           </Box>
         </Box>
