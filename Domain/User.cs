@@ -19,6 +19,9 @@ public class User : IdentityUser
     public ICollection<FriendRequest> SentFriendRequests { get; set; } = [];
     public ICollection<FriendRequest> ReceivedFriendRequests { get; set; } = [];
 
+    public ICollection<ChatRoom> OwnedChatRooms { get; set; } = [];
+    public ICollection<ChatRoomMemberRole> AssignedRoles { get; set; } = [];
+
     // Helper functions
     private static string GenerateFriendCode()
     {
