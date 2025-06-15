@@ -2,18 +2,30 @@ import { useForm } from "react-hook-form";
 import { useAccount } from "../../lib/hooks/useAccount";
 import { loginSchema, type LoginSchema } from "../../lib/schemas/loginSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Box, Button, Paper, Typography } from "@mui/material";
-import { GitHub, Google, LockOpen } from "@mui/icons-material";
+import {
+  Box,
+  Button,
+  Paper,
+  Typography,
+  useTheme,
+  useMediaQuery,
+} from "@mui/material";
+import { GitHub } from "@mui/icons-material";
+import { FcGoogle } from "react-icons/fc";
 import TextInput from "../../app/shared/components/TextInput";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useState } from "react";
 import { toast } from "react-toastify";
+import PasswordInput from "../../app/shared/components/PasswordInput";
 
 export default function LoginForm() {
   const [notVerified, setNotVerified] = useState(false);
   const { loginUser, resendConfirmationEmail } = useAccount();
   const navigate = useNavigate();
   const location = useLocation();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
   const {
     control,
     handleSubmit,
@@ -62,108 +74,259 @@ export default function LoginForm() {
   };
 
   return (
-    <Paper
-      component="form"
-      onSubmit={handleSubmit(onSubmit)}
+    <Box
       sx={{
         display: "flex",
-        flexDirection: "column",
-        p: 3,
-        gap: 3,
-        maxWidth: "md",
-        mx: "auto",
-        borderRadius: 3,
+        justifyContent: "center",
+        alignItems: "center",
+        px: { xs: 0, sm: 0, md: 4 },
+        py: { xs: 2, sm: 3 },
       }}
     >
-      <Box
-        display="flex"
-        alignItems="center"
-        justifyContent="center"
-        gap={3}
-        color="secondary.main"
+      <Paper
+        component="form"
+        onSubmit={handleSubmit(onSubmit)}
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          backgroundColor: "rgba(19, 19, 22, 0.8)",
+          boxShadow: {
+            xs: "20px 20px 40px rgba(30, 31, 33, 0.8)",
+            sm: "40px 40px 60px rgba(30, 31, 33, 1)",
+          },
+          justifyContent: "center",
+          width: {
+            xs: "100%",
+            sm: "400px",
+            md: "480px",
+            lg: "540px",
+          },
+          maxWidth: "540px",
+          minHeight: {
+            xs: "auto",
+            sm: "600px",
+            md: "690px",
+          },
+          gap: { xs: "16px", sm: "20px", md: "24px" },
+          px: { xs: "24px", sm: "48px", md: "72px" },
+          py: { xs: "32px", sm: "40px", md: "48px" },
+          borderRadius: { xs: 2, sm: 3 },
+        }}
       >
-        <LockOpen fontSize="large" />
-        <Typography variant="h4">Sign in</Typography>
-      </Box>
-      <TextInput label="Email" control={control} name="email" />
-      <TextInput
-        label="Password"
-        type="password"
-        control={control}
-        name="password"
-      />
-      <Button
-        type="submit"
-        disabled={!isValid || isSubmitting}
-        variant="contained"
-        size="large"
-      >
-        Login
-      </Button>
-      <Box display="flex" flexDirection="row" gap={2}>
-        <Button
-          onClick={loginWithGoogle}
-          startIcon={<Google />}
-          sx={{ backgroundColor: "black" }}
-          type="button"
-          variant="contained"
-          size="large"
-          fullWidth
+        <Typography
+          sx={{
+            color: "white",
+            fontSize: { xs: "24px", sm: "26px", md: "28px" },
+            fontWeight: "550",
+            textAlign: { xs: "center", sm: "left" },
+            mb: { xs: 1, sm: 0 },
+          }}
         >
-          Login with Google
-        </Button>
-        <Button
-          onClick={loginWithGithub}
-          startIcon={<GitHub />}
-          sx={{ backgroundColor: "black" }}
-          type="button"
-          variant="contained"
-          size="large"
-          fullWidth
-        >
-          Login with GitHub
-        </Button>
-      </Box>
-      {notVerified ? (
+          Login to your account
+        </Typography>
+
+        <Box>
+          <Box sx={{ mb: { xs: 1.5, sm: 2 } }}>
+            <Typography
+              sx={{
+                color: "#D1D1D6",
+                mb: 0.5,
+                ml: 0.5,
+                fontSize: { xs: 14, sm: 15 },
+              }}
+            >
+              Email
+            </Typography>
+            <TextInput
+              placeholder="Enter your email"
+              control={control}
+              name="email"
+            />
+          </Box>
+
+          <Box sx={{ color: "#D1D1D6", textDecoration: "none", mb: 1 }}>
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                mb: 0.5,
+                ml: 0.5,
+              }}
+            >
+              <Typography sx={{ fontSize: { xs: 14, sm: 15 } }}>
+                Password
+              </Typography>
+              <Typography>
+                <Link
+                  to="/forgot-password"
+                  style={{
+                    color: "#A0A0AB",
+                    textDecoration: "none",
+                    cursor: "pointer",
+                    fontSize: isMobile ? "14px" : "inherit",
+                  }}
+                >
+                  Forgot?
+                </Link>
+              </Typography>
+            </Box>
+            <PasswordInput
+              placeholder="Enter your password"
+              control={control}
+              name="password"
+            />
+          </Box>
+        </Box>
+
         <Box
-          display={"flex"}
-          flexDirection={"column"}
-          justifyContent={"center"}
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            gap: { xs: 2, sm: 2.5 },
+            mt: { xs: 1, sm: 0 },
+          }}
         >
-          <Typography textAlign={"center"} color="error">
-            Your email has not been verified. You can click the button to
-            re-send the verification email
-          </Typography>
           <Button
-            onClick={handleResendEmail}
-            disabled={resendConfirmationEmail.isPending}
+            type="submit"
+            disabled={!isValid || isSubmitting}
+            variant="contained"
+            size="large"
+            fullWidth
+            sx={{
+              py: { xs: 1.2, sm: 1.5 },
+              textTransform: "none",
+              fontWeight: "bold",
+              fontSize: { xs: "14px", sm: "16px" },
+              backgroundColor: !isValid || isSubmitting ? "#333" : "primary",
+              color: !isValid || isSubmitting ? "#888" : "white",
+              borderRadius: "8px",
+              "&.Mui-disabled": {
+                backgroundColor: "#333",
+                color: "#888",
+                opacity: 1,
+              },
+            }}
           >
-            Re-send email link
+            Login now
+          </Button>
+
+          <Button
+            onClick={loginWithGoogle}
+            startIcon={<FcGoogle size={isMobile ? 18 : 20} />}
+            sx={{
+              py: { xs: 1.2, sm: 1.5 },
+              backgroundColor: "#26272B",
+              color: "#A0A0AB",
+              fontWeight: "bold",
+              textTransform: "none",
+              borderRadius: "8px",
+              fontSize: { xs: "14px", sm: "16px" },
+              "&:hover": {
+                backgroundColor: "#2A2B30",
+              },
+            }}
+            type="button"
+            variant="contained"
+            size="large"
+            fullWidth
+          >
+            Continue with Google
+          </Button>
+
+          <Button
+            onClick={loginWithGithub}
+            startIcon={
+              <GitHub sx={{ color: "white", fontSize: isMobile ? 18 : 20 }} />
+            }
+            sx={{
+              py: { xs: 1.2, sm: 1.5 },
+              backgroundColor: "#26272B",
+              color: "#A0A0AB",
+              fontWeight: "bold",
+              textTransform: "none",
+              borderRadius: "8px",
+              fontSize: { xs: "14px", sm: "16px" },
+              "&:hover": {
+                backgroundColor: "#2A2B30",
+              },
+            }}
+            type="button"
+            variant="contained"
+            size="large"
+            fullWidth
+          >
+            Continue with GitHub
           </Button>
         </Box>
-      ) : (
-        <Box
-          display={"flex"}
-          alignItems={"center"}
-          justifyContent={"center"}
-          gap={3}
-        >
-          <Typography>
-            Forgot password ? Click <Link to={"/forgot-password"}>Here</Link>
-          </Typography>
-          <Typography sx={{ textAlign: "center" }}>
-            Don't have an account?
+
+        {notVerified ? (
+          <Box
+            display="flex"
+            flexDirection="column"
+            justifyContent="center"
+            gap={2}
+            sx={{ mt: { xs: 1, sm: 0 } }}
+          >
             <Typography
-              sx={{ ml: 2 }}
+              textAlign="center"
+              color="error"
+              sx={{
+                fontSize: { xs: "14px", sm: "16px" },
+                px: { xs: 1, sm: 0 },
+              }}
+            >
+              Your email has not been verified. You can click the button to
+              re-send the verification email
+            </Typography>
+            <Button
+              onClick={handleResendEmail}
+              disabled={resendConfirmationEmail.isPending}
+              variant="outlined"
+              sx={{
+                py: 1,
+                fontSize: { xs: "14px", sm: "16px" },
+                textTransform: "none",
+              }}
+            >
+              Re-send email link
+            </Button>
+          </Box>
+        ) : (
+          <Box
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            gap={{ xs: 1, sm: 3 }}
+            sx={{
+              mt: { xs: 1, sm: 0 },
+              flexDirection: { xs: "column", sm: "row" },
+            }}
+          >
+            <Typography
+              sx={{
+                textAlign: "center",
+                color: "#70707B",
+                fontSize: { xs: "14px", sm: "16px" },
+              }}
+            >
+              Don't Have An Account?
+            </Typography>
+            <Typography
+              sx={{
+                color: "#A0A0AB",
+                textDecoration: "none",
+                fontSize: { xs: "14px", sm: "16px" },
+              }}
               component={Link}
               to="/register"
-              color="primary"
             >
-              Sign up
+              Sign Up
             </Typography>
-          </Typography>
-        </Box>
-      )}
-    </Paper>
+          </Box>
+        )}
+      </Paper>
+    </Box>
   );
 }
