@@ -16,6 +16,10 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
     public required DbSet<DirectChat> DirectChats { get; set; }
     public required DbSet<DirectMessage> DirectMessages { get; set; }
     public required DbSet<EmojiPreference> EmojiPreferences { get; set; }
+    public required DbSet<ChatRoomRole> ChatRoomRoles { get; set; }
+    public required DbSet<ChatRoomMemberRole> ChatRoomMemberRoles { get; set; }
+    public required DbSet<ChatRoomPermission> ChatRoomPermissions { get; set; }
+    public required DbSet<ChatRoomRolePermission> ChatRoomRolePermissions { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -32,6 +36,28 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
             .HasOne(x => x.ChatRoom)
             .WithMany(x => x.Members)
             .HasForeignKey(x => x.ChatRoomId);
+
+        builder.Entity<ChatRoom>()
+            .HasOne(cr => cr.Owner)
+            .WithMany(o => o.OwnedChatRooms)
+            .HasForeignKey(cr => cr.OwnerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<ChatRoomRole>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+
+            entity.Property(r => r.Name).IsRequired().HasMaxLength(50);
+            entity.Property(r => r.Description).IsRequired().HasMaxLength(200);
+            entity.Property(r => r.Color).IsRequired().HasMaxLength(7);
+
+            entity.HasOne(r => r.ChatRoom)
+                .WithMany(cr => cr.Roles)
+                .HasForeignKey(cr => cr.ChatRoomId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(r => new { r.ChatRoomId, r.Name }).IsUnique();
+        });
 
         builder.Entity<UserFriend>(x =>
         {
