@@ -16,6 +16,7 @@ import ChatRoomDetails from "../../features/chatRooms/details/ChatRoomDetails";
 import ChatRoomForm from "../../features/chatRooms/forms/ChatRoomForm";
 import JoinChatRoomPage from "../../features/chatRooms/join/JoinChatRoomPage";
 import ProfilePage from "../../features/profile/ProfilePage";
+import FriendsList from "../../features/friends/FriendsList";
 
 export const router = createBrowserRouter([
   {
@@ -32,6 +33,7 @@ export const router = createBrowserRouter([
           { path: "manage/:id", element: <ChatRoomForm /> },
           { path: "change-password", element: <ChangePasswordForm /> },
           { path: "profiles/:id", element: <ProfilePage /> },
+          { path: "friends", element: <FriendsList /> },
         ],
       },
       { path: "", element: <HomePage /> },

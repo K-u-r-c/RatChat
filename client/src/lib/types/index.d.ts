@@ -15,6 +15,7 @@ export type User = {
   displayName: string;
   imageUrl?: string;
   bannerUrl?: string;
+  friendCode: string;
   hasPassword: boolean;
 };
 
@@ -44,7 +45,83 @@ export type Profile = {
   bio?: string;
   imageUrl?: string;
   bannerUrl?: string;
-  followersCount?: number;
-  followingCount?: number;
-  following?: boolean;
+  friendsCount?: number;
+  isFriend?: boolean;
+};
+
+export type Friend = {
+  id: string;
+  displayName: string;
+  bio?: string;
+  imageUrl?: string;
+  bannerUrl?: string;
+  friendsSince: Date;
+  isOnline: boolean;
+  lastSeen?: Date;
+};
+
+export type FriendRequest = {
+  id: string;
+  senderId: string;
+  senderDisplayName: string;
+  senderImageUrl?: string;
+  receiverId: string;
+  receiverDisplayName: string;
+  receiverImageUrl?: string;
+  status: "Pending" | "Accepted" | "Declined" | "Cancelled";
+  createdAt: Date;
+  respondedAt?: Date;
+  message?: string;
+};
+
+export type FriendRequestsResponse = {
+  sent: FriendRequest[];
+  received: FriendRequest[];
+};
+
+export type FriendSearch = {
+  id: string;
+  displayName: string;
+  friendCode: string;
+  imageUrl?: string;
+  isAlreadyFriend: boolean;
+  hasPendingRequest: boolean;
+};
+
+export type DirectChat = {
+  id: string;
+  otherUserId: string;
+  otherUserDisplayName: string;
+  otherUserImageUrl?: string;
+  lastMessageAt: Date;
+  lastMessageBody?: string;
+  lastMessageSenderId?: string;
+  unreadCount: number;
+  isOnline: boolean;
+};
+
+export type DirectMessage = {
+  id: string;
+  body: string;
+  createdAt: Date;
+  senderId: string;
+  senderDisplayName: string;
+  senderImageUrl?: string;
+  isRead: boolean;
+  isOwnMessage: boolean;
+};
+
+export type SendDirectMessageRequest = {
+  body: string;
+  directChatId: string;
+};
+
+export type SendFriendRequestRequest = {
+  friendCode: string;
+  message?: string;
+};
+
+export type RespondToFriendRequestRequest = {
+  requestId: string;
+  accept: boolean;
 };

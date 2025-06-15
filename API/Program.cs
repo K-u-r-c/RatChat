@@ -3,6 +3,7 @@ using API.SignalR;
 using Application.ChatRooms.Queries;
 using Application.ChatRooms.Validators;
 using Application.Core;
+using Application.Friends.Validators;
 using Application.Interfaces;
 using Application.Profiles.Validators;
 using Azure.Storage.Blobs;
@@ -12,6 +13,7 @@ using Infrastructure.Email;
 using Infrastructure.Media;
 using Infrastructure.Security;
 using Infrastructure.Services;
+using Infrastructure.SignalR;
 using Infrastructure.Storage;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -48,6 +50,7 @@ builder.Services.AddTransient<IResend, ResendClient>();
 builder.Services.AddTransient<IEmailSender<User>, EmailSender>();
 builder.Services.AddScoped<IUserAccessor, UserAccessor>();
 builder.Services.AddScoped<IMediaValidator, MediaValidator>();
+builder.Services.AddScoped<IFriendsNotificationService, FriendsNotificationService>();
 if (builder.Environment.IsDevelopment())
 {
     // MinIO for development
@@ -70,6 +73,7 @@ else
 builder.Services.AddAutoMapper(typeof(MappingProfiles).Assembly);
 builder.Services.AddValidatorsFromAssemblyContaining<CreateChatRoomValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<UpdateProfileValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<SendFriendRequestValidator>();
 builder.Services.AddTransient<ExceptionMiddleware>();
 builder.Services.AddHostedService<MediaCleanupService>();
 builder.Services.AddIdentityApiEndpoints<User>(opt =>
@@ -111,6 +115,7 @@ app.UseStaticFiles();
 app.MapControllers();
 app.MapGroup("api").MapIdentityApi<User>();
 app.MapHub<MessageHub>("/messages");
+app.MapHub<FriendsHub>("/friends");
 app.MapFallbackToController("Index", "Fallback");
 
 using var scope = app.Services.CreateScope();
