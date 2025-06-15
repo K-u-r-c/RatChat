@@ -36,6 +36,7 @@ public class CancelFriendRequest
             var receiverId = friendRequest.ReceiverId;
 
             friendRequest.Status = FriendRequestStatus.Cancelled;
+            friendRequest.RespondedAt = DateTime.UtcNow;
 
             var result = await context.SaveChangesAsync(cancellationToken) > 0;
 
