@@ -1,16 +1,15 @@
 import { Box, Container, CssBaseline } from "@mui/material";
 import NavBar from "./NavBar";
-import { Outlet, ScrollRestoration, useLocation } from "react-router";
-import HomePage from "../../features/home/HomePage";
+import { Outlet, ScrollRestoration } from "react-router";
 import { useAccount } from "../../lib/hooks/useAccount";
 import FriendsRealtimeProvider from "../shared/components/FriendsRealtimeProvider";
+import HomePage from "../../features/home/HomePage";
 
 function App() {
-  const location = useLocation();
   const { currentUser } = useAccount();
 
   return (
-    <Box sx={{ bgcolor: "#eeeeee", minHeight: "100vh" }}>
+    <Box sx={{ bgcolor: "#27262C", minHeight: "100vh" }}>
       <ScrollRestoration />
       <CssBaseline />
       {currentUser && <FriendsRealtimeProvider />}

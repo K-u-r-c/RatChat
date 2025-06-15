@@ -1,5 +1,4 @@
-import { Group } from "@mui/icons-material";
-import { Box, Button, Paper, Typography } from "@mui/material";
+import { Button, Paper, Typography } from "@mui/material";
 import { Link } from "react-router";
 
 export default function HomePage() {
@@ -9,42 +8,58 @@ export default function HomePage() {
         color: "white",
         display: "flex",
         flexDirection: "column",
-        gap: 6,
         alignItems: "center",
-        alignContent: "center",
         justifyContent: "center",
-        height: "100vh",
-        backgroundImage:
-          "linear-gradient(135deg, #40356e 0%, #7867BD 69%,rgb(174, 157, 241) 89%)",
+        minHeight: "100vh",
+        backgroundColor: "#27262C",
         borderRadius: 0,
+        px: { xs: 2, sm: 4 },
       }}
     >
-      <Box
+      <Typography
+        variant="h1"
         sx={{
-          display: "flex",
-          alignItems: "center",
-          alignContent: "center",
-          color: "white",
-          gap: 3,
+          fontSize: { xs: "2.2rem", sm: "3rem", md: "4rem" },
+          fontWeight: "bold",
+          textAlign: "center",
+          textShadow: "9px 12px 2px rgba(0, 0, 0, 0.25)",
+          mt: { xs: 2, sm: 0 },
         }}
       >
-        <Group sx={{ height: 110, width: 110 }} />
-        <Typography variant="h1">RatChat</Typography>
-      </Box>
-      <Typography variant="h1">Welcome to RatChat</Typography>
+        Welcome To RatChat
+      </Typography>
+
+      <Typography
+        variant="h5"
+        sx={{
+          fontSize: { xs: "1.1rem", sm: "1.3rem", md: "1.5rem" },
+          fontWeight: "normal",
+          textAlign: "center",
+          textShadow: "9px 12px 2px rgba(0, 0, 0, 0.25)",
+          mb: { xs: 3, sm: 4 },
+          mt: { xs: 2, sm: 3 },
+        }}
+      >
+        Your One Place For All Communication
+      </Typography>
+
       <Button
         component={Link}
         to="/chat-rooms"
-        size="large"
         variant="contained"
         sx={{
-          height: 80,
-          borderRadius: 4,
-          fontSize: "1.5rem",
-          backgroundColor: "#40356e",
+          height: { xs: 48, sm: 60 },
+          px: { xs: 4, sm: 8, md: 12 },
+          borderRadius: 2,
+          fontSize: { xs: "1rem", sm: "1.2rem", md: "1.5rem" },
+          backgroundColor: "#1570EF",
+          textTransform: "none",
+          "&:hover": {
+            backgroundColor: "#3367d6",
+          },
         }}
       >
-        Take me to chats!
+        Take me to RatChat
       </Button>
     </Paper>
   );

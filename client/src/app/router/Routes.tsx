@@ -1,6 +1,5 @@
 import { createBrowserRouter, Navigate } from "react-router";
 import App from "../layout/App";
-import HomePage from "../../features/home/HomePage";
 import RequireAuth from "./RequireAuth";
 import NotFound from "../../features/errors/NotFound";
 import ServerError from "../../features/errors/ServerError";
@@ -17,6 +16,7 @@ import ChatRoomForm from "../../features/chatRooms/forms/ChatRoomForm";
 import JoinChatRoomPage from "../../features/chatRooms/join/JoinChatRoomPage";
 import ProfilePage from "../../features/profile/ProfilePage";
 import FriendsList from "../../features/friends/FriendsList";
+import AuthLayout from "../layout/AuthLayout";
 
 export const router = createBrowserRouter([
   {
@@ -26,6 +26,7 @@ export const router = createBrowserRouter([
       {
         element: <RequireAuth />,
         children: [
+          { path: "", element: <ChatRoomsDashboard /> },
           { path: "chat-rooms", element: <ChatRoomsDashboard /> },
           { path: "chat-rooms/:id", element: <ChatRoomDetails /> },
           { path: "create-chat-room", element: <ChatRoomForm key="create" /> },
@@ -36,16 +37,21 @@ export const router = createBrowserRouter([
           { path: "friends", element: <FriendsList /> },
         ],
       },
-      { path: "", element: <HomePage /> },
       { path: "not-found", element: <NotFound /> },
       { path: "server-error", element: <ServerError /> },
+      { path: "*", element: <Navigate replace to="/not-found" /> },
+    ],
+  },
+  {
+    path: "/",
+    element: <AuthLayout />,
+    children: [
       { path: "login", element: <LoginForm /> },
       { path: "register", element: <RegisterForm /> },
       { path: "confirm-email", element: <VerifyEmail /> },
       { path: "forgot-password", element: <ForgotPasswordForm /> },
       { path: "reset-password", element: <ResetPasswordForm /> },
       { path: "auth-callback", element: <AuthCallback /> },
-      { path: "*", element: <Navigate replace to="/not-found" /> },
     ],
   },
 ]);
