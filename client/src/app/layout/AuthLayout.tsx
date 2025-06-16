@@ -35,7 +35,7 @@ export default function AuthLayout() {
         <Container
           sx={{
             px: 0,
-            height: "auto",
+            minHeight: "90vh",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
