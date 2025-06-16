@@ -20,11 +20,11 @@ public class MappingProfiles : Profile
         CreateMap<ChatRoom, ChatRoomDto>()
             .ForMember(
                 d => d.AdminDisplayName,
-                o => o.MapFrom(s => s.Members.FirstOrDefault(x => x.IsAdmin)!.User.DisplayName)
+                o => o.MapFrom(s => s.Members.FirstOrDefault(x => x.IsOwner)!.User.DisplayName)
             )
             .ForMember(
                 d => d.AdminId,
-                o => o.MapFrom(s => s.Members.FirstOrDefault(x => x.IsAdmin)!.User.Id)
+                o => o.MapFrom(s => s.Members.FirstOrDefault(x => x.IsOwner)!.User.Id)
             );
 
         CreateMap<ChatRoomMember, UserProfileDto>()

@@ -62,7 +62,7 @@ public class JoinChatRoom
             {
                 UserId = user.Id,
                 ChatRoomId = chatRoom.Id,
-                IsAdmin = false
+                IsOwner = false
             });
 
             var result = await context.SaveChangesAsync(cancellationToken) > 0;
