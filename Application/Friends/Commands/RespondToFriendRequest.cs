@@ -1,8 +1,9 @@
 using Application.Core;
 using Application.Friends.DTOs;
+using Application.Friends.Events;
 using Application.Interfaces;
-using AutoMapper;
 using Domain;
+using Domain.Events;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Persistance;
@@ -19,7 +20,8 @@ public class RespondToFriendRequest
     public class Handler(
         AppDbContext context,
         IUserAccessor userAccessor,
-        IFriendsNotificationService notificationService)
+        IFriendsNotificationService notificationService,
+        IPublisher publisher)
         : IRequestHandler<Command, Result<Unit>>
     {
         public async Task<Result<Unit>> Handle(Command request, CancellationToken cancellationToken)
@@ -38,15 +40,13 @@ public class RespondToFriendRequest
                 return Result<Unit>.Failure("Friend request not found", 404);
 
             FriendDto? newFriendForSender = null;
-            FriendDto? newFriendForReceiver = null;
+            FriendshipCreatedEvent? domainEvent = null;
 
             if (request.RespondToFriendRequestDto.Accept)
             {
-                // Accept the request
                 friendRequest.Status = FriendRequestStatus.Accepted;
                 friendRequest.RespondedAt = DateTime.UtcNow;
 
-                // Create friendship both ways
                 var friendship1 = new UserFriend
                 {
                     UserId = currentUser.Id,
@@ -61,7 +61,6 @@ public class RespondToFriendRequest
 
                 context.UserFriends.AddRange(friendship1, friendship2);
 
-                // Prepare friend DTOs for real-time notifications
                 newFriendForSender = new FriendDto
                 {
                     Id = currentUser.Id,
@@ -70,25 +69,18 @@ public class RespondToFriendRequest
                     ImageUrl = currentUser.ImageUrl,
                     BannerUrl = currentUser.BannerUrl,
                     FriendsSince = friendship2.FriendsSince,
-                    IsOnline = false, // TODO: Implement online status
-                    LastSeen = null // TODO: Implement last seen
+                    IsOnline = false,
+                    LastSeen = null
                 };
 
-                newFriendForReceiver = new FriendDto
+                domainEvent = new FriendshipCreatedEvent
                 {
-                    Id = friendRequest.Sender.Id,
-                    DisplayName = friendRequest.Sender.DisplayName ?? "",
-                    Bio = friendRequest.Sender.Bio,
-                    ImageUrl = friendRequest.Sender.ImageUrl,
-                    BannerUrl = friendRequest.Sender.BannerUrl,
-                    FriendsSince = friendship1.FriendsSince,
-                    IsOnline = false, // TODO: Implement online status
-                    LastSeen = null // TODO: Implement last seen
+                    User1Id = currentUser.Id,
+                    User2Id = friendRequest.SenderId
                 };
             }
             else
             {
-                // Decline the request
                 friendRequest.Status = FriendRequestStatus.Declined;
                 friendRequest.RespondedAt = DateTime.UtcNow;
             }
@@ -97,6 +89,11 @@ public class RespondToFriendRequest
 
             if (result)
             {
+                if (request.RespondToFriendRequestDto.Accept && domainEvent != null)
+                {
+                    await publisher.Publish(new FriendshipCreatedNotification(domainEvent), cancellationToken);
+                }
+
                 if (request.RespondToFriendRequestDto.Accept && newFriendForSender != null)
                 {
                     await notificationService.NotifyFriendRequestResponded(
