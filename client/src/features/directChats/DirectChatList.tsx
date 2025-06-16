@@ -26,7 +26,6 @@ export default function DirectChatsList() {
     );
   }
 
-  // Handle error cases more explicitly
   if (!directChats) {
     return (
       <Box sx={{ maxWidth: 800, mx: "auto", p: 2 }}>
@@ -48,7 +47,6 @@ export default function DirectChatsList() {
     );
   }
 
-  // Ensure directChats is an array
   const chatsArray = Array.isArray(directChats) ? directChats : [];
 
   return (

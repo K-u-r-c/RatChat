@@ -401,12 +401,12 @@ export default function FriendsList() {
                                   label="Pending"
                                   size="small"
                                   color="warning"
+                                  sx={{ mr: 1 }}
                                 />
                                 <Typography
                                   variant="caption"
                                   color="text.secondary"
                                   component="span"
-                                  sx={{ ml: 1 }}
                                 >
                                   Sent{" "}
                                   {new Date(
@@ -415,6 +415,7 @@ export default function FriendsList() {
                                 </Typography>
                               </>
                             }
+                            secondaryTypographyProps={{ component: "div" }}
                           />
                         </ListItem>
                       ))}
