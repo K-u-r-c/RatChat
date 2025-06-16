@@ -12,8 +12,8 @@ using Persistance;
 namespace Persistance.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250614173055_AddInitialMigration")]
-    partial class AddInitialMigration
+    [Migration("20250616184849_InitialMigration")]
+    partial class InitialMigration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -33,11 +33,17 @@ namespace Persistance.Migrations
                     b.Property<DateTime>("Date")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("OwnerId");
 
                     b.ToTable("ChatRooms");
                 });
@@ -53,7 +59,7 @@ namespace Persistance.Migrations
                     b.Property<DateTime>("DateJoined")
                         .HasColumnType("datetime2");
 
-                    b.Property<bool>("IsAdmin")
+                    b.Property<bool>("IsOwner")
                         .HasColumnType("bit");
 
                     b.HasKey("ChatRoomId", "UserId");
@@ -61,6 +67,113 @@ namespace Persistance.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("ChatRoomMembers");
+                });
+
+            modelBuilder.Entity("Domain.ChatRoomMemberRole", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("ChatRoomId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("RoleId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("AssignedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("AssignedById")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("UserId", "ChatRoomId", "RoleId");
+
+                    b.HasIndex("AssignedById");
+
+                    b.HasIndex("ChatRoomId");
+
+                    b.HasIndex("RoleId");
+
+                    b.ToTable("ChatRoomMemberRoles");
+                });
+
+            modelBuilder.Entity("Domain.ChatRoomPermission", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("ChatRoomPermissions");
+                });
+
+            modelBuilder.Entity("Domain.ChatRoomRole", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("ChatRoomId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Color")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("nvarchar(7)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChatRoomId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("ChatRoomRoles");
+                });
+
+            modelBuilder.Entity("Domain.ChatRoomRolePermission", b =>
+                {
+                    b.Property<string>("RoleId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("PermissionId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<bool>("IsAllowed")
+                        .HasColumnType("bit");
+
+                    b.HasKey("RoleId", "PermissionId");
+
+                    b.HasIndex("PermissionId");
+
+                    b.ToTable("ChatRoomRolePermissions");
                 });
 
             modelBuilder.Entity("Domain.FriendRequest", b =>
@@ -428,6 +541,17 @@ namespace Persistance.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Domain.ChatRoom", b =>
+                {
+                    b.HasOne("Domain.User", "Owner")
+                        .WithMany("OwnedChatRooms")
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Owner");
+                });
+
             modelBuilder.Entity("Domain.ChatRoomMember", b =>
                 {
                     b.HasOne("Domain.ChatRoom", "ChatRoom")
@@ -445,6 +569,69 @@ namespace Persistance.Migrations
                     b.Navigation("ChatRoom");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Domain.ChatRoomMemberRole", b =>
+                {
+                    b.HasOne("Domain.User", "AssignedBy")
+                        .WithMany()
+                        .HasForeignKey("AssignedById");
+
+                    b.HasOne("Domain.ChatRoom", "ChatRoom")
+                        .WithMany()
+                        .HasForeignKey("ChatRoomId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Domain.ChatRoomRole", "Role")
+                        .WithMany("MemberRoles")
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Domain.User", "User")
+                        .WithMany("AssignedRoles")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("AssignedBy");
+
+                    b.Navigation("ChatRoom");
+
+                    b.Navigation("Role");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Domain.ChatRoomRole", b =>
+                {
+                    b.HasOne("Domain.ChatRoom", "ChatRoom")
+                        .WithMany("Roles")
+                        .HasForeignKey("ChatRoomId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ChatRoom");
+                });
+
+            modelBuilder.Entity("Domain.ChatRoomRolePermission", b =>
+                {
+                    b.HasOne("Domain.ChatRoomPermission", "Permission")
+                        .WithMany("RolePermissions")
+                        .HasForeignKey("PermissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Domain.ChatRoomRole", "Role")
+                        .WithMany("RolePermissions")
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Permission");
+
+                    b.Navigation("Role");
                 });
 
             modelBuilder.Entity("Domain.FriendRequest", b =>
@@ -578,15 +765,33 @@ namespace Persistance.Migrations
                     b.Navigation("Members");
 
                     b.Navigation("Messages");
+
+                    b.Navigation("Roles");
+                });
+
+            modelBuilder.Entity("Domain.ChatRoomPermission", b =>
+                {
+                    b.Navigation("RolePermissions");
+                });
+
+            modelBuilder.Entity("Domain.ChatRoomRole", b =>
+                {
+                    b.Navigation("MemberRoles");
+
+                    b.Navigation("RolePermissions");
                 });
 
             modelBuilder.Entity("Domain.User", b =>
                 {
+                    b.Navigation("AssignedRoles");
+
                     b.Navigation("ChatRooms");
 
                     b.Navigation("FriendOf");
 
                     b.Navigation("Friends");
+
+                    b.Navigation("OwnedChatRooms");
 
                     b.Navigation("ReceivedFriendRequests");
 

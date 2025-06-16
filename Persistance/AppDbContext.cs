@@ -56,6 +56,51 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
             entity.HasIndex(r => new { r.ChatRoomId, r.Name }).IsUnique();
         });
 
+        builder.Entity<ChatRoomMemberRole>(entity =>
+        {
+            entity.HasKey(mr => new { mr.UserId, mr.ChatRoomId, mr.RoleId });
+
+            entity.HasOne(mr => mr.User)
+                .WithMany(u => u.AssignedRoles)
+                .HasForeignKey(mr => mr.UserId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasOne(mr => mr.ChatRoom)
+                .WithMany()
+                .HasForeignKey(mr => mr.ChatRoomId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasOne(mr => mr.Role)
+                .WithMany(r => r.MemberRoles)
+                .HasForeignKey(mr => mr.RoleId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<ChatRoomPermission>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+
+            entity.Property(p => p.Name).IsRequired().HasMaxLength(50);
+            entity.Property(p => p.Description).HasMaxLength(500);
+
+            entity.HasIndex(p => p.Name).IsUnique();
+        });
+
+        builder.Entity<ChatRoomRolePermission>(entity =>
+        {
+            entity.HasKey(rp => new { rp.RoleId, rp.PermissionId });
+
+            entity.HasOne(rp => rp.Role)
+                .WithMany(r => r.RolePermissions)
+                .HasForeignKey(rp => rp.RoleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(rp => rp.Permission)
+                .WithMany(p => p.RolePermissions)
+                .HasForeignKey(rp => rp.PermissionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         builder.Entity<UserFriend>(x =>
         {
             x.HasKey(k => new { k.UserId, k.FriendId });

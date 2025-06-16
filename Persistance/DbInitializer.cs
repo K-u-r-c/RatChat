@@ -30,243 +30,262 @@ public class DbInitializer
             new ()
             {
             Title = "Sewers chat",
+            OwnerId = users[0].Id,
             Members =
             [
                 new()
                 {
                 UserId = users[0].Id,
-                IsAdmin = true,
+                IsOwner = true,
                 },
                 new()
                 {
                 UserId = users[1].Id,
-                IsAdmin = false,
+                IsOwner = false,
                 }
-            ]
+            ],
             },
             new ()
             {
             Title = "Trash chat",
+            OwnerId = users[0].Id,
             Members =
             [
                 new()
                 {
                 UserId = users[0].Id,
-                IsAdmin = true,
+                IsOwner = true,
                 }
             ]
             },
             new ()
             {
             Title = "Cheese lovers",
+            OwnerId = users[0].Id,
             Members =
             [
                 new()
                 {
                 UserId = users[0].Id,
-                IsAdmin = true,
+                IsOwner = true,
                 }
             ]
             },
             new ()
             {
             Title = "Stinky pipers",
+            OwnerId = users[0].Id,
             Members =
             [
                 new()
                 {
                 UserId = users[0].Id,
-                IsAdmin = true,
+                IsOwner = true,
                 },
                 new()
                 {
                 UserId = users[1].Id,
-                IsAdmin = false,
+                IsOwner = false,
                 }
             ]
             },
             new ()
             {
             Title = "Trafic enjoyers",
+            OwnerId = users[1].Id,
             Members =
             [
                 new()
                 {
                 UserId = users[1].Id,
-                IsAdmin = true,
+                IsOwner = true,
                 }
             ]
             },
             new ()
             {
             Title = "Palm oil eaters",
+            OwnerId = users[1].Id,
             Members =
             [
                 new()
                 {
                 UserId = users[1].Id,
-                IsAdmin = true,
+                IsOwner = true,
                 }
             ]
             },
             new ()
             {
             Title = "Trash chat",
+            OwnerId = users[0].Id,
             Members =
             [
                 new()
                 {
                 UserId = users[0].Id,
-                IsAdmin = true,
+                IsOwner = true,
                 }
             ]
             },
             new ()
             {
             Title = "Movie watchers",
+            OwnerId = users[0].Id,
             Members =
             [
                 new()
                 {
                 UserId = users[0].Id,
-                IsAdmin = true,
+                IsOwner = true,
                 }
             ]
             },
             new ()
             {
             Title = "Degenerates",
+            OwnerId = users[0].Id,
             Members =
             [
                 new()
                 {
                 UserId = users[0].Id,
-                IsAdmin = true,
+                IsOwner = true,
                 },
                 new()
                 {
                 UserId = users[1].Id,
-                IsAdmin = false,
+                IsOwner = false,
                 }
             ]
             },
             new ()
             {
             Title = "Magic rats",
+            OwnerId = users[0].Id,
             Members =
             [
                 new()
                 {
                 UserId = users[0].Id,
-                IsAdmin = true,
+                IsOwner = true,
                 }
             ]
             },
             new ()
             {
             Title = "Wonderfull world",
+            OwnerId = users[0].Id,
             Members =
             [
                 new()
                 {
                 UserId = users[0].Id,
-                IsAdmin = true,
+                IsOwner = true,
                 }
             ]
             },
             new ()
             {
             Title = "Mewtwo",
+            OwnerId = users[0].Id,
             Members =
             [
                 new()
                 {
                 UserId = users[0].Id,
-                IsAdmin = true,
+                IsOwner = true,
                 }
             ]
             }
             ,new ()
             {
             Title = "Charizard",
+            OwnerId = users[0].Id,
             Members =
             [
                 new()
                 {
                 UserId = users[0].Id,
-                IsAdmin = true,
+                IsOwner = true,
                 }
             ]
             },
             new ()
             {
             Title = "Torchick",
+            OwnerId = users[0].Id,
             Members =
             [
                 new()
                 {
                 UserId = users[0].Id,
-                IsAdmin = true,
+                IsOwner = true,
                 }
             ]
             },
             new ()
             {
             Title = "Turtwig",
+            OwnerId = users[0].Id,
             Members =
             [
                 new()
                 {
                 UserId = users[0].Id,
-                IsAdmin = true,
+                IsOwner = true,
                 }
             ]
             },
             new ()
             {
             Title = "Squirtle",
+            OwnerId = users[0].Id,
             Members =
             [
                 new()
                 {
                 UserId = users[0].Id,
-                IsAdmin = true,
+                IsOwner = true,
                 }
             ]
             },
             new ()
             {
             Title = "Bulbasaur",
+            OwnerId = users[0].Id,
             Members =
             [
                 new()
                 {
                 UserId = users[0].Id,
-                IsAdmin = true,
+                IsOwner = true,
                 }
             ]
             },
             new ()
             {
             Title = "Ratata",
+            OwnerId = users[0].Id,
             Members =
             [
                 new()
                 {
                 UserId = users[0].Id,
-                IsAdmin = true,
+                IsOwner = true,
                 }
             ]
             },
             new ()
             {
             Title = "Magnemite",
+            OwnerId = users[0].Id,
             Members =
             [
                 new()
                 {
                 UserId = users[0].Id,
-                IsAdmin = true,
+                IsOwner = true,
                 }
             ]
             }
