@@ -29,6 +29,15 @@ export default function TextInput<T extends FieldValues>({
     <TextField
       {...props}
       {...field}
+      sx={{
+        input: { color: "white" },
+        "& .MuiOutlinedInput-root": {
+          borderRadius: "8px",
+          "& fieldset": { borderColor: "#3F3F46" },
+          "&:hover fieldset": { borderColor: "#A0A0B8" },
+        },
+        "& .MuiInputLabel-root": { color: "#70707B" },
+      }}
       value={field.value || ""}
       fullWidth
       variant="outlined"
