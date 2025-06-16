@@ -80,7 +80,9 @@ export default function LoginForm() {
         justifyContent: "center",
         alignItems: "center",
         px: { xs: 0, sm: 0, md: 4 },
-        py: { xs: 2, sm: 3 },
+        pt: { xs: 2, sm: 3 },
+        width: "100%",
+        height: "100%",
       }}
     >
       <Paper
@@ -103,14 +105,14 @@ export default function LoginForm() {
           },
           maxWidth: "540px",
           minHeight: {
-            xs: "auto",
+            xs: "100%",
             sm: "600px",
             md: "690px",
           },
           gap: { xs: "16px", sm: "20px", md: "24px" },
           px: { xs: "24px", sm: "48px", md: "72px" },
           py: { xs: "32px", sm: "40px", md: "48px" },
-          borderRadius: { xs: 2, sm: 3 },
+          borderRadius: { xs: "16px 16px 0 0", sm: 3 },
         }}
       >
         <Typography
