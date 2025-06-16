@@ -5,6 +5,7 @@ public class ChatRoomMemberRole
 {
     public required string UserId { get; set; }
     public User User { get; set; } = null!;
+    
     public required string ChatRoomId { get; set; }
     public ChatRoom ChatRoom { get; set; } = null!;
 
