@@ -116,6 +116,7 @@ app.MapControllers();
 app.MapGroup("api").MapIdentityApi<User>();
 app.MapHub<MessageHub>("/messages");
 app.MapHub<FriendsHub>("/friends");
+app.MapHub<DirectMessageHub>("/direct-messages");
 app.MapFallbackToController("Index", "Fallback");
 
 using var scope = app.Services.CreateScope();

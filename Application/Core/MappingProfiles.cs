@@ -1,4 +1,5 @@
 using Application.ChatRooms.DTOs;
+using Application.DirectMessages.DTOs;
 using Application.Friends.DTOs;
 using Application.Messages.DTOs;
 using Application.Profiles.DTOs;
@@ -70,5 +71,10 @@ public class MappingProfiles : Profile
             .ForMember(d => d.ReceiverDisplayName, o => o.MapFrom(s => s.Receiver.DisplayName))
             .ForMember(d => d.ReceiverImageUrl, o => o.MapFrom(s => s.Receiver.ImageUrl))
             .ForMember(d => d.Status, o => o.MapFrom(s => s.Status.ToString()));
+
+        CreateMap<DirectMessage, DirectMessageDto>()
+            .ForMember(d => d.SenderDisplayName, o => o.MapFrom(s => s.Sender.DisplayName))
+            .ForMember(d => d.SenderImageUrl, o => o.MapFrom(s => s.Sender.ImageUrl))
+            .ForMember(d => d.IsOwnMessage, o => o.MapFrom(s => s.SenderId == currentUserId));
     }
 }

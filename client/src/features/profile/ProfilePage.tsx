@@ -1,6 +1,8 @@
 import { useParams } from "react-router";
 import { useProfiles } from "../../lib/hooks/useProfiles";
 import { useAccount } from "../../lib/hooks/useAccount";
+import { useDirectChats } from "../../lib/hooks/useDirectChats";
+import { useFriends } from "../../lib/hooks/useFriends";
 import {
   Avatar,
   Box,
@@ -23,15 +25,22 @@ import {
   MoreVert,
   Person,
   PhotoCamera,
+  Message,
+  PersonAdd,
 } from "@mui/icons-material";
 import { useState } from "react";
+import { useNavigate } from "react-router";
 import ProfileEditForm from "./ProfileEditForm";
 import ImageUploadWidget from "./ImageUploadWidget";
+import { toast } from "react-toastify";
 
 export default function ProfilePage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { profile, isLoadingProfile } = useProfiles(id);
   const { currentUser } = useAccount();
+  const { createDirectChat } = useDirectChats();
+  const { sendFriendRequest } = useFriends();
   const [editMode, setEditMode] = useState(false);
   const [photoMode, setPhotoMode] = useState<"profile" | "banner" | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -49,6 +58,39 @@ export default function ProfilePage() {
   const handlePhotoModeChange = (mode: "profile" | "banner") => {
     setPhotoMode(mode);
     handleClose();
+  };
+
+  const handleSendMessage = async () => {
+    if (!profile) return;
+
+    try {
+      const chatId = await createDirectChat.mutateAsync(profile.id);
+      navigate(`/direct-chats/${chatId}`);
+    } catch (error) {
+      console.error("Failed to create direct chat:", error);
+    }
+  };
+
+  const handleAddFriend = async () => {
+    if (!profile) {
+      toast.error("Profile not found");
+      return;
+    }
+
+    const friendCode = prompt(
+      `Please enter ${profile.displayName}'s friend code:`
+    );
+    if (!friendCode) return;
+
+    try {
+      await sendFriendRequest.mutateAsync({
+        friendCode: friendCode.toUpperCase(),
+        message: `Hi ${profile.displayName}! I'd like to add you as a friend.`,
+      });
+      toast.success("Friend request sent!");
+    } catch (error) {
+      console.error("Failed to send friend request:", error);
+    }
   };
 
   if (isLoadingProfile) return <Typography>Loading...</Typography>;
@@ -131,7 +173,7 @@ export default function ProfilePage() {
               {profile.displayName}
             </Typography>
 
-            {profile.followersCount !== undefined && (
+            {profile.friendsCount !== undefined && (
               <Box display="flex" gap={4} mb={2}>
                 <Box textAlign="left">
                   <Typography
@@ -141,7 +183,7 @@ export default function ProfilePage() {
                       textShadow: "1px 1px 2px rgba(0,0,0,0.7)",
                     }}
                   >
-                    {profile.followersCount}
+                    {profile.friendsCount}
                   </Typography>
                   <Typography
                     variant="body1"
@@ -149,49 +191,46 @@ export default function ProfilePage() {
                       textShadow: "1px 1px 2px rgba(0,0,0,0.7)",
                     }}
                   >
-                    Followers
-                  </Typography>
-                </Box>
-                <Box textAlign="left">
-                  <Typography
-                    variant="h5"
-                    sx={{
-                      fontWeight: "bold",
-                      textShadow: "1px 1px 2px rgba(0,0,0,0.7)",
-                    }}
-                  >
-                    {profile.followingCount}
-                  </Typography>
-                  <Typography
-                    variant="body1"
-                    sx={{
-                      textShadow: "1px 1px 2px rgba(0,0,0,0.7)",
-                    }}
-                  >
-                    Following
+                    Friends
                   </Typography>
                 </Box>
               </Box>
             )}
 
             {!isCurrentUser && (
-              <Button
-                variant={profile.following ? "outlined" : "contained"}
-                color={profile.following ? "secondary" : "primary"}
-                size="large"
-                sx={{
-                  borderColor: profile.following ? "white" : undefined,
-                  color: profile.following ? "white" : undefined,
-                  "&:hover": {
-                    borderColor: "white",
-                    backgroundColor: profile.following
-                      ? "rgba(255,255,255,0.1)"
-                      : undefined,
-                  },
-                }}
-              >
-                {profile.following ? "Unfollow" : "Follow"}
-              </Button>
+              <Box sx={{ display: "flex", gap: 2 }}>
+                {profile.isFriend ? (
+                  <Button
+                    variant="contained"
+                    startIcon={<Message />}
+                    onClick={handleSendMessage}
+                    disabled={createDirectChat.isPending}
+                    sx={{
+                      backgroundColor: "primary.main",
+                      "&:hover": {
+                        backgroundColor: "primary.dark",
+                      },
+                    }}
+                  >
+                    Send Message
+                  </Button>
+                ) : (
+                  <Button
+                    variant="contained"
+                    startIcon={<PersonAdd />}
+                    onClick={handleAddFriend}
+                    disabled={sendFriendRequest.isPending}
+                    sx={{
+                      backgroundColor: "secondary.main",
+                      "&:hover": {
+                        backgroundColor: "secondary.dark",
+                      },
+                    }}
+                  >
+                    Add Friend
+                  </Button>
+                )}
+              </Box>
             )}
           </Box>
         </Box>
