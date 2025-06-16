@@ -12,7 +12,7 @@ export default function AuthLayout() {
           flexDirection: "column",
           justifyContent: { sm: "center", md: "center" },
           alignItems: "center",
-          height: "100vh",
+          height: "100%",
         }}
       >
         <Typography
@@ -35,7 +35,7 @@ export default function AuthLayout() {
         <Container
           sx={{
             px: 0,
-            height: { xs: "90vh", sm: "auto", md: "auto" },
+            height: "auto",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",

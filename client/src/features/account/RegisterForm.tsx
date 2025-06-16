@@ -1,8 +1,16 @@
 import { useForm } from "react-hook-form";
 import { useAccount } from "../../lib/hooks/useAccount";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Box, Button, Paper, Typography } from "@mui/material";
-import { LockOpen } from "@mui/icons-material";
+import {
+  Box,
+  Button,
+  Paper,
+  Typography,
+  useTheme,
+  useMediaQuery,
+} from "@mui/material";
+import { GitHub } from "@mui/icons-material";
+import { FcGoogle } from "react-icons/fc";
 import TextInput from "../../app/shared/components/TextInput";
 import { Link } from "react-router";
 import {
@@ -11,10 +19,14 @@ import {
 } from "../../lib/schemas/registerSchema";
 import { useState } from "react";
 import RegisterSuccess from "./RegisterSuccess";
+import PasswordInput from "../../app/shared/components/PasswordInput";
 
 export default function RegisterForm() {
   const { registerUser } = useAccount();
   const [registerSuccess, setRegisterSuccess] = useState(false);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
   const {
     control,
     handleSubmit,
@@ -39,6 +51,8 @@ export default function RegisterForm() {
               setError("email", { message: err });
             } else if (err.includes("Password")) {
               setError("password", { message: err });
+            } else if (err.includes("DisplayName")) {
+              setError("displayName", { message: err });
             }
           });
         }
@@ -46,66 +60,274 @@ export default function RegisterForm() {
     });
   };
 
+  const loginWithGithub = () => {
+    const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
+    const redirectUrl = import.meta.env.VITE_REDIRECT_URL;
+
+    window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUrl}?provider=github&scope=read:user user:email`;
+  };
+
+  const loginWithGoogle = () => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    const redirectUrl = import.meta.env.VITE_REDIRECT_URL;
+    const scope = "openid email profile";
+
+    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUrl}?provider=google&scope=${scope}&response_type=code`;
+  };
+
   return (
     <>
       {registerSuccess ? (
         <RegisterSuccess email={email} />
       ) : (
-        <Paper
-          component="form"
-          onSubmit={handleSubmit(onSubmit)}
+        <Box
           sx={{
             display: "flex",
-            flexDirection: "column",
-            p: 3,
-            gap: 3,
-            maxWidth: "md",
-            mx: "auto",
-            borderRadius: 3,
+            justifyContent: "center",
+            alignItems: "center",
+            px: { xs: 0, sm: 0, md: 4 },
+            pt: { xs: 2, sm: 3 },
+            width: "100%",
+            height: "100%",
           }}
         >
-          <Box
-            display="flex"
-            alignItems="center"
-            justifyContent="center"
-            gap={3}
-            color="secondary.main"
+          <Paper
+            component="form"
+            onSubmit={handleSubmit(onSubmit)}
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              backgroundColor: "rgba(19, 19, 22, 0.8)",
+              boxShadow: {
+                xs: "20px 20px 40px rgba(30, 31, 33, 0.8)",
+                sm: "40px 40px 60px rgba(30, 31, 33, 1)",
+              },
+              justifyContent: "center",
+              width: {
+                xs: "100%",
+                sm: "400px",
+                md: "480px",
+                lg: "540px",
+              },
+              maxWidth: "540px",
+              minHeight: {
+                xs: "100%",
+                sm: "700px",
+                md: "800px",
+              },
+              gap: { xs: "16px", sm: "20px", md: "24px" },
+              px: { xs: "24px", sm: "48px", md: "72px" },
+              py: { xs: "32px", sm: "40px", md: "48px" },
+              borderRadius: { xs: "16px 16px 0 0", sm: 3 },
+            }}
           >
-            <LockOpen fontSize="large" />
-            <Typography variant="h4">Register</Typography>
-          </Box>
-          <TextInput label="Email" control={control} name="email" />
-          <TextInput
-            label="Display name"
-            control={control}
-            name="displayName"
-          />
-          <TextInput
-            label="Password"
-            type="password"
-            control={control}
-            name="password"
-          />
-          <Button
-            type="submit"
-            disabled={!isValid || isSubmitting}
-            variant="contained"
-            size="large"
-          >
-            Register
-          </Button>
-          <Typography sx={{ textAlign: "center" }}>
-            Already have an account?
             <Typography
-              sx={{ ml: 2 }}
-              component={Link}
-              to="/login"
-              color="primary"
+              sx={{
+                color: "white",
+                fontSize: { xs: "24px", sm: "26px", md: "28px" },
+                fontWeight: "550",
+                textAlign: { xs: "center", sm: "left" },
+                mb: { xs: 1, sm: 0 },
+              }}
             >
-              Sign in
+              Create your account
             </Typography>
-          </Typography>
-        </Paper>
+
+            <Box>
+              <Box sx={{ mb: { xs: 1.5, sm: 2 } }}>
+                <Typography
+                  sx={{
+                    color: "#D1D1D6",
+                    mb: 0.5,
+                    ml: 0.5,
+                    fontSize: { xs: 14, sm: 15 },
+                  }}
+                >
+                  Email
+                </Typography>
+                <TextInput
+                  placeholder="Enter your email"
+                  control={control}
+                  name="email"
+                  tabIndex={1}
+                />
+              </Box>
+
+              <Box sx={{ mb: { xs: 1.5, sm: 2 } }}>
+                <Typography
+                  sx={{
+                    color: "#D1D1D6",
+                    mb: 0.5,
+                    ml: 0.5,
+                    fontSize: { xs: 14, sm: 15 },
+                  }}
+                >
+                  Display Name
+                </Typography>
+                <TextInput
+                  placeholder="Enter your display name"
+                  control={control}
+                  name="displayName"
+                  tabIndex={2}
+                />
+              </Box>
+
+              <Box sx={{ mb: { xs: 1.5, sm: 2 } }}>
+                <Typography
+                  sx={{
+                    color: "#D1D1D6",
+                    mb: 0.5,
+                    ml: 0.5,
+                    fontSize: { xs: 14, sm: 15 },
+                  }}
+                >
+                  Password
+                </Typography>
+                <PasswordInput
+                  placeholder="Enter your password"
+                  control={control}
+                  name="password"
+                  tabIndex={3}
+                />
+              </Box>
+
+              <Box sx={{ mb: { xs: 1, sm: 0 } }}>
+                <Typography
+                  sx={{
+                    color: "#D1D1D6",
+                    mb: 0.5,
+                    ml: 0.5,
+                    fontSize: { xs: 14, sm: 15 },
+                  }}
+                >
+                  Confirm Password
+                </Typography>
+                <PasswordInput
+                  placeholder="Confirm your password"
+                  control={control}
+                  name="confirmPassword"
+                  tabIndex={4}
+                />
+              </Box>
+            </Box>
+
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                gap: { xs: 2, sm: 2.5 },
+                mt: { xs: 1, sm: 0 },
+              }}
+            >
+              <Button
+                type="submit"
+                disabled={!isValid || isSubmitting}
+                variant="contained"
+                size="large"
+                fullWidth
+                sx={{
+                  py: { xs: 1.2, sm: 1.5 },
+                  textTransform: "none",
+                  fontWeight: "bold",
+                  fontSize: { xs: "14px", sm: "16px" },
+                  backgroundColor:
+                    !isValid || isSubmitting ? "#333" : "primary",
+                  color: !isValid || isSubmitting ? "#888" : "white",
+                  borderRadius: "8px",
+                  "&.Mui-disabled": {
+                    backgroundColor: "#333",
+                    color: "#888",
+                    opacity: 1,
+                  },
+                }}
+              >
+                {isSubmitting ? "Creating account..." : "Create account"}
+              </Button>
+
+              <Button
+                onClick={loginWithGoogle}
+                startIcon={<FcGoogle size={isMobile ? 18 : 20} />}
+                sx={{
+                  py: { xs: 1.2, sm: 1.5 },
+                  backgroundColor: "#26272B",
+                  color: "#A0A0AB",
+                  fontWeight: "bold",
+                  textTransform: "none",
+                  borderRadius: "8px",
+                  fontSize: { xs: "14px", sm: "16px" },
+                  "&:hover": {
+                    backgroundColor: "#2A2B30",
+                  },
+                }}
+                type="button"
+                variant="contained"
+                size="large"
+                fullWidth
+              >
+                Continue with Google
+              </Button>
+
+              <Button
+                onClick={loginWithGithub}
+                startIcon={
+                  <GitHub
+                    sx={{ color: "white", fontSize: isMobile ? 18 : 20 }}
+                  />
+                }
+                sx={{
+                  py: { xs: 1.2, sm: 1.5 },
+                  backgroundColor: "#26272B",
+                  color: "#A0A0AB",
+                  fontWeight: "bold",
+                  textTransform: "none",
+                  borderRadius: "8px",
+                  fontSize: { xs: "14px", sm: "16px" },
+                  "&:hover": {
+                    backgroundColor: "#2A2B30",
+                  },
+                }}
+                type="button"
+                variant="contained"
+                size="large"
+                fullWidth
+              >
+                Continue with GitHub
+              </Button>
+            </Box>
+
+            <Box
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+              gap={{ xs: 1, sm: 3 }}
+              sx={{
+                mt: { xs: 1, sm: 0 },
+                flexDirection: { xs: "column", sm: "row" },
+              }}
+            >
+              <Typography
+                sx={{
+                  textAlign: "center",
+                  color: "#70707B",
+                  fontSize: { xs: "14px", sm: "16px" },
+                }}
+              >
+                Already Have An Account?
+              </Typography>
+              <Typography
+                sx={{
+                  color: "#A0A0AB",
+                  textDecoration: "none",
+                  fontSize: { xs: "14px", sm: "16px" },
+                }}
+                component={Link}
+                to="/login"
+              >
+                Sign In
+              </Typography>
+            </Box>
+          </Paper>
+        </Box>
       )}
     </>
   );
