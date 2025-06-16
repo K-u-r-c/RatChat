@@ -32,7 +32,6 @@ export const router = createBrowserRouter([
           { path: "create-chat-room", element: <ChatRoomForm key="create" /> },
           { path: "chat-rooms/:id/:token/join", element: <JoinChatRoomPage /> },
           { path: "manage/:id", element: <ChatRoomForm /> },
-          { path: "change-password", element: <ChangePasswordForm /> },
           { path: "profiles/:id", element: <ProfilePage /> },
           { path: "friends", element: <FriendsList /> },
         ],
@@ -46,6 +45,12 @@ export const router = createBrowserRouter([
     path: "/",
     element: <AuthLayout />,
     children: [
+      {
+        element: <RequireAuth />,
+        children: [
+          { path: "change-password", element: <ChangePasswordForm /> },
+        ],
+      },
       { path: "login", element: <LoginForm /> },
       { path: "register", element: <RegisterForm /> },
       { path: "confirm-email", element: <VerifyEmail /> },

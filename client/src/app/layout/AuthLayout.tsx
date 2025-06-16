@@ -10,25 +10,37 @@ export default function AuthLayout() {
         sx={{
           display: "flex",
           flexDirection: "column",
-          justifyContent: "center",
+          justifyContent: { sm: "center", md: "center" },
           alignItems: "center",
+          height: "100vh",
         }}
       >
         <Typography
           variant="h1"
           sx={{
-            mt: 6,
             color: "white",
             fontSize: { xs: "2.2rem", sm: "3rem", md: "4rem" },
             fontWeight: "medium",
             textAlign: "center",
             textShadow: "9px 12px 2px rgba(0, 0, 0, 0.25)",
             letterSpacing: "4px",
+            height: { xs: "10vh", sm: "auto", md: "auto" },
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
           RatChat
         </Typography>
-        <Container>
+        <Container
+          sx={{
+            px: 0,
+            height: { xs: "90vh", sm: "auto", md: "auto" },
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
           <Outlet />
         </Container>
       </Box>
