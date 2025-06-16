@@ -26,6 +26,6 @@ public class IsAdminRequirementHandler(AppDbContext dbContext, IHttpContextAcces
 
         if (member == null) return;
 
-        if (member.IsAdmin) context.Succeed(requirement);
+        if (member.IsOwner) context.Succeed(requirement);
     }
 }
