@@ -38,7 +38,10 @@ public class GetDirectChats
                     LastMessageSenderId = dc.LastMessageSenderId,
                     UnreadCount = dc.Messages.Count(m =>
                         m.SenderId != currentUser.Id && !m.IsRead),
-                    IsOnline = false // TODO: Implement online status
+                    IsOnline = false, // TODO: Implement online status
+                    CanSendMessages = context.UserFriends.Any(uf =>
+                        (uf.UserId == currentUser.Id && uf.FriendId == (dc.User1Id == currentUser.Id ? dc.User2Id : dc.User1Id)) ||
+                        (uf.UserId == (dc.User1Id == currentUser.Id ? dc.User2Id : dc.User1Id) && uf.FriendId == currentUser.Id))
                 })
                 .ToListAsync(cancellationToken);
 

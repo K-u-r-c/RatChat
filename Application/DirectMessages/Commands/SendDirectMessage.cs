@@ -38,6 +38,16 @@ public class SendDirectMessage
             if (directChat.User1Id != currentUser.Id && directChat.User2Id != currentUser.Id)
                 return Result<DirectMessageDto>.Failure("Access denied", 403);
 
+            var otherUserId = directChat.User1Id == currentUser.Id ? directChat.User2Id : directChat.User1Id;
+            var areFriends = await context.UserFriends
+                .AnyAsync(uf =>
+                    (uf.UserId == currentUser.Id && uf.FriendId == otherUserId) ||
+                    (uf.UserId == otherUserId && uf.FriendId == currentUser.Id),
+                    cancellationToken);
+
+            if (!areFriends)
+                return Result<DirectMessageDto>.Failure("You can only send messages to friends", 403);
+
             var message = new DirectMessage
             {
                 SenderId = currentUser.Id,

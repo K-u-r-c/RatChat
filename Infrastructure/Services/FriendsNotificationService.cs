@@ -1,11 +1,13 @@
+using Application.DirectChats.Commands;
 using Application.Friends.DTOs;
 using Application.Interfaces;
 using Infrastructure.SignalR;
+using MediatR;
 using Microsoft.AspNetCore.SignalR;
 
 namespace Infrastructure.Services;
 
-public class FriendsNotificationService(IHubContext<FriendsHub> hubContext) : IFriendsNotificationService
+public class FriendsNotificationService(IHubContext<FriendsHub> hubContext, IMediator mediator) : IFriendsNotificationService
 {
     public async Task NotifyFriendRequestSent(string receiverId, FriendRequestDto friendRequest)
     {
@@ -17,6 +19,8 @@ public class FriendsNotificationService(IHubContext<FriendsHub> hubContext) : IF
     {
         if (accepted && newFriend != null)
         {
+            await mediator.Send(new CreateDirectChat.Command { OtherUserId = senderId });
+
             await hubContext.Clients.Group($"user-{senderId}")
                 .SendAsync("FriendRequestAccepted", receiverId, newFriend);
 

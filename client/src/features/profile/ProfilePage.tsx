@@ -1,7 +1,6 @@
 import { useParams } from "react-router";
 import { useProfiles } from "../../lib/hooks/useProfiles";
 import { useAccount } from "../../lib/hooks/useAccount";
-import { useDirectChats } from "../../lib/hooks/useDirectChats";
 import { useFriends } from "../../lib/hooks/useFriends";
 import {
   Avatar,
@@ -39,7 +38,6 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const { profile, isLoadingProfile } = useProfiles(id);
   const { currentUser } = useAccount();
-  const { createDirectChat } = useDirectChats();
   const { sendFriendRequest } = useFriends();
   const [editMode, setEditMode] = useState(false);
   const [photoMode, setPhotoMode] = useState<"profile" | "banner" | null>(null);
@@ -63,12 +61,7 @@ export default function ProfilePage() {
   const handleSendMessage = async () => {
     if (!profile) return;
 
-    try {
-      const chatId = await createDirectChat.mutateAsync(profile.id);
-      navigate(`/direct-chats/${chatId}`);
-    } catch (error) {
-      console.error("Failed to create direct chat:", error);
-    }
+    navigate("/direct-chats");
   };
 
   const handleAddFriend = async () => {
@@ -204,7 +197,6 @@ export default function ProfilePage() {
                     variant="contained"
                     startIcon={<Message />}
                     onClick={handleSendMessage}
-                    disabled={createDirectChat.isPending}
                     sx={{
                       backgroundColor: "primary.main",
                       "&:hover": {

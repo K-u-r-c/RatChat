@@ -1,4 +1,3 @@
-using Application.DirectChats.Commands;
 using Application.DirectChats.Queries;
 using Application.DirectMessages.Commands;
 using Application.DirectMessages.Queries;
@@ -12,12 +11,6 @@ public class DirectChatsController : BaseApiController
     public async Task<ActionResult> GetDirectChats()
     {
         return HandleResult(await Mediator.Send(new GetDirectChats.Query()));
-    }
-
-    [HttpPost]
-    public async Task<ActionResult> CreateDirectChat([FromBody] CreateDirectChat.Command command)
-    {
-        return HandleResult(await Mediator.Send(command));
     }
 
     [HttpGet("{directChatId}/messages")]

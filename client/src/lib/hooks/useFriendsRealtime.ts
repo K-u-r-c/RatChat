@@ -75,6 +75,8 @@ export const useFriendsRealtime = () => {
             }
           );
 
+          queryClient.invalidateQueries({ queryKey: ["direct-chats"] });
+
           toast.success(
             `${newFriend.displayName} accepted your friend request!`
           );
@@ -142,6 +144,8 @@ export const useFriendsRealtime = () => {
             a.displayName.localeCompare(b.displayName)
           );
         });
+
+        queryClient.invalidateQueries({ queryKey: ["direct-chats"] });
       });
 
       this.hubConnection.on("FriendRemoved", (removedByUserId: string) => {
@@ -160,6 +164,8 @@ export const useFriendsRealtime = () => {
 
           return updatedFriends;
         });
+
+        queryClient.invalidateQueries({ queryKey: ["direct-chats"] });
       });
     },
 

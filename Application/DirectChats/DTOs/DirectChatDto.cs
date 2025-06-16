@@ -11,4 +11,5 @@ public class DirectChatDto
     public string? LastMessageSenderId { get; set; }
     public int UnreadCount { get; set; }
     public bool IsOnline { get; set; } // TODO: Implement online status
+    public bool CanSendMessages { get; set; }
 }

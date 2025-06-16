@@ -18,12 +18,6 @@ import { timeAgo } from "../../lib/util/util";
 export default function DirectChatsList() {
   const { directChats, isLoadingChats } = useDirectChats();
 
-  // Debug logging
-  console.log("DirectChats data:", directChats);
-  console.log("Is loading:", isLoadingChats);
-  console.log("DirectChats type:", typeof directChats);
-  console.log("Is array:", Array.isArray(directChats));
-
   if (isLoadingChats) {
     return (
       <Box sx={{ maxWidth: 800, mx: "auto", p: 2 }}>
@@ -126,20 +120,31 @@ export default function DirectChatsList() {
                       </Box>
                     }
                     secondary={
-                      chat.lastMessageBody && (
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                            maxWidth: "100%",
-                          }}
-                        >
-                          {chat.lastMessageBody}
-                        </Typography>
-                      )
+                      <>
+                        {chat.lastMessageBody && (
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                              maxWidth: "100%",
+                            }}
+                          >
+                            {chat.lastMessageBody}
+                          </Typography>
+                        )}
+                        {!chat.canSendMessages && (
+                          <Typography
+                            variant="caption"
+                            color="warning.main"
+                            sx={{ fontStyle: "italic", display: "block" }}
+                          >
+                            Read-only (not friends)
+                          </Typography>
+                        )}
+                      </>
                     }
                   />
                 </ListItem>
