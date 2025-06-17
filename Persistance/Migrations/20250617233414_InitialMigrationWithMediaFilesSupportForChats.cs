@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Persistance.Migrations
 {
     /// <inheritdoc />
-    public partial class AddInitialMigration : Migration
+    public partial class InitialMigrationWithMediaFilesSupportForChats : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -175,6 +175,33 @@ namespace Persistance.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "DirectChats",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    User1Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    User2Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    LastMessageAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    LastMessageBody = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    LastMessageSenderId = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DirectChats", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_DirectChats_AspNetUsers_User1Id",
+                        column: x => x.User1Id,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_DirectChats_AspNetUsers_User2Id",
+                        column: x => x.User2Id,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
                 name: "FriendRequests",
                 columns: table => new
                 {
@@ -266,9 +293,7 @@ namespace Persistance.Migrations
                     ChatRoomId = table.Column<string>(type: "nvarchar(450)", nullable: true),
                     ChannelId = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     UploadedById = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    FileHash = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    ReferenceCount = table.Column<int>(type: "int", nullable: false, defaultValue: 1)
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -294,6 +319,12 @@ namespace Persistance.Migrations
                     Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     Body = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Type = table.Column<int>(type: "int", nullable: false),
+                    MediaUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    MediaPublicId = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    MediaType = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    MediaFileSize = table.Column<long>(type: "bigint", nullable: true),
+                    MediaOriginalFileName = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     ChatRoomId = table.Column<string>(type: "nvarchar(450)", nullable: false)
                 },
@@ -310,6 +341,39 @@ namespace Persistance.Migrations
                         name: "FK_Messages_ChatRooms_ChatRoomId",
                         column: x => x.ChatRoomId,
                         principalTable: "ChatRooms",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "DirectMessages",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Body = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    IsRead = table.Column<bool>(type: "bit", nullable: false),
+                    Type = table.Column<int>(type: "int", nullable: false),
+                    MediaUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    MediaPublicId = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    MediaType = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    MediaFileSize = table.Column<long>(type: "bigint", nullable: true),
+                    MediaOriginalFileName = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    SenderId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    DirectChatId = table.Column<string>(type: "nvarchar(450)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DirectMessages", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_DirectMessages_AspNetUsers_SenderId",
+                        column: x => x.SenderId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_DirectMessages_DirectChats_DirectChatId",
+                        column: x => x.DirectChatId,
+                        principalTable: "DirectChats",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -365,6 +429,27 @@ namespace Persistance.Migrations
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_DirectChats_User1Id_User2Id",
+                table: "DirectChats",
+                columns: new[] { "User1Id", "User2Id" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DirectChats_User2Id",
+                table: "DirectChats",
+                column: "User2Id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DirectMessages_DirectChatId_CreatedAt",
+                table: "DirectMessages",
+                columns: new[] { "DirectChatId", "CreatedAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DirectMessages_SenderId",
+                table: "DirectMessages",
+                column: "SenderId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_FriendRequests_ReceiverId",
                 table: "FriendRequests",
                 column: "ReceiverId");
@@ -385,11 +470,6 @@ namespace Persistance.Migrations
                 name: "IX_MediaFiles_ChatRoomId",
                 table: "MediaFiles",
                 column: "ChatRoomId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_MediaFiles_FileHash",
-                table: "MediaFiles",
-                column: "FileHash");
 
             migrationBuilder.CreateIndex(
                 name: "IX_MediaFiles_PublicId",
@@ -439,6 +519,9 @@ namespace Persistance.Migrations
                 name: "ChatRoomMembers");
 
             migrationBuilder.DropTable(
+                name: "DirectMessages");
+
+            migrationBuilder.DropTable(
                 name: "FriendRequests");
 
             migrationBuilder.DropTable(
@@ -452,6 +535,9 @@ namespace Persistance.Migrations
 
             migrationBuilder.DropTable(
                 name: "AspNetRoles");
+
+            migrationBuilder.DropTable(
+                name: "DirectChats");
 
             migrationBuilder.DropTable(
                 name: "ChatRooms");

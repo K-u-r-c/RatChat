@@ -21,6 +21,8 @@ import {
   Download,
   Close,
   Send,
+  Code,
+  Archive,
 } from "@mui/icons-material";
 import { Link } from "react-router";
 import { timeAgo } from "../../../lib/util/util";
@@ -198,12 +200,66 @@ const MediaChatComponent = observer(function MediaChatComponent({
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
-      "image/*": [".jpeg", ".jpg", ".png", ".gif", ".webp"],
-      "video/*": [".mp4", ".avi", ".mov", ".wmv"],
-      "application/*": [".pdf", ".doc", ".docx", ".txt"],
+      "image/*": [
+        ".jpeg",
+        ".jpg",
+        ".png",
+        ".gif",
+        ".webp",
+        ".bmp",
+        ".tiff",
+        ".svg",
+      ],
+      "video/*": [".mp4", ".avi", ".mov", ".wmv", ".webm", ".ogv", ".mkv"],
+      "audio/*": [".mp3", ".wav", ".flac", ".aac", ".ogg", ".m4a", ".weba"],
+      "application/*": [
+        ".pdf",
+        ".doc",
+        ".docx",
+        ".xls",
+        ".xlsx",
+        ".ppt",
+        ".pptx",
+        ".zip",
+        ".rar",
+        ".7z",
+        ".gz",
+        ".tar",
+        ".json",
+        ".xml",
+      ],
+      "text/*": [
+        ".txt",
+        ".csv",
+        ".rtf",
+        ".md",
+        ".html",
+        ".css",
+        ".js",
+        ".ts",
+        ".py",
+        ".java",
+        ".cs",
+        ".cpp",
+        ".c",
+        ".h",
+        ".php",
+        ".rb",
+        ".go",
+        ".rs",
+        ".swift",
+        ".kt",
+        ".scala",
+        ".yml",
+        ".yaml",
+        ".sql",
+        ".sh",
+        ".bat",
+        ".ps1",
+      ],
     },
     maxFiles: 1,
-    maxSize: 100 * 1024 * 1024, // 100MB
+    maxSize: 200 * 1024 * 1024, // 200MB max
     noClick: true,
   });
 
@@ -211,14 +267,58 @@ const MediaChatComponent = observer(function MediaChatComponent({
     if (file.type.startsWith("image/")) return MediaCategory.ChatRoomImage;
     if (file.type.startsWith("video/")) return MediaCategory.ChatRoomVideo;
     if (file.type.startsWith("audio/")) return MediaCategory.ChatRoomAudio;
+
+    const extension = file.name.toLowerCase().split(".").pop() || "";
+    const codeExtensions = [
+      "js",
+      "ts",
+      "tsx",
+      "jsx",
+      "py",
+      "java",
+      "cs",
+      "cpp",
+      "c",
+      "h",
+      "hpp",
+      "php",
+      "rb",
+      "go",
+      "rs",
+      "swift",
+      "kt",
+      "scala",
+      "yml",
+      "yaml",
+      "json",
+      "xml",
+      "html",
+      "css",
+      "md",
+      "txt",
+      "sql",
+      "sh",
+      "bat",
+      "ps1",
+      "dockerfile",
+    ];
+
+    const archiveExtensions = ["zip", "rar", "7z", "gz", "tar", "bz2"];
+
     if (
       file.type.includes("pdf") ||
       file.type.includes("document") ||
-      file.type.includes("text")
+      file.type.includes("text") ||
+      codeExtensions.includes(extension)
     ) {
       return MediaCategory.ChatRoomDocument;
     }
-    return MediaCategory.ChatRoomOther;
+
+    if (archiveExtensions.includes(extension)) {
+      return MediaCategory.ChatRoomOther;
+    }
+
+    return MediaCategory.ChatRoomDocument; // Default for unknown types
   };
 
   const getMessageType = (file: File): MessageType => {
@@ -226,6 +326,56 @@ const MediaChatComponent = observer(function MediaChatComponent({
     if (file.type.startsWith("video/")) return "Video";
     if (file.type.startsWith("audio/")) return "Audio";
     return "Document";
+  };
+
+  const getFileIcon = (file: File | string) => {
+    const fileName = typeof file === "string" ? file : file.name;
+    const extension = fileName.toLowerCase().split(".").pop() || "";
+
+    const codeExtensions = [
+      "js",
+      "ts",
+      "tsx",
+      "jsx",
+      "py",
+      "java",
+      "cs",
+      "cpp",
+      "c",
+      "h",
+      "hpp",
+      "php",
+      "rb",
+      "go",
+      "rs",
+      "swift",
+      "kt",
+      "scala",
+      "yml",
+      "yaml",
+      "json",
+      "xml",
+      "html",
+      "css",
+      "md",
+      "sql",
+      "sh",
+      "bat",
+      "ps1",
+      "dockerfile",
+    ];
+
+    const archiveExtensions = ["zip", "rar", "7z", "gz", "tar", "bz2"];
+
+    if (codeExtensions.includes(extension)) {
+      return <Code color="primary" />;
+    }
+
+    if (archiveExtensions.includes(extension)) {
+      return <Archive color="secondary" />;
+    }
+
+    return <InsertDriveFile color="primary" />;
   };
 
   const handleMediaUpload = async () => {
@@ -369,7 +519,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
               downloadFile(message.mediaUrl!, message.mediaOriginalFileName!)
             }
           >
-            <InsertDriveFile color="primary" />
+            {getFileIcon(message.mediaOriginalFileName || "")}
             <Box sx={{ flex: 1 }}>
               <Typography variant="body2" fontWeight="bold">
                 {message.mediaOriginalFileName}
@@ -395,6 +545,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
     }
   };
 
+  // Rest of the component logic remains the same...
   useEffect(() => {
     if (
       inView &&
@@ -590,6 +741,10 @@ const MediaChatComponent = observer(function MediaChatComponent({
           <Box textAlign="center">
             <AttachFile sx={{ fontSize: 64, mb: 2 }} />
             <Typography variant="h5">Drop files here to upload</Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              Supports images, videos, audio, documents, code files, and
+              archives
+            </Typography>
           </Box>
         </Box>
       )}
@@ -765,7 +920,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
         ref={fileInputRef}
         type="file"
         hidden
-        accept="image/*,video/*,.pdf,.doc,.docx,.txt"
+        accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.md,.js,.ts,.py,.java,.cs,.cpp,.c,.h,.php,.rb,.go,.rs,.swift,.kt,.scala,.yml,.yaml,.json,.xml,.html,.css,.sql,.sh,.bat,.ps1,.zip,.rar,.7z,.gz,.tar"
         onChange={handleFileChange}
       />
 
@@ -788,9 +943,14 @@ const MediaChatComponent = observer(function MediaChatComponent({
         <DialogContent>
           {selectedFile && (
             <Box>
-              <Typography variant="h6" gutterBottom>
-                {selectedFile.name}
-              </Typography>
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}
+              >
+                {getFileIcon(selectedFile)}
+                <Typography variant="h6" gutterBottom>
+                  {selectedFile.name}
+                </Typography>
+              </Box>
               <Typography variant="body2" color="text.secondary" gutterBottom>
                 Size: {formatFileSize(selectedFile.size)}
               </Typography>
