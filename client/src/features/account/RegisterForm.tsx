@@ -84,11 +84,10 @@ export default function RegisterForm() {
           sx={{
             display: "flex",
             justifyContent: "center",
-            alignItems: "center",
             px: { xs: 0, sm: 0, md: 4 },
             pt: { xs: 2, sm: 3 },
             width: "100%",
-            height: "100%",
+            minHeight: "90vh",
           }}
         >
           <Paper
