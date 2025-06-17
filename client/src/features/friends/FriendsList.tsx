@@ -13,7 +13,6 @@ import {
   ListItem,
   ListItemAvatar,
   ListItemText,
-  ListItemSecondaryAction,
   IconButton,
   Chip,
   Dialog,
@@ -30,8 +29,10 @@ import {
   Message,
   ContentCopy,
 } from "@mui/icons-material";
+import { useNavigate } from "react-router";
 import { useFriends } from "../../lib/hooks/useFriends";
 import { useAccount } from "../../lib/hooks/useAccount";
+import { useDirectChats } from "../../lib/hooks/useDirectChats";
 import { toast } from "react-toastify";
 
 interface TabPanelProps {
@@ -56,6 +57,7 @@ function TabPanel(props: TabPanelProps) {
 }
 
 export default function FriendsList() {
+  const navigate = useNavigate();
   const [tabValue, setTabValue] = useState(0);
   const [searchCode, setSearchCode] = useState("");
   const [friendRequestMessage, setFriendRequestMessage] = useState("");
@@ -63,6 +65,7 @@ export default function FriendsList() {
   const [showFriendCodeDialog, setShowFriendCodeDialog] = useState(false);
 
   const { currentUser, regenerateFriendCode } = useAccount();
+  const { directChats } = useDirectChats();
   const {
     friends,
     isLoadingFriends,
@@ -109,9 +112,17 @@ export default function FriendsList() {
     }
   };
 
-  const handleStartChat = async () => {
-    // TODO: Implement chat room creation or navigation logic
-    toast.info("Direct messaging coming soon!");
+  const handleStartChat = async (friendId: string) => {
+    const existingChat = directChats?.find(
+      (chat) => chat.otherUserId === friendId
+    );
+
+    if (existingChat) {
+      navigate(`/direct-chats/${existingChat.id}`);
+    } else {
+      toast.error("Chat not found. Please try refreshing the page.");
+      navigate("/direct-chats");
+    }
   };
 
   const copyFriendCode = () => {
@@ -128,7 +139,9 @@ export default function FriendsList() {
         accept: true,
       });
     } catch (error) {
-      console.error("Error accepting friend request:", error);
+      if (import.meta.env.DEV) {
+        console.error("Error accepting friend request:", error);
+      }
     }
   };
 
@@ -139,7 +152,9 @@ export default function FriendsList() {
         accept: false,
       });
     } catch (error) {
-      console.error("Error declining friend request:", error);
+      if (import.meta.env.DEV) {
+        console.error("Error declining friend request:", error);
+      }
     }
   };
 
@@ -147,7 +162,9 @@ export default function FriendsList() {
     try {
       await cancelFriendRequest.mutateAsync(requestId);
     } catch (error) {
-      console.error("Error cancelling friend request:", error);
+      if (import.meta.env.DEV) {
+        console.error("Error cancelling friend request:", error);
+      }
     }
   };
 
@@ -156,7 +173,9 @@ export default function FriendsList() {
       try {
         await removeFriend.mutateAsync(friendId);
       } catch (error) {
-        console.error("Error removing friend:", error);
+        if (import.meta.env.DEV) {
+          console.error("Error removing friend:", error);
+        }
       }
     }
   };
@@ -219,7 +238,27 @@ export default function FriendsList() {
             ) : (
               <List>
                 {friends.map((friend) => (
-                  <ListItem key={friend.id} divider>
+                  <ListItem
+                    key={friend.id}
+                    divider
+                    secondaryAction={
+                      <Box sx={{ display: "flex", gap: 1 }}>
+                        <IconButton
+                          onClick={() => handleStartChat(friend.id)}
+                          color="primary"
+                        >
+                          <Message />
+                        </IconButton>
+                        <IconButton
+                          onClick={() => handleRemoveFriend(friend.id)}
+                          color="error"
+                          disabled={removeFriend.isPending}
+                        >
+                          <PersonRemove />
+                        </IconButton>
+                      </Box>
+                    }
+                  >
                     <ListItemAvatar>
                       <Avatar src={friend.imageUrl} alt={friend.displayName}>
                         {friend.displayName[0]}
@@ -250,23 +289,6 @@ export default function FriendsList() {
                         </>
                       }
                     />
-                    <ListItemSecondaryAction>
-                      <Box sx={{ display: "flex", gap: 1 }}>
-                        <IconButton
-                          onClick={() => handleStartChat()}
-                          color="primary"
-                        >
-                          <Message />
-                        </IconButton>
-                        <IconButton
-                          onClick={() => handleRemoveFriend(friend.id)}
-                          color="error"
-                          disabled={removeFriend.isPending}
-                        >
-                          <PersonRemove />
-                        </IconButton>
-                      </Box>
-                    </ListItemSecondaryAction>
                   </ListItem>
                 ))}
               </List>
@@ -286,7 +308,28 @@ export default function FriendsList() {
                     </Typography>
                     <List>
                       {friendRequests.received.map((request) => (
-                        <ListItem key={request.id} divider>
+                        <ListItem
+                          key={request.id}
+                          divider
+                          secondaryAction={
+                            <Box sx={{ display: "flex", gap: 1 }}>
+                              <IconButton
+                                onClick={() => handleAcceptRequest(request.id)}
+                                color="success"
+                                disabled={respondToFriendRequest.isPending}
+                              >
+                                <Check />
+                              </IconButton>
+                              <IconButton
+                                onClick={() => handleDeclineRequest(request.id)}
+                                color="error"
+                                disabled={respondToFriendRequest.isPending}
+                              >
+                                <Close />
+                              </IconButton>
+                            </Box>
+                          }
+                        >
                           <ListItemAvatar>
                             <Avatar src={request.senderImageUrl}>
                               {request.senderDisplayName[0]}
@@ -317,24 +360,6 @@ export default function FriendsList() {
                               </>
                             }
                           />
-                          <ListItemSecondaryAction>
-                            <Box sx={{ display: "flex", gap: 1 }}>
-                              <IconButton
-                                onClick={() => handleAcceptRequest(request.id)}
-                                color="success"
-                                disabled={respondToFriendRequest.isPending}
-                              >
-                                <Check />
-                              </IconButton>
-                              <IconButton
-                                onClick={() => handleDeclineRequest(request.id)}
-                                color="error"
-                                disabled={respondToFriendRequest.isPending}
-                              >
-                                <Close />
-                              </IconButton>
-                            </Box>
-                          </ListItemSecondaryAction>
                         </ListItem>
                       ))}
                     </List>
@@ -349,7 +374,20 @@ export default function FriendsList() {
                     </Typography>
                     <List>
                       {friendRequests.sent.map((request) => (
-                        <ListItem key={request.id} divider>
+                        <ListItem
+                          key={request.id}
+                          divider
+                          secondaryAction={
+                            <Button
+                              size="small"
+                              color="error"
+                              onClick={() => handleCancelRequest(request.id)}
+                              disabled={cancelFriendRequest.isPending}
+                            >
+                              Cancel
+                            </Button>
+                          }
+                        >
                           <ListItemAvatar>
                             <Avatar src={request.receiverImageUrl}>
                               {request.receiverDisplayName[0]}
@@ -363,12 +401,12 @@ export default function FriendsList() {
                                   label="Pending"
                                   size="small"
                                   color="warning"
+                                  sx={{ mr: 1 }}
                                 />
                                 <Typography
                                   variant="caption"
                                   color="text.secondary"
                                   component="span"
-                                  sx={{ ml: 1 }}
                                 >
                                   Sent{" "}
                                   {new Date(
@@ -377,17 +415,8 @@ export default function FriendsList() {
                                 </Typography>
                               </>
                             }
+                            secondaryTypographyProps={{ component: "div" }}
                           />
-                          <ListItemSecondaryAction>
-                            <Button
-                              size="small"
-                              color="error"
-                              onClick={() => handleCancelRequest(request.id)}
-                              disabled={cancelFriendRequest.isPending}
-                            >
-                              Cancel
-                            </Button>
-                          </ListItemSecondaryAction>
                         </ListItem>
                       ))}
                     </List>

@@ -98,6 +98,7 @@ export type DirectChat = {
   lastMessageSenderId?: string;
   unreadCount: number;
   isOnline: boolean;
+  canSendMessages: boolean;
 };
 
 export type DirectMessage = {

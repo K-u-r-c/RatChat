@@ -13,6 +13,8 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
     public required DbSet<MediaFile> MediaFiles { get; set; }
     public required DbSet<UserFriend> UserFriends { get; set; }
     public required DbSet<FriendRequest> FriendRequests { get; set; }
+    public required DbSet<DirectChat> DirectChats { get; set; }
+    public required DbSet<DirectMessage> DirectMessages { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -63,6 +65,42 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
             x.HasIndex(fr => new { fr.SenderId, fr.ReceiverId })
                 .IsUnique()
                 .HasFilter("[Status] = 0"); // Only for pending requests
+        });
+
+        builder.Entity<DirectChat>(x =>
+       {
+           x.HasKey(dc => dc.Id);
+
+           x.HasOne(dc => dc.User1)
+               .WithMany()
+               .HasForeignKey(dc => dc.User1Id)
+               .OnDelete(DeleteBehavior.NoAction);
+
+           x.HasOne(dc => dc.User2)
+               .WithMany()
+               .HasForeignKey(dc => dc.User2Id)
+               .OnDelete(DeleteBehavior.NoAction);
+
+           // Ensure no duplicate chats between same users
+           x.HasIndex(dc => new { dc.User1Id, dc.User2Id })
+               .IsUnique();
+       });
+
+        builder.Entity<DirectMessage>(x =>
+        {
+            x.HasKey(dm => dm.Id);
+
+            x.HasOne(dm => dm.Sender)
+                .WithMany()
+                .HasForeignKey(dm => dm.SenderId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            x.HasOne(dm => dm.DirectChat)
+                .WithMany(dc => dc.Messages)
+                .HasForeignKey(dm => dm.DirectChatId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            x.HasIndex(dm => new { dm.DirectChatId, dm.CreatedAt });
         });
 
         builder.Entity<User>()
