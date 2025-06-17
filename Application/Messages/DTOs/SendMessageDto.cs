@@ -1,13 +1,9 @@
 namespace Application.Messages.DTOs;
 
-public class MessageDto
+public class SendMessageDto
 {
-    public required string Id { get; set; }
     public required string Body { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public required string UserId { get; set; }
-    public required string DisplayName { get; set; }
-    public string? ImageUrl { get; set; }
+    public required string ChatRoomId { get; set; }
     public string Type { get; set; } = "Text";
 
     public string? MediaUrl { get; set; }

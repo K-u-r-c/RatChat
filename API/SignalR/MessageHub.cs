@@ -25,6 +25,28 @@ public class MessageHub(IMediator mediator) : Hub
         }
     }
 
+    public async Task SendMediaMessage(AddMessage.Command command)
+    {
+        try
+        {
+            if (command.Type != "Text" && string.IsNullOrEmpty(command.MediaUrl))
+            {
+                await Clients.Caller.SendAsync("ReceiveError", 400, "Media URL is required for media messages");
+                return;
+            }
+
+            var message = await HandleSendMessage.TrySendMessageAsync(mediator, command);
+
+            await Clients.Group(command.ChatRoomId).SendAsync("ReceiveMessage", message.Value);
+        }
+        catch (SendMessageHubException hubException)
+        {
+            if (hubException.ErrorCode == ErrorCodes.WillNotBeProcessed) return;
+
+            await Clients.Caller.SendAsync("ReceiveError", hubException.ErrorCode, hubException.Message);
+        }
+    }
+
     public async Task LoadMoreMessages(string chatRoomId, DateTime? cursor, int pageSize = 20)
     {
         try

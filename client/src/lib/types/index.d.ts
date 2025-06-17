@@ -37,7 +37,16 @@ export type ChatMessage = {
   userId: string;
   displayName: string;
   imageUrl?: string;
+  type: MessageType;
+
+  mediaUrl?: string;
+  mediaPublicId?: string;
+  mediaType?: string;
+  mediaFileSize?: number;
+  mediaOriginalFileName?: string;
 };
+
+export type MessageType = "Text" | "Image" | "Video" | "Document" | "Audio";
 
 export type Profile = {
   id: string;
@@ -110,11 +119,37 @@ export type DirectMessage = {
   senderImageUrl?: string;
   isRead: boolean;
   isOwnMessage: boolean;
+  type: MessageType;
+
+  mediaUrl?: string;
+  mediaPublicId?: string;
+  mediaType?: string;
+  mediaFileSize?: number;
+  mediaOriginalFileName?: string;
 };
 
 export type SendDirectMessageRequest = {
   body: string;
   directChatId: string;
+  type?: MessageType;
+
+  mediaUrl?: string;
+  mediaPublicId?: string;
+  mediaType?: string;
+  mediaFileSize?: number;
+  mediaOriginalFileName?: string;
+};
+
+export type SendMessageRequest = {
+  body: string;
+  chatRoomId: string;
+  type?: MessageType;
+
+  mediaUrl?: string;
+  mediaPublicId?: string;
+  mediaType?: string;
+  mediaFileSize?: number;
+  mediaOriginalFileName?: string;
 };
 
 export type SendFriendRequestRequest = {
@@ -125,4 +160,15 @@ export type SendFriendRequestRequest = {
 export type RespondToFriendRequestRequest = {
   requestId: string;
   accept: boolean;
+};
+
+export type MediaUploadResult = {
+  url: string;
+  publicId: string;
+  mediaType: string;
+  fileSize: number;
+  originalFileName: string;
+  category: string;
+  chatRoomId?: string;
+  channelId?: string;
 };

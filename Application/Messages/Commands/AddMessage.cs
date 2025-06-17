@@ -3,6 +3,7 @@ using Application.Interfaces;
 using Application.Messages.DTOs;
 using AutoMapper;
 using Domain;
+using Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Persistance;
@@ -15,6 +16,13 @@ public class AddMessage
     {
         public required string Body { get; set; }
         public required string ChatRoomId { get; set; }
+        public string Type { get; set; } = "Text";
+
+        public string? MediaUrl { get; set; }
+        public string? MediaPublicId { get; set; }
+        public string? MediaType { get; set; }
+        public long? MediaFileSize { get; set; }
+        public string? MediaOriginalFileName { get; set; }
     }
 
     public class Handler(AppDbContext context, IMapper mapper, IUserAccessor userAccessor)
@@ -22,8 +30,11 @@ public class AddMessage
     {
         public async Task<Result<MessageDto>> Handle(Command request, CancellationToken cancellationToken)
         {
-            if (string.IsNullOrWhiteSpace(request.Body))
+            if (request.Type == "Text" && string.IsNullOrWhiteSpace(request.Body))
                 return Result<MessageDto>.Failure("Can't send empty message", 422);
+
+            if (request.Type != "Text" && string.IsNullOrEmpty(request.MediaUrl))
+                return Result<MessageDto>.Failure("Media URL is required for media messages", 422);
 
             var chatRoom = await context.ChatRooms
                 .Include(x => x.Messages)
@@ -33,11 +44,21 @@ public class AddMessage
             if (chatRoom == null) return Result<MessageDto>.Failure("Could not find chat room", 404);
 
             var user = await userAccessor.GetUserAsync();
+
+            if (!Enum.TryParse<MessageType>(request.Type, out var messageType))
+                messageType = MessageType.Text;
+
             var message = new Message
             {
                 UserId = user.Id,
                 ChatRoomId = chatRoom.Id,
-                Body = request.Body
+                Body = request.Body,
+                Type = messageType,
+                MediaUrl = request.MediaUrl,
+                MediaPublicId = request.MediaPublicId,
+                MediaType = request.MediaType,
+                MediaFileSize = request.MediaFileSize,
+                MediaOriginalFileName = request.MediaOriginalFileName
             };
 
             chatRoom.Messages.Add(message);
