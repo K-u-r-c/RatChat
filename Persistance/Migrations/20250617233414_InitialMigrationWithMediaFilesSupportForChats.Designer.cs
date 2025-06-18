@@ -12,8 +12,8 @@ using Persistance;
 namespace Persistance.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250616202603_AddDirectChats")]
-    partial class AddDirectChats
+    [Migration("20250617233414_InitialMigrationWithMediaFilesSupportForChats")]
+    partial class InitialMigrationWithMediaFilesSupportForChats
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -117,9 +117,27 @@ namespace Persistance.Migrations
                     b.Property<bool>("IsRead")
                         .HasColumnType("bit");
 
+                    b.Property<long?>("MediaFileSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("MediaOriginalFileName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("MediaPublicId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("MediaType")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("MediaUrl")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("SenderId")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -184,10 +202,6 @@ namespace Persistance.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("FileHash")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
                     b.Property<long>("FileSize")
                         .HasColumnType("bigint");
 
@@ -203,11 +217,6 @@ namespace Persistance.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
-                    b.Property<int>("ReferenceCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(1);
-
                     b.Property<string>("UploadedById")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
@@ -219,8 +228,6 @@ namespace Persistance.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ChatRoomId");
-
-                    b.HasIndex("FileHash");
 
                     b.HasIndex("PublicId");
 
@@ -246,6 +253,24 @@ namespace Persistance.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<long?>("MediaFileSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("MediaOriginalFileName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("MediaPublicId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("MediaType")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("MediaUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
 
                     b.Property<string>("UserId")
                         .IsRequired()

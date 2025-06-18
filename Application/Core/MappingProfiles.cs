@@ -55,7 +55,24 @@ public class MappingProfiles : Profile
         CreateMap<Message, MessageDto>()
             .ForMember(d => d.DisplayName, o => o.MapFrom(s => s.User.DisplayName))
             .ForMember(d => d.UserId, o => o.MapFrom(s => s.User.Id))
-            .ForMember(d => d.ImageUrl, o => o.MapFrom(s => s.User.ImageUrl));
+            .ForMember(d => d.ImageUrl, o => o.MapFrom(s => s.User.ImageUrl))
+            .ForMember(d => d.Type, o => o.MapFrom(s => s.Type.ToString()))
+            .ForMember(d => d.MediaUrl, o => o.MapFrom(s => s.MediaUrl))
+            .ForMember(d => d.MediaPublicId, o => o.MapFrom(s => s.MediaPublicId))
+            .ForMember(d => d.MediaType, o => o.MapFrom(s => s.MediaType))
+            .ForMember(d => d.MediaFileSize, o => o.MapFrom(s => s.MediaFileSize))
+            .ForMember(d => d.MediaOriginalFileName, o => o.MapFrom(s => s.MediaOriginalFileName));
+
+        CreateMap<DirectMessage, DirectMessageDto>()
+            .ForMember(d => d.SenderDisplayName, o => o.MapFrom(s => s.Sender.DisplayName))
+            .ForMember(d => d.SenderImageUrl, o => o.MapFrom(s => s.Sender.ImageUrl))
+            .ForMember(d => d.IsOwnMessage, o => o.MapFrom(s => s.SenderId == currentUserId))
+            .ForMember(d => d.Type, o => o.MapFrom(s => s.Type.ToString()))
+            .ForMember(d => d.MediaUrl, o => o.MapFrom(s => s.MediaUrl))
+            .ForMember(d => d.MediaPublicId, o => o.MapFrom(s => s.MediaPublicId))
+            .ForMember(d => d.MediaType, o => o.MapFrom(s => s.MediaType))
+            .ForMember(d => d.MediaFileSize, o => o.MapFrom(s => s.MediaFileSize))
+            .ForMember(d => d.MediaOriginalFileName, o => o.MapFrom(s => s.MediaOriginalFileName));
 
         CreateMap<UserFriend, FriendDto>()
             .ForMember(d => d.Id, o => o.MapFrom(s => s.Friend.Id))
@@ -71,10 +88,5 @@ public class MappingProfiles : Profile
             .ForMember(d => d.ReceiverDisplayName, o => o.MapFrom(s => s.Receiver.DisplayName))
             .ForMember(d => d.ReceiverImageUrl, o => o.MapFrom(s => s.Receiver.ImageUrl))
             .ForMember(d => d.Status, o => o.MapFrom(s => s.Status.ToString()));
-
-        CreateMap<DirectMessage, DirectMessageDto>()
-            .ForMember(d => d.SenderDisplayName, o => o.MapFrom(s => s.Sender.DisplayName))
-            .ForMember(d => d.SenderImageUrl, o => o.MapFrom(s => s.Sender.ImageUrl))
-            .ForMember(d => d.IsOwnMessage, o => o.MapFrom(s => s.SenderId == currentUserId));
     }
 }

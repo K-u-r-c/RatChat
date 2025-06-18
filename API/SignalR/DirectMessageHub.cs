@@ -28,6 +28,31 @@ public class DirectMessageHub(IMediator mediator) : Hub
         }
     }
 
+    public async Task SendDirectMediaMessage(SendDirectMessage.Command command)
+    {
+        try
+        {
+            if (command.Type != "Text" && string.IsNullOrEmpty(command.MediaUrl))
+            {
+                await Clients.Caller.SendAsync("ReceiveError", 400, "Media URL is required for media messages");
+                return;
+            }
+
+            var message = await mediator.Send(command);
+
+            if (!message.IsSuccess || message.Value == null)
+                throw new SendMessageHubException(message.Error ?? "Failed to send message", message.Code);
+
+            await Clients.Group(command.DirectChatId).SendAsync("ReceiveDirectMessage", message.Value);
+        }
+        catch (SendMessageHubException hubException)
+        {
+            if (hubException.ErrorCode == ErrorCodes.WillNotBeProcessed) return;
+
+            await Clients.Caller.SendAsync("ReceiveError", hubException.ErrorCode, hubException.Message);
+        }
+    }
+
     public async Task LoadMoreDirectMessages(string directChatId, DateTime? cursor, int pageSize = 20)
     {
         try

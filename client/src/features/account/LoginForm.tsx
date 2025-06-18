@@ -81,7 +81,7 @@ export default function LoginForm() {
         px: { xs: 0, sm: 0, md: 4 },
         pt: { xs: 2, sm: 3 },
         width: "100%",
-        minHeight: "90vh",
+        minHeight: { xs: "90vh", sm: "90vh", md: "auto" },
       }}
     >
       <Paper
@@ -103,6 +103,7 @@ export default function LoginForm() {
             lg: "540px",
           },
           maxWidth: "540px",
+          height: "auto",
           minHeight: {
             xs: "100%",
             sm: "600px",

@@ -116,11 +116,7 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
             x.Property(m => m.OriginalFileName).IsRequired();
             x.Property(m => m.Category).IsRequired();
             x.Property(m => m.UploadedById).IsRequired();
-            x.Property(m => m.FileHash).IsRequired();
-            x.Property(m => m.ReferenceCount).HasDefaultValue(1);
 
-            // Index for performance
-            x.HasIndex(m => m.FileHash);
             x.HasIndex(m => m.PublicId);
             x.HasIndex(m => new { m.Category, m.ChatRoomId });
 

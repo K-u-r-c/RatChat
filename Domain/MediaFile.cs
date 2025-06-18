@@ -13,9 +13,7 @@ public class MediaFile
     public string? ChannelId { get; set; }
     public required string UploadedById { get; set; }
     public User UploadedBy { get; set; } = null!;
-    public required string FileHash { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public int ReferenceCount { get; set; } = 1;
 
     // Navigation properties
     public ChatRoom? ChatRoom { get; set; }

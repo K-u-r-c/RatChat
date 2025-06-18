@@ -1,14 +1,15 @@
 using Application.Interfaces;
-using Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Persistance;
 
 namespace Infrastructure.Services;
 
 public class MediaCleanupService(
-    IServiceProvider serviceProvider)
+    IServiceProvider serviceProvider,
+    ILogger<MediaCleanupService> logger)
     : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -17,35 +18,43 @@ public class MediaCleanupService(
         {
             try
             {
-                await CleanupUnusedMediaFiles();
+                await CleanupOrphanedMediaFiles();
                 await Task.Delay(TimeSpan.FromHours(24), stoppingToken);
             }
-            catch
+            catch (Exception ex)
             {
+                logger.LogError(ex, "Error occurred during media cleanup");
                 await Task.Delay(TimeSpan.FromMinutes(30), stoppingToken);
             }
         }
     }
 
-    private async Task CleanupUnusedMediaFiles()
+    private async Task CleanupOrphanedMediaFiles()
     {
         using var scope = serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var fileStorage = scope.ServiceProvider.GetRequiredService<IFileStorage>();
 
         var cutoffDate = DateTime.UtcNow.AddHours(-24);
-        var unusedFiles = await context.MediaFiles
-            .Where(m => m.ReferenceCount <= 0 && m.CreatedAt < cutoffDate)
+
+        var orphanedFiles = await context.MediaFiles
+            .Where(m => m.CreatedAt < cutoffDate)
+            .Where(m =>
+                !context.Users.Any(u => u.ImageUrl != null && u.ImageUrl.Contains(m.PublicId)) &&
+                !context.Users.Any(u => u.BannerUrl != null && u.BannerUrl.Contains(m.PublicId)) &&
+                !context.Messages.Any(msg => msg.MediaPublicId == m.PublicId) &&
+                !context.DirectMessages.Any(dm => dm.MediaPublicId == m.PublicId))
             .ToListAsync();
 
-        if (unusedFiles.Count == 0)
+        if (orphanedFiles.Count == 0)
         {
+            logger.LogInformation("No orphaned media files found");
             return;
         }
 
         var deletedCount = 0;
 
-        foreach (var mediaFile in unusedFiles)
+        foreach (var mediaFile in orphanedFiles)
         {
             var folderPath = GetFolderPathForCleanup(mediaFile);
 
@@ -55,16 +64,23 @@ public class MediaCleanupService(
             {
                 context.MediaFiles.Remove(mediaFile);
                 deletedCount++;
+                logger.LogInformation("Deleted orphaned media file: {PublicId}", mediaFile.PublicId);
+            }
+            else
+            {
+                logger.LogWarning("Failed to delete media file from storage: {PublicId}, Error: {Error}",
+                    mediaFile.PublicId, deleteResult.Error);
             }
         }
 
         if (deletedCount > 0)
         {
             await context.SaveChangesAsync();
+            logger.LogInformation("Cleanup completed. Deleted {Count} orphaned media files", deletedCount);
         }
     }
 
-    private static string GetFolderPathForCleanup(MediaFile mediaFile)
+    private static string GetFolderPathForCleanup(Domain.MediaFile mediaFile)
     {
         return mediaFile.Category switch
         {

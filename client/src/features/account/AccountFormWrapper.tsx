@@ -41,7 +41,7 @@ export default function AccountFormWrapper<TFormData extends FieldValues>({
         px: { xs: 0, sm: 0, md: 4 },
         pt: { xs: 2, sm: 3 },
         width: "100%",
-        minHeight: "90vh",
+        minHeight: { xs: "90vh", sm: "90vh", md: "auto" },
       }}
     >
       <FormProvider {...methods}>

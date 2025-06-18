@@ -3,7 +3,16 @@ import { Outlet, ScrollRestoration } from "react-router";
 
 export default function AuthLayout() {
   return (
-    <Box sx={{ bgcolor: "#27262C", minHeight: "100vh" }}>
+    <Box
+      sx={{
+        bgcolor: "#27262C",
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: { sm: "center", md: "center" },
+        width: "100%",
+      }}
+    >
       <ScrollRestoration />
       <CssBaseline />
       <Box
@@ -13,6 +22,7 @@ export default function AuthLayout() {
           justifyContent: { sm: "center", md: "center" },
           alignItems: "center",
           height: "100%",
+          width: "100%",
         }}
       >
         <Typography
@@ -35,7 +45,7 @@ export default function AuthLayout() {
         <Container
           sx={{
             px: 0,
-            minHeight: "90vh",
+            minHeight: { xs: "90vh", sm: "auto", md: "auto" },
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
