@@ -29,7 +29,7 @@ import { timeAgo } from "../../../lib/util/util";
 import { type FieldValues, useForm } from "react-hook-form";
 import { observer } from "mobx-react-lite";
 import { useInView } from "react-intersection-observer";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { useMedia, MediaCategory } from "../../../lib/hooks/useMedia";
 import type { MessageType, MediaUploadResult } from "../../../lib/types";
@@ -90,7 +90,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
   const [showMediaDialog, setShowMediaDialog] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
-  const [imageDialog, setImageDialog] = useState<{
+const [imageDialog, setImageDialog] = useState<{
     open: boolean;
     src: string | null;
   }>({
@@ -187,15 +187,14 @@ const MediaChatComponent = observer(function MediaChatComponent({
     }
   };
 
-  const onDrop = (acceptedFiles: File[]) => {
+  const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     if (file) {
       setSelectedFile(file);
       const preview = URL.createObjectURL(file);
       setMediaPreview(preview);
-      setShowMediaDialog(true);
     }
-  };
+  }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -422,7 +421,13 @@ const MediaChatComponent = observer(function MediaChatComponent({
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      onDrop([file]);
+      // Set the file for preview without uploading
+      setSelectedFile(file);
+      const preview = URL.createObjectURL(file);
+      setMediaPreview(preview);
+
+      // Don't open the dialog, just show preview in the input area
+      // The file will be uploaded when the user submits the form
     }
   };
 
@@ -459,9 +464,11 @@ const MediaChatComponent = observer(function MediaChatComponent({
       case "Image":
         return (
           <Box>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              📷 {message.mediaOriginalFileName}
-            </Typography>
+            {message.body && message.body !== message.mediaOriginalFileName && (
+              <Typography sx={{ whiteSpace: "pre-wrap", mb: 1 }}>
+                {message.body}
+              </Typography>
+            )}
             <img
               {...commonProps}
               src={message.mediaUrl}
@@ -477,9 +484,11 @@ const MediaChatComponent = observer(function MediaChatComponent({
       case "Video":
         return (
           <Box>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              🎥 {message.mediaOriginalFileName}
-            </Typography>
+            {message.body && message.body !== message.mediaOriginalFileName && (
+              <Typography sx={{ whiteSpace: "pre-wrap", mb: 1 }}>
+                {message.body}
+              </Typography>
+            )}
             <video
               {...commonProps}
               controls
@@ -494,9 +503,11 @@ const MediaChatComponent = observer(function MediaChatComponent({
       case "Audio":
         return (
           <Box>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              🎵 {message.mediaOriginalFileName}
-            </Typography>
+            {message.body && message.body !== message.mediaOriginalFileName && (
+              <Typography sx={{ whiteSpace: "pre-wrap", mb: 1 }}>
+                {message.body}
+              </Typography>
+            )}
             <audio {...commonProps} controls src={message.mediaUrl}>
               Your browser does not support the audio tag.
             </audio>
@@ -505,35 +516,42 @@ const MediaChatComponent = observer(function MediaChatComponent({
 
       case "Document":
         return (
-          <Paper
-            sx={{
-              p: 2,
-              mt: 1,
-              display: "flex",
-              alignItems: "center",
-              gap: 2,
-              cursor: "pointer",
-              "&:hover": { backgroundColor: "action.hover" },
-            }}
-            onClick={() =>
-              downloadFile(message.mediaUrl!, message.mediaOriginalFileName!)
-            }
-          >
-            {getFileIcon(message.mediaOriginalFileName || "")}
-            <Box sx={{ flex: 1 }}>
-              <Typography variant="body2" fontWeight="bold">
-                {message.mediaOriginalFileName}
+          <Box>
+            {message.body && message.body !== message.mediaOriginalFileName && (
+              <Typography sx={{ whiteSpace: "pre-wrap", mb: 1 }}>
+                {message.body}
               </Typography>
-              {message.mediaFileSize && (
-                <Typography variant="caption" color="text.secondary">
-                  {formatFileSize(message.mediaFileSize)}
+            )}
+            <Paper
+              sx={{
+                p: 2,
+                mt: 1,
+                display: "flex",
+                alignItems: "center",
+                gap: 2,
+                cursor: "pointer",
+                "&:hover": { backgroundColor: "action.hover" },
+              }}
+              onClick={() =>
+                downloadFile(message.mediaUrl!, message.mediaOriginalFileName!)
+              }
+            >
+              {getFileIcon(message.mediaOriginalFileName || "")}
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="body2" fontWeight="bold">
+                  {message.mediaOriginalFileName}
                 </Typography>
-              )}
-            </Box>
-            <IconButton size="small" color="primary">
-              <Download />
-            </IconButton>
-          </Paper>
+                {message.mediaFileSize && (
+                  <Typography variant="caption" color="text.secondary">
+                    {formatFileSize(message.mediaFileSize)}
+                  </Typography>
+                )}
+              </Box>
+              <IconButton size="small" color="primary">
+                <Download />
+              </IconButton>
+            </Paper>
+          </Box>
         );
 
       default:
@@ -639,6 +657,37 @@ const MediaChatComponent = observer(function MediaChatComponent({
         return;
       }
 
+      // Handle regular file upload from file selector or drag & drop
+      if (selectedFile && mediaPreview) {
+        const category = getMediaCategory(selectedFile);
+        const messageType = getMessageType(selectedFile);
+
+        const uploadResult = await uploadMedia.mutateAsync({
+          file: selectedFile,
+          category,
+          ...(chatRoomId && { chatRoomId }),
+        });
+
+        const messageBody = data.body?.trim() || selectedFile.name;
+
+        await onSendMessage(messageBody, messageType, {
+          url: uploadResult.url,
+          publicId: uploadResult.publicId,
+          mediaType: uploadResult.mediaType,
+          fileSize: uploadResult.fileSize,
+          originalFileName: uploadResult.originalFileName,
+        });
+
+        // Clean up file state
+        setSelectedFile(null);
+        if (mediaPreview) {
+          URL.revokeObjectURL(mediaPreview);
+          setMediaPreview(null);
+        }
+        return;
+      }
+
+      // Handle regular text message
       const trimmedBody = data.body?.trimEnd();
       if (trimmedBody) {
         await onSendMessage(trimmedBody);
@@ -655,9 +704,17 @@ const MediaChatComponent = observer(function MediaChatComponent({
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       handleSubmit(addMessage)();
-    } else if (event.key === "Escape" && pendingPaste.file) {
+    } else if (event.key === "Escape") {
       event.preventDefault();
-      clearPendingPaste();
+      if (pendingPaste.file) {
+        clearPendingPaste();
+      } else if (selectedFile) {
+        setSelectedFile(null);
+        if (mediaPreview) {
+          URL.revokeObjectURL(mediaPreview);
+          setMediaPreview(null);
+        }
+      }
     }
   };
 
@@ -879,6 +936,73 @@ const MediaChatComponent = observer(function MediaChatComponent({
               </Box>
             )}
 
+            {/* File preview area */}
+            {selectedFile && mediaPreview && (
+              <Box
+                sx={{
+                  mb: 2,
+                  p: 2,
+                  border: "2px solid",
+                  borderColor: "secondary.main",
+                  borderRadius: 2,
+                  backgroundColor: "background.paper",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 2,
+                }}
+              >
+                {selectedFile.type.startsWith("image/") ? (
+                  <img
+                    src={mediaPreview}
+                    alt="File preview"
+                    style={{
+                      width: 60,
+                      height: 60,
+                      objectFit: "cover",
+                      borderRadius: 8,
+                    }}
+                  />
+                ) : (
+                  <Box
+                    sx={{
+                      width: 60,
+                      height: 60,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      backgroundColor: "grey.200",
+                      borderRadius: 2,
+                    }}
+                  >
+                    {getFileIcon(selectedFile)}
+                  </Box>
+                )}
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="body2" fontWeight="bold">
+                    📎 {selectedFile.name}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {formatFileSize(selectedFile.size)} • Add text below or
+                    press Enter to send
+                  </Typography>
+                </Box>
+                <IconButton
+                  onClick={() => {
+                    setSelectedFile(null);
+                    if (mediaPreview) {
+                      URL.revokeObjectURL(mediaPreview);
+                      setMediaPreview(null);
+                    }
+                  }}
+                  size="small"
+                  color="error"
+                  title="Remove file"
+                >
+                  <Close />
+                </IconButton>
+              </Box>
+            )}
+
             <Box sx={{ display: "flex", gap: 1, alignItems: "flex-end" }}>
               <TextField
                 {...register("body")}
@@ -887,8 +1011,8 @@ const MediaChatComponent = observer(function MediaChatComponent({
                 multiline
                 rows={2}
                 placeholder={
-                  pendingPaste.file
-                    ? "Add a message with your image (optional)..."
+                  pendingPaste.file || selectedFile
+                    ? "Add a message with your file (optional)..."
                     : "Enter your message (Enter to submit, Ctrl+V to paste images, SHIFT + Enter for new line)"
                 }
                 onKeyDown={handleKeyPress}
@@ -906,7 +1030,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
                 color="primary"
                 sx={{ mb: 0.5 }}
                 title="Attach file"
-                disabled={!!pendingPaste.file}
+                disabled={!!pendingPaste.file || !!selectedFile}
               >
                 <AttachFile />
               </IconButton>
