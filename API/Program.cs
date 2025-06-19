@@ -3,6 +3,7 @@ using API.SignalR;
 using Application.ChatRooms.Queries;
 using Application.ChatRooms.Validators;
 using Application.Core;
+using Application.Development;
 using Application.Friends.Validators;
 using Application.Interfaces;
 using Application.Profiles.Validators;
@@ -51,6 +52,8 @@ builder.Services.AddTransient<IEmailSender<User>, EmailSender>();
 builder.Services.AddScoped<IUserAccessor, UserAccessor>();
 builder.Services.AddScoped<IMediaValidator, MediaValidator>();
 builder.Services.AddScoped<IFriendsNotificationService, FriendsNotificationService>();
+builder.Services.AddScoped<IRolePermissionService, RolePermissionService>();
+builder.Services.AddScoped<IChatRoomRoleService, ChatRoomRoleService>();
 if (builder.Environment.IsDevelopment())
 {
     // MinIO for development
@@ -124,11 +127,13 @@ try
 {
     var context = services.GetRequiredService<AppDbContext>();
     var userManager = services.GetRequiredService<UserManager<User>>();
+    var rolePermissionService = services.GetRequiredService<IRolePermissionService>();
+    var chatRoomRoleService = services.GetRequiredService<IChatRoomRoleService>();
     await context.Database.MigrateAsync();
 
     if (builder.Environment.IsDevelopment())
     {
-        await DbInitializer.SeedData(context, userManager);
+        await DbInitializer.SeedData(context, userManager, rolePermissionService, chatRoomRoleService);
     }
 }
 catch (Exception ex)

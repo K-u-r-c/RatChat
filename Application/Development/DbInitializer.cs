@@ -1,11 +1,18 @@
+using Application.Interfaces;
 using Domain;
 using Microsoft.AspNetCore.Identity;
+using Persistance;
 
-namespace Persistance;
+namespace Application.Development;
 
 public class DbInitializer
 {
-    public static async Task SeedData(AppDbContext context, UserManager<User> userManager)
+    public static async Task SeedData(
+        AppDbContext context,
+        UserManager<User> userManager,
+        IRolePermissionService rolePermissionService,
+        IChatRoomRoleService chatRoomRoleService
+        )
     {
         var users = new List<User>
         {
@@ -292,6 +299,18 @@ public class DbInitializer
         };
 
         context.ChatRooms.AddRange(chatRooms);
+
+        await rolePermissionService.InitializePermissionsAsync();
+
+        foreach (var chatRoom in chatRooms)
+        {
+            await chatRoomRoleService.InitializeDefaultRolesAsync(chatRoom.Id);
+
+            foreach (var user in users)
+            {
+                await chatRoomRoleService.AssignMemberRoleAsync(user.Id, chatRoom.Id);
+            }
+        }
 
         await context.SaveChangesAsync();
     }
