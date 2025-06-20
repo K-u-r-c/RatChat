@@ -10,4 +10,5 @@ public class FriendDto
     public DateTime FriendsSince { get; set; }
     public bool IsOnline { get; set; }
     public DateTime? LastSeen { get; set; }
+    public string Status { get; set; } = "Offline";
 }

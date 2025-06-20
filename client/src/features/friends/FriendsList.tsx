@@ -7,33 +7,19 @@ import {
   Tab,
   Typography,
   Button,
-  TextField,
-  Avatar,
-  List,
-  ListItem,
-  ListItemAvatar,
-  ListItemText,
-  IconButton,
   Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   Paper,
 } from "@mui/material";
-import {
-  PersonAdd,
-  PersonRemove,
-  Check,
-  Close,
-  Message,
-  ContentCopy,
-} from "@mui/icons-material";
+import { PersonAdd } from "@mui/icons-material";
 import { useNavigate } from "react-router";
 import { useFriends } from "../../lib/hooks/useFriends";
 import { useAccount } from "../../lib/hooks/useAccount";
 import { useDirectChats } from "../../lib/hooks/useDirectChats";
 import { toast } from "react-toastify";
+import { FriendsTab } from "./FriendsTab";
+import { FriendRequestsTab } from "./FriendRequestsTab";
+import { AddFriendDialog } from "./AddFriendDialog";
+import { FriendCodeDialog } from "./FriendCodeDialog";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -59,8 +45,6 @@ function TabPanel(props: TabPanelProps) {
 export default function FriendsList() {
   const navigate = useNavigate();
   const [tabValue, setTabValue] = useState(0);
-  const [searchCode, setSearchCode] = useState("");
-  const [friendRequestMessage, setFriendRequestMessage] = useState("");
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showFriendCodeDialog, setShowFriendCodeDialog] = useState(false);
 
@@ -78,13 +62,9 @@ export default function FriendsList() {
     removeFriend,
   } = useFriends();
 
-  const handleSearchAndAdd = async () => {
-    if (!searchCode.trim()) return;
-
+  const handleAddFriend = async (friendCode: string, message?: string) => {
     try {
-      const result = await searchUserByFriendCode.mutateAsync(
-        searchCode.toUpperCase()
-      );
+      const result = await searchUserByFriendCode.mutateAsync(friendCode);
 
       if (result.isAlreadyFriend) {
         toast.info("You are already friends with this user");
@@ -97,12 +77,10 @@ export default function FriendsList() {
       }
 
       await sendFriendRequest.mutateAsync({
-        friendCode: searchCode.toUpperCase(),
-        message: friendRequestMessage.trim() || undefined,
+        friendCode,
+        message,
       });
 
-      setSearchCode("");
-      setFriendRequestMessage("");
       setShowAddDialog(false);
       toast.success("Friend request sent!");
     } catch (error) {
@@ -125,10 +103,15 @@ export default function FriendsList() {
     }
   };
 
-  const copyFriendCode = () => {
-    if (currentUser?.friendCode) {
-      navigator.clipboard.writeText(currentUser.friendCode);
-      toast.success("Friend code copied to clipboard!");
+  const handleRemoveFriend = async (friendId: string) => {
+    if (window.confirm("Are you sure you want to remove this friend?")) {
+      try {
+        await removeFriend.mutateAsync(friendId);
+      } catch (error) {
+        if (import.meta.env.DEV) {
+          console.error("Error removing friend:", error);
+        }
+      }
     }
   };
 
@@ -168,15 +151,10 @@ export default function FriendsList() {
     }
   };
 
-  const handleRemoveFriend = async (friendId: string) => {
-    if (window.confirm("Are you sure you want to remove this friend?")) {
-      try {
-        await removeFriend.mutateAsync(friendId);
-      } catch (error) {
-        if (import.meta.env.DEV) {
-          console.error("Error removing friend:", error);
-        }
-      }
+  const copyFriendCode = () => {
+    if (currentUser?.friendCode) {
+      navigator.clipboard.writeText(currentUser.friendCode);
+      toast.success("Friend code copied to clipboard!");
     }
   };
 
@@ -229,287 +207,44 @@ export default function FriendsList() {
           </Tabs>
 
           <TabPanel value={tabValue} index={0}>
-            {isLoadingFriends ? (
-              <Typography>Loading friends...</Typography>
-            ) : !friends?.length ? (
-              <Typography color="text.secondary">
-                No friends yet. Add some friends to get started!
-              </Typography>
-            ) : (
-              <List>
-                {friends.map((friend) => (
-                  <ListItem
-                    key={friend.id}
-                    divider
-                    secondaryAction={
-                      <Box sx={{ display: "flex", gap: 1 }}>
-                        <IconButton
-                          onClick={() => handleStartChat(friend.id)}
-                          color="primary"
-                        >
-                          <Message />
-                        </IconButton>
-                        <IconButton
-                          onClick={() => handleRemoveFriend(friend.id)}
-                          color="error"
-                          disabled={removeFriend.isPending}
-                        >
-                          <PersonRemove />
-                        </IconButton>
-                      </Box>
-                    }
-                  >
-                    <ListItemAvatar>
-                      <Avatar src={friend.imageUrl} alt={friend.displayName}>
-                        {friend.displayName[0]}
-                      </Avatar>
-                    </ListItemAvatar>
-                    <ListItemText
-                      primary={friend.displayName}
-                      secondary={
-                        <>
-                          {friend.bio && (
-                            <Typography
-                              variant="body2"
-                              color="text.secondary"
-                              component="span"
-                              display="block"
-                            >
-                              {friend.bio}
-                            </Typography>
-                          )}
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            component="span"
-                          >
-                            Friends since{" "}
-                            {new Date(friend.friendsSince).toLocaleDateString()}
-                          </Typography>
-                        </>
-                      }
-                    />
-                  </ListItem>
-                ))}
-              </List>
-            )}
+            <FriendsTab
+              friends={friends}
+              isLoading={isLoadingFriends}
+              onStartChat={handleStartChat}
+              onRemoveFriend={handleRemoveFriend}
+              isRemoving={removeFriend.isPending}
+            />
           </TabPanel>
 
           <TabPanel value={tabValue} index={1}>
-            {isLoadingRequests ? (
-              <Typography>Loading friend requests...</Typography>
-            ) : (
-              <Box>
-                {/* Received Requests */}
-                {friendRequests?.received?.length ? (
-                  <Box sx={{ mb: 3 }}>
-                    <Typography variant="h6" gutterBottom>
-                      Received Requests
-                    </Typography>
-                    <List>
-                      {friendRequests.received.map((request) => (
-                        <ListItem
-                          key={request.id}
-                          divider
-                          secondaryAction={
-                            <Box sx={{ display: "flex", gap: 1 }}>
-                              <IconButton
-                                onClick={() => handleAcceptRequest(request.id)}
-                                color="success"
-                                disabled={respondToFriendRequest.isPending}
-                              >
-                                <Check />
-                              </IconButton>
-                              <IconButton
-                                onClick={() => handleDeclineRequest(request.id)}
-                                color="error"
-                                disabled={respondToFriendRequest.isPending}
-                              >
-                                <Close />
-                              </IconButton>
-                            </Box>
-                          }
-                        >
-                          <ListItemAvatar>
-                            <Avatar src={request.senderImageUrl}>
-                              {request.senderDisplayName[0]}
-                            </Avatar>
-                          </ListItemAvatar>
-                          <ListItemText
-                            primary={request.senderDisplayName}
-                            secondary={
-                              <>
-                                {request.message && (
-                                  <Typography
-                                    variant="body2"
-                                    component="span"
-                                    display="block"
-                                  >
-                                    "{request.message}"
-                                  </Typography>
-                                )}
-                                <Typography
-                                  variant="caption"
-                                  color="text.secondary"
-                                  component="span"
-                                >
-                                  {new Date(
-                                    request.createdAt
-                                  ).toLocaleDateString()}
-                                </Typography>
-                              </>
-                            }
-                          />
-                        </ListItem>
-                      ))}
-                    </List>
-                  </Box>
-                ) : null}
-
-                {/* Sent Requests */}
-                {friendRequests?.sent?.length ? (
-                  <Box>
-                    <Typography variant="h6" gutterBottom>
-                      Sent Requests
-                    </Typography>
-                    <List>
-                      {friendRequests.sent.map((request) => (
-                        <ListItem
-                          key={request.id}
-                          divider
-                          secondaryAction={
-                            <Button
-                              size="small"
-                              color="error"
-                              onClick={() => handleCancelRequest(request.id)}
-                              disabled={cancelFriendRequest.isPending}
-                            >
-                              Cancel
-                            </Button>
-                          }
-                        >
-                          <ListItemAvatar>
-                            <Avatar src={request.receiverImageUrl}>
-                              {request.receiverDisplayName[0]}
-                            </Avatar>
-                          </ListItemAvatar>
-                          <ListItemText
-                            primary={request.receiverDisplayName}
-                            secondary={
-                              <>
-                                <Chip
-                                  label="Pending"
-                                  size="small"
-                                  color="warning"
-                                  sx={{ mr: 1 }}
-                                />
-                                <Typography
-                                  variant="caption"
-                                  color="text.secondary"
-                                  component="span"
-                                >
-                                  Sent{" "}
-                                  {new Date(
-                                    request.createdAt
-                                  ).toLocaleDateString()}
-                                </Typography>
-                              </>
-                            }
-                            secondaryTypographyProps={{ component: "div" }}
-                          />
-                        </ListItem>
-                      ))}
-                    </List>
-                  </Box>
-                ) : null}
-
-                {!friendRequests?.received?.length &&
-                  !friendRequests?.sent?.length && (
-                    <Typography color="text.secondary">
-                      No friend requests
-                    </Typography>
-                  )}
-              </Box>
-            )}
+            <FriendRequestsTab
+              friendRequests={friendRequests}
+              isLoading={isLoadingRequests}
+              onAcceptRequest={handleAcceptRequest}
+              onDeclineRequest={handleDeclineRequest}
+              onCancelRequest={handleCancelRequest}
+              isResponding={respondToFriendRequest.isPending}
+              isCanceling={cancelFriendRequest.isPending}
+            />
           </TabPanel>
         </CardContent>
       </Card>
 
-      {/* Add Friend Dialog */}
-      <Dialog
+      <AddFriendDialog
         open={showAddDialog}
         onClose={() => setShowAddDialog(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Add Friend</DialogTitle>
-        <DialogContent>
-          <TextField
-            fullWidth
-            label="Friend Code"
-            value={searchCode}
-            onChange={(e) => setSearchCode(e.target.value.toUpperCase())}
-            placeholder="Enter 6-8 character friend code"
-            sx={{ mb: 2, mt: 1 }}
-          />
-          <TextField
-            fullWidth
-            label="Message (optional)"
-            value={friendRequestMessage}
-            onChange={(e) => setFriendRequestMessage(e.target.value)}
-            placeholder="Say hello..."
-            multiline
-            rows={3}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowAddDialog(false)}>Cancel</Button>
-          <Button
-            onClick={handleSearchAndAdd}
-            variant="contained"
-            disabled={!searchCode.trim() || sendFriendRequest.isPending}
-          >
-            Send Request
-          </Button>
-        </DialogActions>
-      </Dialog>
+        onSubmit={handleAddFriend}
+        isLoading={sendFriendRequest.isPending}
+      />
 
-      {/* Friend Code Dialog */}
-      <Dialog
+      <FriendCodeDialog
         open={showFriendCodeDialog}
         onClose={() => setShowFriendCodeDialog(false)}
-      >
-        <DialogTitle>Your Friend Code</DialogTitle>
-        <DialogContent>
-          <Box sx={{ textAlign: "center", py: 2 }}>
-            <Typography variant="h4" fontFamily="monospace" sx={{ mb: 2 }}>
-              {currentUser?.friendCode}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Share this code with friends so they can add you
-            </Typography>
-            <Button
-              startIcon={<ContentCopy />}
-              onClick={copyFriendCode}
-              variant="outlined"
-              sx={{ mr: 1 }}
-            >
-              Copy Code
-            </Button>
-            <Button
-              onClick={() => regenerateFriendCode.mutate()}
-              variant="text"
-              color="warning"
-              disabled={regenerateFriendCode.isPending}
-            >
-              Generate New Code
-            </Button>
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowFriendCodeDialog(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
+        friendCode={currentUser?.friendCode}
+        onCopyCode={copyFriendCode}
+        onRegenerateCode={() => regenerateFriendCode.mutate()}
+        isRegenerating={regenerateFriendCode.isPending}
+      />
     </Box>
   );
 }
