@@ -4,7 +4,6 @@ import {
   Card,
   CardContent,
   TextField,
-  Avatar,
   CircularProgress,
   Button,
   IconButton,
@@ -34,6 +33,7 @@ import { useDropzone } from "react-dropzone";
 import { useMedia, MediaCategory } from "../../../lib/hooks/useMedia";
 import type { MessageType, MediaUploadResult } from "../../../lib/types";
 import { toast } from "react-toastify";
+import MessageAvatarWithStatus from "./MessageAvatarWithStatus";
 
 type BaseMessage = {
   id: string;
@@ -90,7 +90,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
   const [showMediaDialog, setShowMediaDialog] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
-const [imageDialog, setImageDialog] = useState<{
+  const [imageDialog, setImageDialog] = useState<{
     open: boolean;
     src: string | null;
   }>({
@@ -849,10 +849,15 @@ const [imageDialog, setImageDialog] = useState<{
             {/* Messages list */}
             {messageStore.messages.map((message) => (
               <Box key={message.id} sx={{ display: "flex", mb: 2 }}>
-                <Avatar
-                  src={message.senderImageUrl || message.imageUrl}
-                  alt={"user image"}
-                  sx={{ mr: 2 }}
+                <MessageAvatarWithStatus
+                  userId={message.senderId || message.userId || ""}
+                  imageUrl={message.senderImageUrl || message.imageUrl}
+                  displayName={
+                    message.senderDisplayName ||
+                    message.displayName ||
+                    "Unknown"
+                  }
+                  showUserProfiles={showUserProfiles}
                 />
                 <Box display="flex" flexDirection="column" sx={{ flex: 1 }}>
                   <Box display="flex" alignItems="center" gap={3}>

@@ -3,6 +3,7 @@ import NavBar from "./NavBar";
 import { Outlet, ScrollRestoration } from "react-router";
 import { useAccount } from "../../lib/hooks/useAccount";
 import FriendsRealtimeProvider from "../shared/components/FriendsRealtimeProvider";
+import StatusRealtimeProvider from "../shared/components/StatusRealtimeProvider";
 import HomePage from "../../features/home/HomePage";
 
 function App() {
@@ -12,7 +13,12 @@ function App() {
     <Box sx={{ bgcolor: "#27262C", minHeight: "100vh" }}>
       <ScrollRestoration />
       <CssBaseline />
-      {currentUser && <FriendsRealtimeProvider />}
+      {currentUser && (
+        <>
+          <FriendsRealtimeProvider />
+          <StatusRealtimeProvider />
+        </>
+      )}
       {location.pathname === "/" ? (
         <HomePage />
       ) : (

@@ -40,11 +40,25 @@ public class GetDirectChats
                     UnreadCount = dc.Messages.Count(m =>
                         m.SenderId != currentUser.Id && !m.IsRead),
                     CanSendMessages = context.UserFriends.Any(uf =>
-                        (uf.UserId == currentUser.Id && uf.FriendId == (dc.User1Id == currentUser.Id ? dc.User2Id : dc.User1Id)) ||
-                        (uf.UserId == (dc.User1Id == currentUser.Id ? dc.User2Id : dc.User1Id) && uf.FriendId == currentUser.Id)),
+                        (
+                            uf.UserId == currentUser.Id &&
+                            uf.FriendId == (dc.User1Id == currentUser.Id ? dc.User2Id : dc.User1Id)
+                        ) ||
+                        (
+                            uf.UserId == (dc.User1Id == currentUser.Id ? dc.User2Id : dc.User1Id) &&
+                            uf.FriendId == currentUser.Id
+                        )),
                     IsOnline = dc.User1Id == currentUser.Id
-                        ? (dc.User2.Status == UserStatus.Online || dc.User2.Status == UserStatus.Away || dc.User2.Status == UserStatus.DoNotDisturb)
-                        : (dc.User1.Status == UserStatus.Online || dc.User1.Status == UserStatus.Away || dc.User1.Status == UserStatus.DoNotDisturb),
+                        ? (
+                            dc.User2.Status == UserStatus.Online ||
+                            dc.User2.Status == UserStatus.Away ||
+                            dc.User2.Status == UserStatus.DoNotDisturb
+                        )
+                        : (
+                            dc.User1.Status == UserStatus.Online ||
+                            dc.User1.Status == UserStatus.Away ||
+                            dc.User1.Status == UserStatus.DoNotDisturb
+                        ),
                     LastSeen = dc.User1Id == currentUser.Id ? dc.User2.LastSeen : dc.User1.LastSeen,
                     Status = dc.User1Id == currentUser.Id
                         ? dc.User2.Status.ToString()

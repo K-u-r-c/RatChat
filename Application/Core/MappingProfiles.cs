@@ -1,4 +1,5 @@
 using Application.ChatRooms.DTOs;
+using Application.DirectChats.DTOs;
 using Application.DirectMessages.DTOs;
 using Application.Friends.DTOs;
 using Application.Messages.DTOs;
@@ -83,6 +84,32 @@ public class MappingProfiles : Profile
             .ForMember(d => d.MediaType, o => o.MapFrom(s => s.MediaType))
             .ForMember(d => d.MediaFileSize, o => o.MapFrom(s => s.MediaFileSize))
             .ForMember(d => d.MediaOriginalFileName, o => o.MapFrom(s => s.MediaOriginalFileName));
+
+        CreateMap<DirectChat, DirectChatDto>()
+            .ForMember(d => d.OtherUserId, o => o.MapFrom(s =>
+                s.User1Id == currentUserId ? s.User2Id : s.User1Id))
+            .ForMember(d => d.OtherUserDisplayName, o => o.MapFrom(s =>
+                s.User1Id == currentUserId ? s.User2.DisplayName : s.User1.DisplayName))
+            .ForMember(d => d.OtherUserImageUrl, o => o.MapFrom(s =>
+                s.User1Id == currentUserId ? s.User2.ImageUrl : s.User1.ImageUrl))
+            .ForMember(d => d.Status, o => o.MapFrom(s =>
+                s.User1Id == currentUserId ? s.User2.Status.ToString() : s.User1.Status.ToString()))
+            .ForMember(d => d.CustomStatusMessage, o => o.MapFrom(s =>
+                s.User1Id == currentUserId ? s.User2.CustomStatusMessage : s.User1.CustomStatusMessage))
+            .ForMember(d => d.IsOnline, o => o.MapFrom(s =>
+                s.User1Id == currentUserId
+                    ? (
+                        s.User2.Status == UserStatus.Online ||
+                        s.User2.Status == UserStatus.Away ||
+                        s.User2.Status == UserStatus.DoNotDisturb
+                    )
+                    : (
+                        s.User1.Status == UserStatus.Online ||
+                        s.User1.Status == UserStatus.Away ||
+                        s.User1.Status == UserStatus.DoNotDisturb
+                    )
+                )
+            );
 
         CreateMap<DirectMessage, DirectMessageDto>()
             .ForMember(d => d.SenderDisplayName, o => o.MapFrom(s => s.Sender.DisplayName))

@@ -34,6 +34,7 @@ import { useFriends } from "../../lib/hooks/useFriends";
 import { useAccount } from "../../lib/hooks/useAccount";
 import { useDirectChats } from "../../lib/hooks/useDirectChats";
 import { toast } from "react-toastify";
+import StatusIndicator from "../../app/shared/components/StatusIndicator";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -260,34 +261,66 @@ export default function FriendsList() {
                     }
                   >
                     <ListItemAvatar>
-                      <Avatar src={friend.imageUrl} alt={friend.displayName}>
-                        {friend.displayName[0]}
-                      </Avatar>
+                      <Box sx={{ position: "relative" }}>
+                        <Avatar src={friend.imageUrl} alt={friend.displayName}>
+                          {friend.displayName[0]}
+                        </Avatar>
+                        {/* Status indicator overlay */}
+                        <Box
+                          sx={{
+                            position: "absolute",
+                            bottom: -2,
+                            right: -2,
+                            backgroundColor: "white",
+                            borderRadius: "50%",
+                            padding: "2px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <StatusIndicator
+                            status={friend.status || "Offline"}
+                            customMessage={friend.customStatusMessage}
+                            size="small"
+                          />
+                        </Box>
+                      </Box>
                     </ListItemAvatar>
                     <ListItemText
                       primary={friend.displayName}
                       secondary={
-                        <>
+                        <Box component="div">
                           {friend.bio && (
                             <Typography
                               variant="body2"
                               color="text.secondary"
-                              component="span"
-                              display="block"
+                              component="div"
                             >
                               {friend.bio}
+                            </Typography>
+                          )}
+                          {friend.customStatusMessage && (
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              component="div"
+                              sx={{ fontStyle: "italic" }}
+                            >
+                              {friend.customStatusMessage}
                             </Typography>
                           )}
                           <Typography
                             variant="caption"
                             color="text.secondary"
-                            component="span"
+                            component="div"
                           >
                             Friends since{" "}
                             {new Date(friend.friendsSince).toLocaleDateString()}
                           </Typography>
-                        </>
+                        </Box>
                       }
+                      slotProps={{ secondary: { component: "div" } }}
                     />
                   </ListItem>
                 ))}

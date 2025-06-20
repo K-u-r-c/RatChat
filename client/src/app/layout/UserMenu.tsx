@@ -10,8 +10,10 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import { useState } from "react";
 import { Link } from "react-router";
-import { Add, Password, Person } from "@mui/icons-material";
+import { Add, Password, Person, Logout } from "@mui/icons-material";
 import { useAccount } from "../../lib/hooks/useAccount";
+import StatusSelector from "../shared/components/StatusSelector";
+import StatusIndicator from "../shared/components/StatusIndicator";
 
 export default function UserMenu() {
   const { currentUser, logoutUser } = useAccount();
@@ -33,7 +35,29 @@ export default function UserMenu() {
         sx={{ fontSize: "1.1rem" }}
       >
         <Box display="flex" alignItems="center" gap={2}>
-          <Avatar src={currentUser?.imageUrl} alt="Current user image" />
+          <Box sx={{ position: "relative" }}>
+            <Avatar src={currentUser?.imageUrl} alt="Current user image" />
+            {/* Status indicator overlay on avatar */}
+            <Box
+              sx={{
+                position: "absolute",
+                bottom: -2,
+                right: -2,
+                backgroundColor: "white",
+                borderRadius: "50%",
+                padding: "2px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <StatusIndicator
+                status={currentUser?.status || "Offline"}
+                customMessage={currentUser?.customStatusMessage}
+                size="small"
+              />
+            </Box>
+          </Box>
           {currentUser?.displayName}
         </Box>
       </Button>
@@ -45,7 +69,17 @@ export default function UserMenu() {
         MenuListProps={{
           "aria-labelledby": "basic-button",
         }}
+        PaperProps={{
+          sx: { minWidth: 220 },
+        }}
       >
+        {/* Status Selector at the top */}
+        <Box sx={{ px: 2, py: 1 }}>
+          <StatusSelector />
+        </Box>
+
+        <Divider />
+
         <MenuItem component={Link} to="/create-chat-room" onClick={handleClose}>
           <ListItemIcon>
             <Add />
@@ -82,7 +116,7 @@ export default function UserMenu() {
           }}
         >
           <ListItemIcon>
-            <Person />
+            <Logout />
           </ListItemIcon>
           <ListItemText>Logout</ListItemText>
         </MenuItem>

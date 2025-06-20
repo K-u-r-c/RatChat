@@ -14,6 +14,7 @@ import {
 import { Link } from "react-router";
 import { useDirectChats } from "../../lib/hooks/useDirectChats";
 import { timeAgo } from "../../lib/util/util";
+import StatusIndicator from "../../app/shared/components/StatusIndicator";
 
 export default function DirectChatsList() {
   const { directChats, isLoadingChats } = useDirectChats();
@@ -82,12 +83,34 @@ export default function DirectChatsList() {
                   divider
                 >
                   <ListItemAvatar>
-                    <Avatar
-                      src={chat.otherUserImageUrl}
-                      alt={chat.otherUserDisplayName}
-                    >
-                      {chat.otherUserDisplayName[0]}
-                    </Avatar>
+                    <Box sx={{ position: "relative" }}>
+                      <Avatar
+                        src={chat.otherUserImageUrl}
+                        alt={chat.otherUserDisplayName}
+                      >
+                        {chat.otherUserDisplayName[0]}
+                      </Avatar>
+                      {/* Status indicator overlay */}
+                      <Box
+                        sx={{
+                          position: "absolute",
+                          bottom: -2,
+                          right: -2,
+                          backgroundColor: "white",
+                          borderRadius: "50%",
+                          padding: "2px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <StatusIndicator
+                          status={chat.status || "Offline"}
+                          customMessage={chat.customStatusMessage}
+                          size="small"
+                        />
+                      </Box>
+                    </Box>
                   </ListItemAvatar>
                   <ListItemText
                     primary={
@@ -118,11 +141,12 @@ export default function DirectChatsList() {
                       </Box>
                     }
                     secondary={
-                      <>
+                      <Box component="div">
                         {chat.lastMessageBody && (
                           <Typography
                             variant="body2"
                             color="text.secondary"
+                            component="div"
                             sx={{
                               overflow: "hidden",
                               textOverflow: "ellipsis",
@@ -133,17 +157,34 @@ export default function DirectChatsList() {
                             {chat.lastMessageBody}
                           </Typography>
                         )}
+                        {chat.customStatusMessage && (
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            component="div"
+                            sx={{
+                              fontStyle: "italic",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {chat.customStatusMessage}
+                          </Typography>
+                        )}
                         {!chat.canSendMessages && (
                           <Typography
                             variant="caption"
                             color="warning.main"
-                            sx={{ fontStyle: "italic", display: "block" }}
+                            component="div"
+                            sx={{ fontStyle: "italic" }}
                           >
                             Read-only (not friends)
                           </Typography>
                         )}
-                      </>
+                      </Box>
                     }
+                    secondaryTypographyProps={{ component: "div" }}
                   />
                 </ListItem>
               ))}
