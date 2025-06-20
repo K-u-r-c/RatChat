@@ -7,14 +7,13 @@ import {
   ListItem,
   ListItemAvatar,
   ListItemText,
-  Avatar,
   Chip,
   Paper,
 } from "@mui/material";
 import { Link } from "react-router";
 import { useDirectChats } from "../../lib/hooks/useDirectChats";
 import { timeAgo } from "../../lib/util/util";
-import StatusIndicator from "../../app/shared/components/StatusIndicator";
+import AvatarWithStatus from "../../app/shared/components/AvatarWithStatus";
 
 export default function DirectChatsList() {
   const { directChats, isLoadingChats } = useDirectChats();
@@ -83,33 +82,13 @@ export default function DirectChatsList() {
                   divider
                 >
                   <ListItemAvatar>
-                    <Box sx={{ position: "relative" }}>
-                      <Avatar
-                        src={chat.otherUserImageUrl}
-                        alt={chat.otherUserDisplayName}
-                      >
-                        {chat.otherUserDisplayName[0]}
-                      </Avatar>
-                      {/* Status indicator overlay */}
-                      <Box
-                        sx={{
-                          position: "absolute",
-                          bottom: -2,
-                          right: -2,
-                          backgroundColor: "white",
-                          borderRadius: "50%",
-                          padding: "2px",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <StatusIndicator
-                          status={chat.status || "Offline"}
-                          size="small"
-                        />
-                      </Box>
-                    </Box>
+                    <AvatarWithStatus
+                      src={chat.otherUserImageUrl}
+                      alt={chat.otherUserDisplayName}
+                      status={chat.status || "Offline"}
+                    >
+                      {chat.otherUserDisplayName[0]}
+                    </AvatarWithStatus>
                   </ListItemAvatar>
                   <ListItemText
                     primary={

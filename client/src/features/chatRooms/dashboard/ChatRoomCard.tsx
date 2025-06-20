@@ -13,7 +13,7 @@ import { Link } from "react-router";
 import { formatDate } from "../../../lib/util/util";
 import type { ChatRoom } from "../../../lib/types";
 import AvatarPopover from "../../../app/shared/components/AvatarPopover";
-import StatusIndicator from "../../../app/shared/components/StatusIndicator";
+import AvatarWithStatus from "../../../app/shared/components/AvatarWithStatus";
 
 type Props = {
   chatRoom: ChatRoom;
@@ -71,28 +71,14 @@ export default function ChatRoomCard({ chatRoom }: Props) {
           sx={{ backgroundColor: "grey.200", py: 3, pl: 3 }}
         >
           {chatRoom.members.map((member) => (
-            <Box key={member.id} sx={{ position: "relative" }}>
+            <AvatarWithStatus
+              key={member.id}
+              src={member.imageUrl}
+              alt={member.displayName + " image"}
+              status={member.status || "Offline"}
+            >
               <AvatarPopover profile={member} />
-              {/* Status indicator overlay */}
-              <Box
-                sx={{
-                  position: "absolute",
-                  bottom: -2,
-                  right: -2,
-                  backgroundColor: "white",
-                  borderRadius: "50%",
-                  padding: "2px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <StatusIndicator
-                  status={member.status || "Offline"}
-                  size="small"
-                />
-              </Box>
-            </Box>
+            </AvatarWithStatus>
           ))}
         </Box>
       </CardContent>

@@ -1,10 +1,4 @@
-import {
-  Avatar,
-  Box,
-  Divider,
-  ListItemIcon,
-  ListItemText,
-} from "@mui/material";
+import { Box, Divider, ListItemIcon, ListItemText } from "@mui/material";
 import Button from "@mui/material/Button";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
@@ -13,7 +7,7 @@ import { Link } from "react-router";
 import { Add, Password, Person, Logout } from "@mui/icons-material";
 import { useAccount } from "../../lib/hooks/useAccount";
 import StatusSelector from "../shared/components/StatusSelector";
-import StatusIndicator from "../shared/components/StatusIndicator";
+import AvatarWithStatus from "../shared/components/AvatarWithStatus";
 
 export default function UserMenu() {
   const { currentUser, logoutUser } = useAccount();
@@ -36,28 +30,11 @@ export default function UserMenu() {
         sx={{ fontSize: "1.1rem" }}
       >
         <Box display="flex" alignItems="center" gap={2}>
-          <Box sx={{ position: "relative" }}>
-            <Avatar src={currentUser?.imageUrl} alt="Current user image" />
-            {/* Status indicator overlay on avatar */}
-            <Box
-              sx={{
-                position: "absolute",
-                bottom: -2,
-                right: -2,
-                backgroundColor: "white",
-                borderRadius: "50%",
-                padding: "2px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <StatusIndicator
-                status={currentUser?.status || "Offline"}
-                size="small"
-              />
-            </Box>
-          </Box>
+          <AvatarWithStatus
+            src={currentUser?.imageUrl}
+            alt="Current user image"
+            status={currentUser?.status || "Offline"}
+          />
           {currentUser?.displayName}
         </Box>
       </Button>

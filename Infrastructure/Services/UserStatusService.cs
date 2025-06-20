@@ -13,38 +13,40 @@ public class UserStatusService(AppDbContext context, IStatusNotificationService 
 
     public async Task SetUserOnlineAsync(string userId, string connectionId)
     {
-        bool wasOffline = false;
+        bool notifyStatusChange = false;
+        UserStatus newStatus = UserStatus.Online;
 
-        lock (_lock)
-        {
-            if (!_userConnections.ContainsKey(userId))
-            {
-                _userConnections[userId] = [];
-                wasOffline = true;
-            }
-
-            _userConnections[userId].Add(connectionId);
-        }
+        await using var transaction = await context.Database.BeginTransactionAsync();
 
         var user = await context.Users.FindAsync(userId);
         if (user != null && user.Status != UserStatus.Invisible)
         {
-            var previousStatus = user.Status;
-
             if (user.Status == UserStatus.Offline)
             {
                 user.Status = UserStatus.Online;
+                notifyStatusChange = true;
             }
-
             user.LastSeen = DateTime.UtcNow;
             await context.SaveChangesAsync();
+            newStatus = user.Status;
+        }
 
-            if (wasOffline || previousStatus != user.Status)
+        var isFirstConnection = false;
+        lock (_userConnections)
+        {
+            if (!_userConnections.ContainsKey(userId))
             {
-                await statusNotificationService.NotifyFriendsStatusChange(
-                    userId,
-                    user.Status);
+                _userConnections[userId] = [];
+                isFirstConnection = true;
             }
+            _userConnections[userId].Add(connectionId);
+        }
+
+        await transaction.CommitAsync();
+
+        if ((notifyStatusChange || isFirstConnection) && user != null && user.Status != UserStatus.Invisible)
+        {
+            await statusNotificationService.NotifyFriendsStatusChange(userId, newStatus);
         }
     }
 

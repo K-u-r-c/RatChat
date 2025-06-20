@@ -34,7 +34,7 @@ import { useFriends } from "../../lib/hooks/useFriends";
 import { useAccount } from "../../lib/hooks/useAccount";
 import { useDirectChats } from "../../lib/hooks/useDirectChats";
 import { toast } from "react-toastify";
-import StatusIndicator from "../../app/shared/components/StatusIndicator";
+import AvatarWithStatus from "../../app/shared/components/AvatarWithStatus";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -261,30 +261,13 @@ export default function FriendsList() {
                     }
                   >
                     <ListItemAvatar>
-                      <Box sx={{ position: "relative" }}>
-                        <Avatar src={friend.imageUrl} alt={friend.displayName}>
-                          {friend.displayName[0]}
-                        </Avatar>
-                        {/* Status indicator overlay */}
-                        <Box
-                          sx={{
-                            position: "absolute",
-                            bottom: -2,
-                            right: -2,
-                            backgroundColor: "white",
-                            borderRadius: "50%",
-                            padding: "2px",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
-                        >
-                          <StatusIndicator
-                            status={friend.status || "Offline"}
-                            size="small"
-                          />
-                        </Box>
-                      </Box>
+                      <AvatarWithStatus
+                        src={friend.imageUrl}
+                        alt={friend.displayName}
+                        status={friend.status || "Offline"}
+                      >
+                        {friend.displayName[0]}
+                      </AvatarWithStatus>
                     </ListItemAvatar>
                     <ListItemText
                       primary={friend.displayName}
