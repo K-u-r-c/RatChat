@@ -6,7 +6,14 @@ import {
   HubConnectionState,
 } from "@microsoft/signalr";
 import { useQueryClient } from "@tanstack/react-query";
-import type { Friend, UserStatusDto } from "../types";
+import type {
+  Friend,
+  UserStatusDto,
+  User,
+  ChatRoom,
+  PagedList,
+  DirectChat,
+} from "../types";
 
 export const useStatusRealtime = () => {
   const queryClient = useQueryClient();
@@ -27,10 +34,11 @@ export const useStatusRealtime = () => {
         .build();
 
       this.hubConnection.start().catch((error) => {
-        console.error("Error establishing status connection:", error);
+        if (import.meta.env.DEV) {
+          console.error("Error starting status connection:", error);
+        }
       });
 
-      // Listen for status changes from friends
       this.hubConnection.on(
         "UserStatusChanged",
         (statusData: {
@@ -39,41 +47,101 @@ export const useStatusRealtime = () => {
           CustomMessage?: string;
           Timestamp: Date;
         }) => {
-          // Update friends list with new status
-          queryClient.setQueryData(["friends"], (old: Friend[] | undefined) => {
+          const isOnline = ["Online", "Away", "DoNotDisturb"].includes(
+            statusData.Status
+          );
+
+          queryClient.setQueryData<User>(["user"], (old) => {
+            if (!old || old.id !== statusData.UserId) return old;
+            return {
+              ...old,
+              status: statusData.Status,
+              customStatusMessage: statusData.CustomMessage,
+              lastSeen: new Date(),
+            };
+          });
+
+          queryClient.setQueryData<Friend[]>(["friends"], (old) => {
             if (!old) return old;
-            return old.map((friend) =>
+            const updated = old.map((friend) =>
               friend.id === statusData.UserId
                 ? {
                     ...friend,
                     status: statusData.Status,
                     customStatusMessage: statusData.CustomMessage,
-                    isOnline: ["Online", "Away", "DoNotDisturb"].includes(
-                      statusData.Status
-                    ),
+                    isOnline,
+                    lastSeen: isOnline ? friend.lastSeen : new Date(),
                   }
                 : friend
             );
+            return updated;
           });
 
-          // Update individual user status queries
-          queryClient.setQueryData(
+          queryClient.setQueryData<UserStatusDto>(
             ["user-status", statusData.UserId],
-            (old: UserStatusDto | undefined) => {
+            (old) => {
               if (!old) return old;
               return {
                 ...old,
                 status: statusData.Status,
                 customMessage: statusData.CustomMessage,
-                isOnline: ["Online", "Away", "DoNotDisturb"].includes(
-                  statusData.Status
-                ),
+                isOnline,
+                lastSeen: new Date(),
               };
             }
           );
 
-          // Update chat room members if they exist
-          queryClient.invalidateQueries({ queryKey: ["chatRooms"] });
+          queryClient.setQueryData<{
+            pages: Array<PagedList<ChatRoom, string>>;
+            pageParams: (string | null)[];
+          }>(["chatRooms"], (old) => {
+            if (!old) return old;
+
+            return {
+              ...old,
+              pages: old.pages.map((page) => ({
+                ...page,
+                items: page.items.map((chatRoom) => ({
+                  ...chatRoom,
+                  members: chatRoom.members.map((member) =>
+                    member.id === statusData.UserId
+                      ? {
+                          ...member,
+                          status: statusData.Status,
+                          customStatusMessage: statusData.CustomMessage,
+                          isOnline,
+                          lastSeen: isOnline ? member.lastSeen : new Date(),
+                        }
+                      : member
+                  ),
+                })),
+              })),
+            };
+          });
+
+          queryClient.invalidateQueries({
+            queryKey: ["friends"],
+            type: "active",
+          });
+
+          queryClient.invalidateQueries({
+            queryKey: ["direct-chats"],
+            type: "active",
+          });
+
+          queryClient.setQueryData<DirectChat[]>(["direct-chats"], (old) => {
+            if (!old || !Array.isArray(old)) return old;
+            return old.map((chat) =>
+              chat.otherUserId === statusData.UserId
+                ? {
+                    ...chat,
+                    status: statusData.Status,
+                    customStatusMessage: statusData.CustomMessage,
+                    isOnline,
+                  }
+                : chat
+            );
+          });
         }
       );
     },
@@ -90,7 +158,9 @@ export const useStatusRealtime = () => {
     stopHubConnection() {
       if (this.hubConnection?.state === HubConnectionState.Connected) {
         this.hubConnection.stop().catch((error) => {
-          console.error("Error stopping status connection:", error);
+          if (import.meta.env.DEV) {
+            console.error("Error stopping status connection:", error);
+          }
         });
       }
     },

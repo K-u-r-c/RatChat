@@ -14,7 +14,10 @@ public class UpdateStatus
         public required UpdateStatusDto UpdateStatusDto { get; set; }
     }
 
-    public class Handler(AppDbContext context, IUserAccessor userAccessor, IStatusNotificationService statusNotificationService)
+    public class Handler(
+        AppDbContext context,
+        IUserAccessor userAccessor,
+        IStatusNotificationService statusNotificationService)
         : IRequestHandler<Command, Result<Unit>>
     {
         public async Task<Result<Unit>> Handle(Command request, CancellationToken cancellationToken)
@@ -23,6 +26,9 @@ public class UpdateStatus
 
             if (!Enum.TryParse<UserStatus>(request.UpdateStatusDto.Status, out var status))
                 return Result<Unit>.Failure("Invalid status", 400);
+
+            var previousStatus = user.Status;
+            var previousMessage = user.CustomStatusMessage;
 
             user.Status = status;
             user.CustomStatusMessage = request.UpdateStatusDto.CustomMessage;
@@ -33,8 +39,13 @@ public class UpdateStatus
             if (!result)
                 return Result<Unit>.Failure("Failed to update status", 400);
 
-            // Notify friends about status change
-            await statusNotificationService.NotifyFriendsStatusChange(user.Id, status, request.UpdateStatusDto.CustomMessage);
+            if (previousStatus != status || previousMessage != request.UpdateStatusDto.CustomMessage)
+            {
+                await statusNotificationService.NotifyFriendsStatusChange(
+                    user.Id,
+                    status,
+                    request.UpdateStatusDto.CustomMessage);
+            }
 
             return Result<Unit>.Success(Unit.Value);
         }

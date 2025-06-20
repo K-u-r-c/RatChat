@@ -12,10 +12,15 @@ public class StatusNotificationService(IHubContext<StatusHub> hubContext, AppDbC
 {
     public async Task NotifyFriendsStatusChange(string userId, UserStatus status, string? customMessage = null)
     {
-        var friends = await context.UserFriends
+        var friendsQuery1 = context.UserFriends
             .Where(uf => uf.FriendId == userId)
-            .Select(uf => uf.UserId)
-            .ToListAsync();
+            .Select(uf => uf.UserId);
+
+        var friendsQuery2 = context.UserFriends
+            .Where(uf => uf.UserId == userId)
+            .Select(uf => uf.FriendId);
+
+        var allFriends = await friendsQuery1.Union(friendsQuery2).Distinct().ToListAsync();
 
         var statusData = new
         {
@@ -25,11 +30,17 @@ public class StatusNotificationService(IHubContext<StatusHub> hubContext, AppDbC
             Timestamp = DateTime.UtcNow
         };
 
-        foreach (var friendId in friends)
+        Console.WriteLine($"Notifying {allFriends.Count} friends about status change for user {userId} to {status}");
+
+        foreach (var friendId in allFriends)
         {
+            Console.WriteLine($"Sending status update to friend {friendId}");
             await hubContext.Clients.Group($"user-{friendId}")
                 .SendAsync("UserStatusChanged", statusData);
         }
+
+        await hubContext.Clients.Group($"user-{userId}")
+            .SendAsync("UserStatusChanged", statusData);
     }
 
     public async Task NotifyUserOnline(string userId)

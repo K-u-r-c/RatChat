@@ -78,11 +78,9 @@ export default function StatusSelector() {
   const handleStatusSelect = async (status: UserStatus) => {
     setSelectedStatus(status);
     if (status === currentStatus) {
-      // If selecting the same status, open custom message dialog
       setCustomMessage(currentCustomMessage || "");
       setCustomMessageDialog(true);
     } else {
-      // Update status without custom message dialog
       await updateStatus.mutateAsync({
         status,
         customMessage: undefined,
@@ -96,6 +94,7 @@ export default function StatusSelector() {
       status: selectedStatus,
       customMessage: customMessage.trim() || undefined,
     });
+
     setCustomMessageDialog(false);
     setCustomMessage("");
   };

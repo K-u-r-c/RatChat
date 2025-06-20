@@ -17,7 +17,6 @@ const getStatusColor = (status: string): string => {
     case "donotdisturb":
       return "#F44336"; // Red
     case "invisible":
-      return "#9E9E9E"; // Gray
     case "offline":
     default:
       return "#9E9E9E"; // Gray
@@ -33,7 +32,6 @@ const getStatusText = (status: string): string => {
     case "donotdisturb":
       return "Do Not Disturb";
     case "invisible":
-      return "Invisible";
     case "offline":
     default:
       return "Offline";

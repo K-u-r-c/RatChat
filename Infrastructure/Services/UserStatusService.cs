@@ -27,16 +27,24 @@ public class UserStatusService(AppDbContext context, IStatusNotificationService 
         }
 
         var user = await context.Users.FindAsync(userId);
-        if (user != null && user.Status != UserStatus.Invisible && user.Status != UserStatus.DoNotDisturb)
+        if (user != null && user.Status != UserStatus.Invisible)
         {
             var previousStatus = user.Status;
-            user.Status = UserStatus.Online;
+
+            if (user.Status == UserStatus.Offline)
+            {
+                user.Status = UserStatus.Online;
+            }
+
             user.LastSeen = DateTime.UtcNow;
             await context.SaveChangesAsync();
 
-            if (wasOffline || previousStatus == UserStatus.Offline)
+            if (wasOffline || previousStatus != user.Status)
             {
-                await statusNotificationService.NotifyUserOnline(userId);
+                await statusNotificationService.NotifyFriendsStatusChange(
+                    userId,
+                    user.Status,
+                    user.CustomStatusMessage);
             }
         }
     }
@@ -63,11 +71,15 @@ public class UserStatusService(AppDbContext context, IStatusNotificationService 
             var user = await context.Users.FindAsync(userId);
             if (user != null && user.Status != UserStatus.Invisible)
             {
+                var previousStatus = user.Status;
                 user.Status = UserStatus.Offline;
                 user.LastSeen = DateTime.UtcNow;
                 await context.SaveChangesAsync();
 
-                await statusNotificationService.NotifyUserOffline(userId);
+                await statusNotificationService.NotifyFriendsStatusChange(
+                    userId,
+                    UserStatus.Offline,
+                    user.CustomStatusMessage);
             }
         }
     }
@@ -78,10 +90,14 @@ public class UserStatusService(AppDbContext context, IStatusNotificationService 
 
         foreach (var userId in userIds)
         {
-            var status = await GetActualUserStatusAsync(userId);
-            if (status == UserStatus.Online || status == UserStatus.Away || status == UserStatus.DoNotDisturb)
+            var isConnected = IsUserConnected(userId);
+            if (isConnected)
             {
-                onlineUsers.Add(userId);
+                var status = await GetActualUserStatusAsync(userId);
+                if (status == UserStatus.Online || status == UserStatus.Away || status == UserStatus.DoNotDisturb)
+                {
+                    onlineUsers.Add(userId);
+                }
             }
         }
 
@@ -96,13 +112,16 @@ public class UserStatusService(AppDbContext context, IStatusNotificationService 
 
         if (user == null) return UserStatus.Offline;
 
-        lock (_lock)
+        var isConnected = IsUserConnected(userId);
+
+        if (!isConnected)
         {
-            if (_userConnections.ContainsKey(userId) && _userConnections[userId].Any())
-            {
-                if (user.Status == UserStatus.Offline)
-                    return UserStatus.Online;
-            }
+            return UserStatus.Offline;
+        }
+
+        if (user.Status == UserStatus.Offline && isConnected)
+        {
+            return UserStatus.Online;
         }
 
         return user.Status;
@@ -110,9 +129,15 @@ public class UserStatusService(AppDbContext context, IStatusNotificationService 
 
     public Task<bool> IsUserOnlineAsync(string userId)
     {
+        var isConnected = IsUserConnected(userId);
+        return Task.FromResult(isConnected);
+    }
+
+    private static bool IsUserConnected(string userId)
+    {
         lock (_lock)
         {
-            return Task.FromResult(_userConnections.ContainsKey(userId) && _userConnections[userId].Count != 0);
+            return _userConnections.ContainsKey(userId) && _userConnections[userId].Count > 0;
         }
     }
 }
