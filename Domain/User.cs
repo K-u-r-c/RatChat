@@ -1,3 +1,4 @@
+using Domain.Enums;
 using Microsoft.AspNetCore.Identity;
 
 namespace Domain;
@@ -9,13 +10,14 @@ public class User : IdentityUser
     public string? ImageUrl { get; set; }
     public string? BannerUrl { get; set; }
     public string FriendCode { get; set; } = GenerateFriendCode();
+    public UserStatus Status { get; set; } = UserStatus.Online;
+    public DateTime LastSeen { get; set; } = DateTime.UtcNow;
+    public string? CustomStatusMessage { get; set; }
 
     // Navigation properties
     public ICollection<ChatRoomMember> ChatRooms { get; set; } = [];
-
     public ICollection<UserFriend> Friends { get; set; } = [];
     public ICollection<UserFriend> FriendOf { get; set; } = [];
-
     public ICollection<FriendRequest> SentFriendRequests { get; set; } = [];
     public ICollection<FriendRequest> ReceivedFriendRequests { get; set; } = [];
 

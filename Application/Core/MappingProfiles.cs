@@ -5,6 +5,7 @@ using Application.Messages.DTOs;
 using Application.Profiles.DTOs;
 using AutoMapper;
 using Domain;
+using Domain.Enums;
 
 namespace Application.Core;
 
@@ -18,6 +19,7 @@ public class MappingProfiles : Profile
         CreateMap<CreateChatRoomDto, ChatRoom>();
         CreateMap<EditChatRoomDto, ChatRoom>();
         CreateMap<ChatRoom, UserChatRoomDto>();
+
         CreateMap<ChatRoom, ChatRoomDto>()
             .ForMember(
                 d => d.AdminDisplayName,
@@ -41,7 +43,17 @@ public class MappingProfiles : Profile
             .ForMember(
                 d => d.IsFriend,
                 o => o.MapFrom(s => s.User.Friends.Any(x => x.FriendId == currentUserId))
-            );
+            )
+            .ForMember(
+                d => d.IsOnline,
+                o => o.MapFrom(s => s.User.Status == UserStatus.Online ||
+                                   s.User.Status == UserStatus.Away ||
+                                   s.User.Status == UserStatus.DoNotDisturb)
+            )
+            .ForMember(d => d.LastSeen, o => o.MapFrom(s => s.User.LastSeen))
+            .ForMember(d => d.Status, o => o.MapFrom(s => s.User.Status.ToString()))
+            .ForMember(d => d.CustomStatusMessage, o => o.MapFrom(s => s.User.CustomStatusMessage));
+
         CreateMap<User, UserProfileDto>()
             .ForMember(
                 d => d.FriendsCount,
@@ -50,7 +62,16 @@ public class MappingProfiles : Profile
             .ForMember(
                 d => d.IsFriend,
                 o => o.MapFrom(s => s.Friends.Any(x => x.FriendId == currentUserId))
-            );
+            )
+            .ForMember(
+                d => d.IsOnline,
+                o => o.MapFrom(s => s.Status == UserStatus.Online ||
+                                   s.Status == UserStatus.Away ||
+                                   s.Status == UserStatus.DoNotDisturb)
+            )
+            .ForMember(d => d.LastSeen, o => o.MapFrom(s => s.LastSeen))
+            .ForMember(d => d.Status, o => o.MapFrom(s => s.Status.ToString()))
+            .ForMember(d => d.CustomStatusMessage, o => o.MapFrom(s => s.CustomStatusMessage));
 
         CreateMap<Message, MessageDto>()
             .ForMember(d => d.DisplayName, o => o.MapFrom(s => s.User.DisplayName))
@@ -80,7 +101,16 @@ public class MappingProfiles : Profile
             .ForMember(d => d.Bio, o => o.MapFrom(s => s.Friend.Bio))
             .ForMember(d => d.ImageUrl, o => o.MapFrom(s => s.Friend.ImageUrl))
             .ForMember(d => d.BannerUrl, o => o.MapFrom(s => s.Friend.BannerUrl))
-            .ForMember(d => d.FriendsSince, o => o.MapFrom(s => s.FriendsSince));
+            .ForMember(d => d.FriendsSince, o => o.MapFrom(s => s.FriendsSince))
+            .ForMember(
+                d => d.IsOnline,
+                o => o.MapFrom(s => s.Friend.Status == UserStatus.Online ||
+                                   s.Friend.Status == UserStatus.Away ||
+                                   s.Friend.Status == UserStatus.DoNotDisturb)
+            )
+            .ForMember(d => d.LastSeen, o => o.MapFrom(s => s.Friend.LastSeen))
+            .ForMember(d => d.Status, o => o.MapFrom(s => s.Friend.Status.ToString()))
+            .ForMember(d => d.CustomStatusMessage, o => o.MapFrom(s => s.Friend.CustomStatusMessage));
 
         CreateMap<FriendRequest, FriendRequestDto>()
             .ForMember(d => d.SenderDisplayName, o => o.MapFrom(s => s.Sender.DisplayName))

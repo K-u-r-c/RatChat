@@ -254,7 +254,10 @@ public class AccountController(
             user.ImageUrl,
             user.BannerUrl,
             user.FriendCode,
-            HasPassword = hasPassword
+            HasPassword = hasPassword,
+            Status = user.Status.ToString(),
+            user.CustomStatusMessage,
+            user.LastSeen
         });
     }
 

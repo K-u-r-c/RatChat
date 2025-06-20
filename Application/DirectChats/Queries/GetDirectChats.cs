@@ -1,6 +1,7 @@
 using Application.Core;
 using Application.DirectChats.DTOs;
 using Application.Interfaces;
+using Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Persistance;
@@ -38,10 +39,19 @@ public class GetDirectChats
                     LastMessageSenderId = dc.LastMessageSenderId,
                     UnreadCount = dc.Messages.Count(m =>
                         m.SenderId != currentUser.Id && !m.IsRead),
-                    IsOnline = false, // TODO: Implement online status
                     CanSendMessages = context.UserFriends.Any(uf =>
                         (uf.UserId == currentUser.Id && uf.FriendId == (dc.User1Id == currentUser.Id ? dc.User2Id : dc.User1Id)) ||
-                        (uf.UserId == (dc.User1Id == currentUser.Id ? dc.User2Id : dc.User1Id) && uf.FriendId == currentUser.Id))
+                        (uf.UserId == (dc.User1Id == currentUser.Id ? dc.User2Id : dc.User1Id) && uf.FriendId == currentUser.Id)),
+                    IsOnline = dc.User1Id == currentUser.Id
+                        ? (dc.User2.Status == UserStatus.Online || dc.User2.Status == UserStatus.Away || dc.User2.Status == UserStatus.DoNotDisturb)
+                        : (dc.User1.Status == UserStatus.Online || dc.User1.Status == UserStatus.Away || dc.User1.Status == UserStatus.DoNotDisturb),
+                    LastSeen = dc.User1Id == currentUser.Id ? dc.User2.LastSeen : dc.User1.LastSeen,
+                    Status = dc.User1Id == currentUser.Id
+                        ? dc.User2.Status.ToString()
+                        : dc.User1.Status.ToString(),
+                    CustomStatusMessage = dc.User1Id == currentUser.Id
+                        ? dc.User2.CustomStatusMessage
+                        : dc.User1.CustomStatusMessage
                 })
                 .ToListAsync(cancellationToken);
 

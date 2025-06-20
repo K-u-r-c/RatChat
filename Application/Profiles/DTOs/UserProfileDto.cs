@@ -9,4 +9,8 @@ public class UserProfileDto
     public string? BannerUrl { get; set; }
     public bool IsFriend { get; set; }
     public int FriendsCount { get; set; }
+    public bool IsOnline { get; set; }
+    public DateTime? LastSeen { get; set; }
+    public string Status { get; set; } = "Offline";
+    public string? CustomStatusMessage { get; set; }
 }
