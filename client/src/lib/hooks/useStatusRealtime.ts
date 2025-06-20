@@ -33,11 +33,16 @@ export const useStatusRealtime = () => {
         .withAutomaticReconnect()
         .build();
 
-      this.hubConnection.start().catch((error) => {
-        if (import.meta.env.DEV) {
-          console.error("Error starting status connection:", error);
-        }
-      });
+      this.hubConnection
+        .start()
+        .then(() => {
+          queryClient.invalidateQueries({ queryKey: ["user"] });
+        })
+        .catch((error) => {
+          if (import.meta.env.DEV) {
+            console.error("Error starting status connection:", error);
+          }
+        });
 
       this.hubConnection.on(
         "UserStatusChanged",
@@ -120,6 +125,11 @@ export const useStatusRealtime = () => {
           });
 
           queryClient.invalidateQueries({
+            queryKey: ["chatRooms"],
+            type: "active",
+          });
+
+          queryClient.invalidateQueries({
             queryKey: ["friends"],
             type: "active",
           });
@@ -147,6 +157,18 @@ export const useStatusRealtime = () => {
     },
 
     updateStatus(status: string, customMessage?: string) {
+      queryClient.setQueryData<User>(["user"], (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          status: status,
+          customStatusMessage:
+            customMessage !== undefined
+              ? customMessage
+              : old.customStatusMessage,
+        };
+      });
+
       if (this.hubConnection?.state === HubConnectionState.Connected) {
         this.hubConnection.invoke("UpdateStatus", {
           status,
@@ -172,8 +194,45 @@ export const useStatusRealtime = () => {
       created.current = true;
     }
 
+    const INACTIVITY_TIMEOUT = 5 * 60 * 1000;
+    let inactivityTimer: number;
+
+    const handleInactivity = () => {
+      const currentUser = queryClient.getQueryData<User>(["user"]);
+      if (currentUser?.status === "Online") {
+        statusStore.updateStatus("Away", currentUser.customStatusMessage);
+      }
+    };
+
+    const resetInactivityTimer = () => {
+      clearTimeout(inactivityTimer);
+      const currentUser = queryClient.getQueryData<User>(["user"]);
+      if (currentUser?.status === "Away") {
+        statusStore.updateStatus("Online", currentUser.customStatusMessage);
+      }
+      inactivityTimer = setTimeout(handleInactivity, INACTIVITY_TIMEOUT);
+    };
+
+    const activityEvents = [
+      "mousemove",
+      "keydown",
+      "mousedown",
+      "scroll",
+      "touchstart",
+    ];
+
+    activityEvents.forEach((event) => {
+      window.addEventListener(event, resetInactivityTimer);
+    });
+
+    resetInactivityTimer();
+
     return () => {
       statusStore.stopHubConnection();
+      clearTimeout(inactivityTimer);
+      activityEvents.forEach((event) => {
+        window.removeEventListener(event, resetInactivityTimer);
+      });
     };
   }, [queryClient, statusStore]);
 

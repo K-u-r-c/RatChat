@@ -20,7 +20,19 @@ public class StatusNotificationService(IHubContext<StatusHub> hubContext, AppDbC
             .Where(uf => uf.UserId == userId)
             .Select(uf => uf.FriendId);
 
-        var allFriends = await friendsQuery1.Union(friendsQuery2).Distinct().ToListAsync();
+        var friendIds = friendsQuery1.Union(friendsQuery2);
+
+        var memberIdsInSharedRooms = context.ChatRoomMembers
+            .Where(m => m.UserId == userId)
+            .Select(m => m.ChatRoomId)
+            .SelectMany(roomId => context.ChatRoomMembers
+                .Where(m2 => m2.ChatRoomId == roomId && m2.UserId != userId)
+                .Select(m2 => m2.UserId));
+
+        var recipientIds = await friendIds
+            .Union(memberIdsInSharedRooms)
+            .Distinct()
+            .ToListAsync();
 
         var statusData = new
         {
@@ -30,9 +42,9 @@ public class StatusNotificationService(IHubContext<StatusHub> hubContext, AppDbC
             Timestamp = DateTime.UtcNow
         };
 
-        foreach (var friendId in allFriends)
+        foreach (var recipientId in recipientIds)
         {
-            await hubContext.Clients.Group($"user-{friendId}")
+            await hubContext.Clients.Group($"user-{recipientId}")
                 .SendAsync("UserStatusChanged", statusData);
         }
 

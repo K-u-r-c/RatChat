@@ -3,6 +3,7 @@ using Application.Friends.DTOs;
 using Application.Friends.Events;
 using Application.Interfaces;
 using Domain;
+using Domain.Enums;
 using Domain.Events;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -21,8 +22,9 @@ public class RespondToFriendRequest
         AppDbContext context,
         IUserAccessor userAccessor,
         IFriendsNotificationService notificationService,
-        IPublisher publisher)
-        : IRequestHandler<Command, Result<Unit>>
+        IPublisher publisher,
+        IUserStatusService userStatusService
+    ) : IRequestHandler<Command, Result<Unit>>
     {
         public async Task<Result<Unit>> Handle(Command request, CancellationToken cancellationToken)
         {
@@ -61,6 +63,9 @@ public class RespondToFriendRequest
 
                 context.UserFriends.AddRange(friendship1, friendship2);
 
+                var actualStatus = await userStatusService.GetActualUserStatusAsync(currentUser.Id);
+                var isOnline = actualStatus is UserStatus.Online or UserStatus.Away or UserStatus.DoNotDisturb;
+
                 newFriendForSender = new FriendDto
                 {
                     Id = currentUser.Id,
@@ -69,8 +74,10 @@ public class RespondToFriendRequest
                     ImageUrl = currentUser.ImageUrl,
                     BannerUrl = currentUser.BannerUrl,
                     FriendsSince = friendship2.FriendsSince,
-                    IsOnline = false,
-                    LastSeen = null
+                    IsOnline = isOnline,
+                    Status = actualStatus.ToString(),
+                    CustomStatusMessage = currentUser.CustomStatusMessage,
+                    LastSeen = currentUser.LastSeen
                 };
 
                 domainEvent = new FriendshipCreatedEvent

@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using Application.Account.DTOs;
+using Application.Interfaces;
 using Domain;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -15,7 +16,8 @@ namespace API.Controllers;
 public class AccountController(
     SignInManager<User> signInManager,
     IEmailSender<User> emailSender,
-    IConfiguration configuration
+    IConfiguration configuration,
+    IUserStatusService userStatusService
 )
     : BaseApiController
 {
@@ -245,6 +247,16 @@ public class AccountController(
         if (user == null) return Unauthorized();
 
         var hasPassword = await signInManager.UserManager.HasPasswordAsync(user);
+        var actualStatus = await userStatusService.GetActualUserStatusAsync(user.Id);
+
+        // If the status service reports offline, but this is an authenticated API call,
+        // it's likely the user is online but the status hub hasn't connected yet.
+        // We can be optimistic here, unless the user's status is set to Invisible.
+        // In that case user will see the corrected status only after refetch of data.
+        if (actualStatus == Domain.Enums.UserStatus.Offline && user.Status != Domain.Enums.UserStatus.Invisible)
+        {
+            actualStatus = Domain.Enums.UserStatus.Online;
+        }
 
         return Ok(new
         {
@@ -255,7 +267,7 @@ public class AccountController(
             user.BannerUrl,
             user.FriendCode,
             HasPassword = hasPassword,
-            Status = user.Status.ToString(),
+            Status = actualStatus.ToString(),
             user.CustomStatusMessage,
             user.LastSeen
         });

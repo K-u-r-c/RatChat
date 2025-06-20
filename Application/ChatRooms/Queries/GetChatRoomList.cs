@@ -3,6 +3,7 @@ using Application.Core;
 using Application.Interfaces;
 using AutoMapper;
 using AutoMapper.QueryableExtensions;
+using Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Persistance;
@@ -16,8 +17,11 @@ public class GetChatRoomList
         public required ChatRoomParams Params { get; set; }
     }
 
-    public class Handler(AppDbContext context, IMapper mapper, IUserAccessor userAccessor)
-        : IRequestHandler<Query, Result<PagedList<ChatRoomDto, DateTime?>>>
+    public class Handler(
+        AppDbContext context,
+        IMapper mapper,
+        IUserAccessor userAccessor
+    ) : IRequestHandler<Query, Result<PagedList<ChatRoomDto, DateTime?>>>
     {
         public async Task<Result<PagedList<ChatRoomDto, DateTime?>>> Handle(
             Query request,
@@ -52,6 +56,29 @@ public class GetChatRoomList
             var chatRooms = await projectedChatRooms
                 .Take(request.Params.PageSize + 1)
                 .ToListAsync(cancellationToken);
+
+            var user = await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+
+            if (user != null)
+            {
+                var actualStatus = user.Status;
+                if (actualStatus == UserStatus.Offline)
+                {
+                    actualStatus = UserStatus.Online;
+                }
+
+                var isOnline = actualStatus is UserStatus.Online or UserStatus.Away or UserStatus.DoNotDisturb;
+
+                foreach (var chatRoom in chatRooms)
+                {
+                    var currentUserMember = chatRoom.Members.FirstOrDefault(m => m.Id == userId);
+                    if (currentUserMember != null)
+                    {
+                        currentUserMember.Status = actualStatus.ToString();
+                        currentUserMember.IsOnline = isOnline;
+                    }
+                }
+            }
 
             DateTime? nextCursor = null;
             if (chatRooms.Count > request.Params.PageSize)
