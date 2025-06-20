@@ -4,6 +4,7 @@ using Application.Interfaces;
 using AutoMapper;
 using AutoMapper.QueryableExtensions;
 using Domain.Enums;
+using Domain.Extensions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Persistance;
@@ -67,7 +68,7 @@ public class GetChatRoomList
                     actualStatus = UserStatus.Online;
                 }
 
-                var isOnline = actualStatus is UserStatus.Online or UserStatus.Away or UserStatus.DoNotDisturb;
+                var isOnline = actualStatus.IsConsideredOnline();
 
                 foreach (var chatRoom in chatRooms)
                 {

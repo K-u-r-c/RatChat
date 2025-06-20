@@ -1,7 +1,7 @@
 using Application.Core;
 using Application.Interfaces;
 using Application.Status.DTOs;
-using Domain.Enums;
+using Domain.Extensions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Persistance;
@@ -35,9 +35,7 @@ public class GetUserStatus
                 UserId = user.Id,
                 Status = actualStatus.ToString(),
                 LastSeen = user.LastSeen,
-                IsOnline = isConnected && (actualStatus == UserStatus.Online ||
-                                          actualStatus == UserStatus.Away ||
-                                          actualStatus == UserStatus.DoNotDisturb)
+                IsOnline = isConnected && actualStatus.IsConsideredOnline()
             };
 
             return Result<UserStatusDto>.Success(statusDto);

@@ -1,7 +1,7 @@
 using Application.Core;
 using Application.DirectChats.DTOs;
 using Application.Interfaces;
-using Domain.Enums;
+using Domain.Extensions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Persistance;
@@ -49,16 +49,8 @@ public class GetDirectChats
                             uf.FriendId == currentUser.Id
                         )),
                     IsOnline = dc.User1Id == currentUser.Id
-                        ? (
-                            dc.User2.Status == UserStatus.Online ||
-                            dc.User2.Status == UserStatus.Away ||
-                            dc.User2.Status == UserStatus.DoNotDisturb
-                        )
-                        : (
-                            dc.User1.Status == UserStatus.Online ||
-                            dc.User1.Status == UserStatus.Away ||
-                            dc.User1.Status == UserStatus.DoNotDisturb
-                        ),
+                        ? dc.User2.Status.IsConsideredOnline()
+                        : dc.User1.Status.IsConsideredOnline(),
                     LastSeen = dc.User1Id == currentUser.Id ? dc.User2.LastSeen : dc.User1.LastSeen,
                     Status = dc.User1Id == currentUser.Id
                         ? dc.User2.Status.ToString()

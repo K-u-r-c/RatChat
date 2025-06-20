@@ -7,6 +7,7 @@ using Application.Profiles.DTOs;
 using AutoMapper;
 using Domain;
 using Domain.Enums;
+using Domain.Extensions;
 
 namespace Application.Core;
 
@@ -47,9 +48,7 @@ public class MappingProfiles : Profile
             )
             .ForMember(
                 d => d.IsOnline,
-                o => o.MapFrom(s => s.User.Status == UserStatus.Online ||
-                                   s.User.Status == UserStatus.Away ||
-                                   s.User.Status == UserStatus.DoNotDisturb)
+                o => o.MapFrom(s => s.User.Status.IsConsideredOnline())
             )
             .ForMember(d => d.LastSeen, o => o.MapFrom(s => s.User.LastSeen))
             .ForMember(d => d.Status, o => o.MapFrom(s => s.User.Status.ToString()));
@@ -65,9 +64,7 @@ public class MappingProfiles : Profile
             )
             .ForMember(
                 d => d.IsOnline,
-                o => o.MapFrom(s => s.Status == UserStatus.Online ||
-                                   s.Status == UserStatus.Away ||
-                                   s.Status == UserStatus.DoNotDisturb)
+                o => o.MapFrom(s => s.Status.IsConsideredOnline())
             )
             .ForMember(d => d.LastSeen, o => o.MapFrom(s => s.LastSeen))
             .ForMember(d => d.Status, o => o.MapFrom(s => s.Status.ToString()));
@@ -95,18 +92,9 @@ public class MappingProfiles : Profile
                 s.User1Id == currentUserId ? s.User2.Status.ToString() : s.User1.Status.ToString()))
             .ForMember(d => d.IsOnline, o => o.MapFrom(s =>
                 s.User1Id == currentUserId
-                    ? (
-                        s.User2.Status == UserStatus.Online ||
-                        s.User2.Status == UserStatus.Away ||
-                        s.User2.Status == UserStatus.DoNotDisturb
-                    )
-                    : (
-                        s.User1.Status == UserStatus.Online ||
-                        s.User1.Status == UserStatus.Away ||
-                        s.User1.Status == UserStatus.DoNotDisturb
-                    )
-                )
-            );
+                    ? s.User2.Status.IsConsideredOnline()
+                    : s.User1.Status.IsConsideredOnline()
+            ));
 
         CreateMap<DirectMessage, DirectMessageDto>()
             .ForMember(d => d.SenderDisplayName, o => o.MapFrom(s => s.Sender.DisplayName))
@@ -128,9 +116,7 @@ public class MappingProfiles : Profile
             .ForMember(d => d.FriendsSince, o => o.MapFrom(s => s.FriendsSince))
             .ForMember(
                 d => d.IsOnline,
-                o => o.MapFrom(s => s.Friend.Status == UserStatus.Online ||
-                                   s.Friend.Status == UserStatus.Away ||
-                                   s.Friend.Status == UserStatus.DoNotDisturb)
+                o => o.MapFrom(s => s.Friend.Status.IsConsideredOnline())
             )
             .ForMember(d => d.LastSeen, o => o.MapFrom(s => s.Friend.LastSeen))
             .ForMember(d => d.Status, o => o.MapFrom(s => s.Friend.Status.ToString()));

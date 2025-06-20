@@ -4,7 +4,7 @@ using Application.Interfaces;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Persistance;
-using Domain.Enums;
+using Domain.Extensions;
 
 namespace Application.Friends.Queries;
 
@@ -40,12 +40,10 @@ public class GetFriends
             foreach (var friend in friends)
             {
                 var actualStatus = await userStatusService.GetActualUserStatusAsync(friend.Id);
-                var isOnline = await userStatusService.IsUserOnlineAsync(friend.Id);
+                var isConnected = await userStatusService.IsUserOnlineAsync(friend.Id);
 
                 friend.Status = actualStatus.ToString();
-                friend.IsOnline = isOnline && (actualStatus == UserStatus.Online ||
-                                              actualStatus == UserStatus.Away ||
-                                              actualStatus == UserStatus.DoNotDisturb);
+                friend.IsOnline = isConnected && actualStatus.IsConsideredOnline();
             }
 
             return Result<List<FriendDto>>.Success(friends);

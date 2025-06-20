@@ -3,7 +3,7 @@ using Application.Friends.DTOs;
 using Application.Friends.Events;
 using Application.Interfaces;
 using Domain;
-using Domain.Enums;
+using Domain.Extensions;
 using Domain.Events;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -64,7 +64,7 @@ public class RespondToFriendRequest
                 context.UserFriends.AddRange(friendship1, friendship2);
 
                 var actualStatus = await userStatusService.GetActualUserStatusAsync(currentUser.Id);
-                var isOnline = actualStatus is UserStatus.Online or UserStatus.Away or UserStatus.DoNotDisturb;
+                var isOnline = actualStatus.IsConsideredOnline();
 
                 newFriendForSender = new FriendDto
                 {
