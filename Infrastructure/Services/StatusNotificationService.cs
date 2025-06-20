@@ -30,11 +30,8 @@ public class StatusNotificationService(IHubContext<StatusHub> hubContext, AppDbC
             Timestamp = DateTime.UtcNow
         };
 
-        Console.WriteLine($"Notifying {allFriends.Count} friends about status change for user {userId} to {status}");
-
         foreach (var friendId in allFriends)
         {
-            Console.WriteLine($"Sending status update to friend {friendId}");
             await hubContext.Clients.Group($"user-{friendId}")
                 .SendAsync("UserStatusChanged", statusData);
         }
