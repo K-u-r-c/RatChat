@@ -76,7 +76,6 @@ public class RespondToFriendRequest
                     FriendsSince = friendship2.FriendsSince,
                     IsOnline = isOnline,
                     Status = actualStatus.ToString(),
-                    CustomStatusMessage = currentUser.CustomStatusMessage,
                     LastSeen = currentUser.LastSeen
                 };
 

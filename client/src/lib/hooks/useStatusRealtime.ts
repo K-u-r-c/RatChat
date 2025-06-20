@@ -18,6 +18,7 @@ import type {
 export const useStatusRealtime = () => {
   const queryClient = useQueryClient();
   const created = useRef(false);
+  const isAutoAway = useRef(false);
 
   const statusStore = useLocalObservable(() => ({
     hubConnection: null as HubConnection | null,
@@ -46,12 +47,7 @@ export const useStatusRealtime = () => {
 
       this.hubConnection.on(
         "UserStatusChanged",
-        (statusData: {
-          UserId: string;
-          Status: string;
-          CustomMessage?: string;
-          Timestamp: Date;
-        }) => {
+        (statusData: { UserId: string; Status: string; Timestamp: Date }) => {
           const isOnline = ["Online", "Away", "DoNotDisturb"].includes(
             statusData.Status
           );
@@ -61,7 +57,6 @@ export const useStatusRealtime = () => {
             return {
               ...old,
               status: statusData.Status,
-              customStatusMessage: statusData.CustomMessage,
               lastSeen: new Date(),
             };
           });
@@ -73,7 +68,6 @@ export const useStatusRealtime = () => {
                 ? {
                     ...friend,
                     status: statusData.Status,
-                    customStatusMessage: statusData.CustomMessage,
                     isOnline,
                     lastSeen: isOnline ? friend.lastSeen : new Date(),
                   }
@@ -89,7 +83,6 @@ export const useStatusRealtime = () => {
               return {
                 ...old,
                 status: statusData.Status,
-                customMessage: statusData.CustomMessage,
                 isOnline,
                 lastSeen: new Date(),
               };
@@ -113,7 +106,6 @@ export const useStatusRealtime = () => {
                       ? {
                           ...member,
                           status: statusData.Status,
-                          customStatusMessage: statusData.CustomMessage,
                           isOnline,
                           lastSeen: isOnline ? member.lastSeen : new Date(),
                         }
@@ -146,7 +138,6 @@ export const useStatusRealtime = () => {
                 ? {
                     ...chat,
                     status: statusData.Status,
-                    customStatusMessage: statusData.CustomMessage,
                     isOnline,
                   }
                 : chat
@@ -156,23 +147,18 @@ export const useStatusRealtime = () => {
       );
     },
 
-    updateStatus(status: string, customMessage?: string) {
+    updateStatus(status: string) {
       queryClient.setQueryData<User>(["user"], (old) => {
         if (!old) return old;
         return {
           ...old,
           status: status,
-          customStatusMessage:
-            customMessage !== undefined
-              ? customMessage
-              : old.customStatusMessage,
         };
       });
 
       if (this.hubConnection?.state === HubConnectionState.Connected) {
         this.hubConnection.invoke("UpdateStatus", {
           status,
-          customMessage,
         });
       }
     },
@@ -200,7 +186,8 @@ export const useStatusRealtime = () => {
     const handleInactivity = () => {
       const currentUser = queryClient.getQueryData<User>(["user"]);
       if (currentUser?.status === "Online") {
-        statusStore.updateStatus("Away", currentUser.customStatusMessage);
+        isAutoAway.current = true;
+        statusStore.updateStatus("Away");
       }
     };
 
@@ -208,7 +195,11 @@ export const useStatusRealtime = () => {
       clearTimeout(inactivityTimer);
       const currentUser = queryClient.getQueryData<User>(["user"]);
       if (currentUser?.status === "Away") {
-        statusStore.updateStatus("Online", currentUser.customStatusMessage);
+        if (isAutoAway.current) {
+          statusStore.updateStatus("Online");
+        }
+      } else {
+        isAutoAway.current = false;
       }
       inactivityTimer = setTimeout(handleInactivity, INACTIVITY_TIMEOUT);
     };

@@ -89,7 +89,6 @@ export default function ChatRoomCard({ chatRoom }: Props) {
               >
                 <StatusIndicator
                   status={member.status || "Offline"}
-                  customMessage={member.customStatusMessage}
                   size="small"
                 />
               </Box>

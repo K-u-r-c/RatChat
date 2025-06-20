@@ -54,7 +54,6 @@ export default function UserMenu() {
             >
               <StatusIndicator
                 status={currentUser?.status || "Offline"}
-                customMessage={currentUser?.customStatusMessage}
                 size="small"
               />
             </Box>

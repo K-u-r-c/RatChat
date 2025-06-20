@@ -52,8 +52,7 @@ public class MappingProfiles : Profile
                                    s.User.Status == UserStatus.DoNotDisturb)
             )
             .ForMember(d => d.LastSeen, o => o.MapFrom(s => s.User.LastSeen))
-            .ForMember(d => d.Status, o => o.MapFrom(s => s.User.Status.ToString()))
-            .ForMember(d => d.CustomStatusMessage, o => o.MapFrom(s => s.User.CustomStatusMessage));
+            .ForMember(d => d.Status, o => o.MapFrom(s => s.User.Status.ToString()));
 
         CreateMap<User, UserProfileDto>()
             .ForMember(
@@ -71,8 +70,8 @@ public class MappingProfiles : Profile
                                    s.Status == UserStatus.DoNotDisturb)
             )
             .ForMember(d => d.LastSeen, o => o.MapFrom(s => s.LastSeen))
-            .ForMember(d => d.Status, o => o.MapFrom(s => s.Status.ToString()))
-            .ForMember(d => d.CustomStatusMessage, o => o.MapFrom(s => s.CustomStatusMessage));
+            .ForMember(d => d.Status, o => o.MapFrom(s => s.Status.ToString()));
+
 
         CreateMap<Message, MessageDto>()
             .ForMember(d => d.DisplayName, o => o.MapFrom(s => s.User.DisplayName))
@@ -94,8 +93,6 @@ public class MappingProfiles : Profile
                 s.User1Id == currentUserId ? s.User2.ImageUrl : s.User1.ImageUrl))
             .ForMember(d => d.Status, o => o.MapFrom(s =>
                 s.User1Id == currentUserId ? s.User2.Status.ToString() : s.User1.Status.ToString()))
-            .ForMember(d => d.CustomStatusMessage, o => o.MapFrom(s =>
-                s.User1Id == currentUserId ? s.User2.CustomStatusMessage : s.User1.CustomStatusMessage))
             .ForMember(d => d.IsOnline, o => o.MapFrom(s =>
                 s.User1Id == currentUserId
                     ? (
@@ -136,8 +133,7 @@ public class MappingProfiles : Profile
                                    s.Friend.Status == UserStatus.DoNotDisturb)
             )
             .ForMember(d => d.LastSeen, o => o.MapFrom(s => s.Friend.LastSeen))
-            .ForMember(d => d.Status, o => o.MapFrom(s => s.Friend.Status.ToString()))
-            .ForMember(d => d.CustomStatusMessage, o => o.MapFrom(s => s.Friend.CustomStatusMessage));
+            .ForMember(d => d.Status, o => o.MapFrom(s => s.Friend.Status.ToString()));
 
         CreateMap<FriendRequest, FriendRequestDto>()
             .ForMember(d => d.SenderDisplayName, o => o.MapFrom(s => s.Sender.DisplayName))

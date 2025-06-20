@@ -43,8 +43,7 @@ public class UserStatusService(AppDbContext context, IStatusNotificationService 
             {
                 await statusNotificationService.NotifyFriendsStatusChange(
                     userId,
-                    user.Status,
-                    user.CustomStatusMessage);
+                    user.Status);
             }
         }
     }
@@ -78,8 +77,7 @@ public class UserStatusService(AppDbContext context, IStatusNotificationService 
 
                 await statusNotificationService.NotifyFriendsStatusChange(
                     userId,
-                    UserStatus.Offline,
-                    user.CustomStatusMessage);
+                    UserStatus.Offline);
             }
         }
     }

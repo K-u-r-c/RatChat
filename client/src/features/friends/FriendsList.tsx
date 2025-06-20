@@ -281,7 +281,6 @@ export default function FriendsList() {
                         >
                           <StatusIndicator
                             status={friend.status || "Offline"}
-                            customMessage={friend.customStatusMessage}
                             size="small"
                           />
                         </Box>
@@ -298,16 +297,6 @@ export default function FriendsList() {
                               component="div"
                             >
                               {friend.bio}
-                            </Typography>
-                          )}
-                          {friend.customStatusMessage && (
-                            <Typography
-                              variant="body2"
-                              color="text.secondary"
-                              component="div"
-                              sx={{ fontStyle: "italic" }}
-                            >
-                              {friend.customStatusMessage}
                             </Typography>
                           )}
                           <Typography

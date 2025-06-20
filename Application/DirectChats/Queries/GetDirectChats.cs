@@ -62,10 +62,7 @@ public class GetDirectChats
                     LastSeen = dc.User1Id == currentUser.Id ? dc.User2.LastSeen : dc.User1.LastSeen,
                     Status = dc.User1Id == currentUser.Id
                         ? dc.User2.Status.ToString()
-                        : dc.User1.Status.ToString(),
-                    CustomStatusMessage = dc.User1Id == currentUser.Id
-                        ? dc.User2.CustomStatusMessage
-                        : dc.User1.CustomStatusMessage
+                        : dc.User1.Status.ToString()
                 })
                 .ToListAsync(cancellationToken);
 

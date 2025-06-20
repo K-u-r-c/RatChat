@@ -268,7 +268,6 @@ public class AccountController(
             user.FriendCode,
             HasPassword = hasPassword,
             Status = actualStatus.ToString(),
-            user.CustomStatusMessage,
             user.LastSeen
         });
     }

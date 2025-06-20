@@ -12,13 +12,11 @@ export type UserStatus =
 
 export type UpdateStatusRequest = {
   status: UserStatus;
-  customMessage?: string;
 };
 
 export type UserStatusDto = {
   userId: string;
   status: string;
-  customMessage?: string;
   lastSeen: Date;
   isOnline: boolean;
 };
@@ -48,7 +46,6 @@ export const useStatus = () => {
         queryClient.setQueryData<User>(["user"], {
           ...previousUser,
           status: newStatus.status,
-          customStatusMessage: newStatus.customMessage,
           lastSeen: new Date(),
         });
       }

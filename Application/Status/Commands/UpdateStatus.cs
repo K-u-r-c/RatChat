@@ -28,10 +28,8 @@ public class UpdateStatus
                 return Result<Unit>.Failure("Invalid status", 400);
 
             var previousStatus = user.Status;
-            var previousMessage = user.CustomStatusMessage;
 
             user.Status = status;
-            user.CustomStatusMessage = request.UpdateStatusDto.CustomMessage;
             user.LastSeen = DateTime.UtcNow;
 
             var result = await context.SaveChangesAsync(cancellationToken) > 0;
@@ -39,12 +37,11 @@ public class UpdateStatus
             if (!result)
                 return Result<Unit>.Failure("Failed to update status", 400);
 
-            if (previousStatus != status || previousMessage != request.UpdateStatusDto.CustomMessage)
+            if (previousStatus != status)
             {
                 await statusNotificationService.NotifyFriendsStatusChange(
                     user.Id,
-                    status,
-                    request.UpdateStatusDto.CustomMessage);
+                    status);
             }
 
             return Result<Unit>.Success(Unit.Value);

@@ -10,7 +10,7 @@ namespace Infrastructure.Services;
 public class StatusNotificationService(IHubContext<StatusHub> hubContext, AppDbContext context)
     : IStatusNotificationService
 {
-    public async Task NotifyFriendsStatusChange(string userId, UserStatus status, string? customMessage = null)
+    public async Task NotifyFriendsStatusChange(string userId, UserStatus status)
     {
         var friendsQuery1 = context.UserFriends
             .Where(uf => uf.FriendId == userId)
@@ -38,7 +38,6 @@ public class StatusNotificationService(IHubContext<StatusHub> hubContext, AppDbC
         {
             UserId = userId,
             Status = status.ToString(),
-            CustomMessage = customMessage,
             Timestamp = DateTime.UtcNow
         };
 

@@ -36,11 +36,7 @@ export default function MessageAvatarWithStatus({
             justifyContent: "center",
           }}
         >
-          <StatusIndicator
-            status={userStatus.status}
-            customMessage={userStatus.customMessage}
-            size="small"
-          />
+          <StatusIndicator status={userStatus.status} size="small" />
         </Box>
       )}
     </Box>

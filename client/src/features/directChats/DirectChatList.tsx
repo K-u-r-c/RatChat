@@ -106,7 +106,6 @@ export default function DirectChatsList() {
                       >
                         <StatusIndicator
                           status={chat.status || "Offline"}
-                          customMessage={chat.customStatusMessage}
                           size="small"
                         />
                       </Box>
@@ -155,21 +154,6 @@ export default function DirectChatsList() {
                             }}
                           >
                             {chat.lastMessageBody}
-                          </Typography>
-                        )}
-                        {chat.customStatusMessage && (
-                          <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            component="div"
-                            sx={{
-                              fontStyle: "italic",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {chat.customStatusMessage}
                           </Typography>
                         )}
                         {!chat.canSendMessages && (

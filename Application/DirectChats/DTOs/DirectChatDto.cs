@@ -14,5 +14,4 @@ public class DirectChatDto
     public bool IsOnline { get; set; }
     public DateTime? LastSeen { get; set; }
     public string Status { get; set; } = "Offline";
-    public string? CustomStatusMessage { get; set; }
 }

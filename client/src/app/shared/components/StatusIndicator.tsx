@@ -3,7 +3,6 @@ import type { UserStatus } from "../../../lib/hooks/useStatus";
 
 type Props = {
   status: UserStatus | string;
-  customMessage?: string;
   size?: "small" | "medium" | "large";
   showTooltip?: boolean;
 };
@@ -52,7 +51,6 @@ const getSizeValue = (size: "small" | "medium" | "large"): number => {
 
 export default function StatusIndicator({
   status,
-  customMessage,
   size = "medium",
   showTooltip = true,
 }: Props) {
@@ -78,9 +76,7 @@ export default function StatusIndicator({
     return indicator;
   }
 
-  const tooltipTitle = customMessage
-    ? `${statusText} - ${customMessage}`
-    : statusText;
+  const tooltipTitle = statusText;
 
   return (
     <Tooltip title={tooltipTitle} placement="top">

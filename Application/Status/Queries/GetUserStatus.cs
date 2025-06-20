@@ -1,6 +1,7 @@
 using Application.Core;
 using Application.Interfaces;
 using Application.Status.DTOs;
+using Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Persistance;
@@ -26,16 +27,17 @@ public class GetUserStatus
             if (user == null)
                 return Result<UserStatusDto>.Failure("User not found", 404);
 
-            var isOnline = await userStatusService.IsUserOnlineAsync(request.UserId);
+            var isConnected = await userStatusService.IsUserOnlineAsync(request.UserId);
             var actualStatus = await userStatusService.GetActualUserStatusAsync(request.UserId);
 
             var statusDto = new UserStatusDto
             {
                 UserId = user.Id,
                 Status = actualStatus.ToString(),
-                CustomMessage = user.CustomStatusMessage,
                 LastSeen = user.LastSeen,
-                IsOnline = isOnline
+                IsOnline = isConnected && (actualStatus == UserStatus.Online ||
+                                          actualStatus == UserStatus.Away ||
+                                          actualStatus == UserStatus.DoNotDisturb)
             };
 
             return Result<UserStatusDto>.Success(statusDto);

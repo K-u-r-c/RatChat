@@ -11,9 +11,6 @@ public class UpdateStatusValidator : AbstractValidator<UpdateStatus.Command>
         RuleFor(x => x.UpdateStatusDto.Status)
             .NotEmpty().WithMessage("Status is required")
             .Must(BeValidStatus).WithMessage("Invalid status value");
-
-        RuleFor(x => x.UpdateStatusDto.CustomMessage)
-            .MaximumLength(100).WithMessage("Custom message must not exceed 100 characters");
     }
 
     private static bool BeValidStatus(string status)

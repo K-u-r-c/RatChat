@@ -12,7 +12,6 @@ public class User : IdentityUser
     public string FriendCode { get; set; } = GenerateFriendCode();
     public UserStatus Status { get; set; } = UserStatus.Online;
     public DateTime LastSeen { get; set; } = DateTime.UtcNow;
-    public string? CustomStatusMessage { get; set; }
 
     // Navigation properties
     public ICollection<ChatRoomMember> ChatRooms { get; set; } = [];

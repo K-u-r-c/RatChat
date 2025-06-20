@@ -31,7 +31,6 @@ public class GetFriends
                     BannerUrl = uf.Friend.BannerUrl,
                     FriendsSince = uf.FriendsSince,
                     Status = uf.Friend.Status.ToString(),
-                    CustomStatusMessage = uf.Friend.CustomStatusMessage,
                     LastSeen = uf.Friend.LastSeen,
                     IsOnline = false // Updated below
                 })
