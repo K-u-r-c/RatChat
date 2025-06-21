@@ -1,6 +1,6 @@
+using System.Collections.Concurrent;
 using Application.Interfaces;
 using Domain.Enums;
-using Microsoft.EntityFrameworkCore;
 using Persistance;
 
 namespace Infrastructure.Services;
@@ -8,8 +8,8 @@ namespace Infrastructure.Services;
 public class UserStatusService(AppDbContext context, IStatusNotificationService statusNotificationService)
     : IUserStatusService
 {
-    private static readonly Dictionary<string, HashSet<string>> _userConnections = [];
-    private static readonly Lock _lock = new();
+    private static readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> _userConnections
+        = new();
 
     public async Task SetUserOnlineAsync(string userId, string connectionId)
     {
@@ -31,52 +31,64 @@ public class UserStatusService(AppDbContext context, IStatusNotificationService 
             newStatus = user.Status;
         }
 
-        var isFirstConnection = false;
-        lock (_userConnections)
+        var connections
+            = _userConnections.GetOrAdd(userId, _ => new ConcurrentDictionary<string, byte>());
+
+        bool isFirstConnection;
+        lock (connections)
         {
-            if (!_userConnections.ContainsKey(userId))
-            {
-                _userConnections[userId] = [];
-                isFirstConnection = true;
-            }
-            _userConnections[userId].Add(connectionId);
+            isFirstConnection = connections.IsEmpty;
+            connections.TryAdd(connectionId, 0);
         }
 
         await transaction.CommitAsync();
 
-        if ((notifyStatusChange || isFirstConnection) && user != null && user.Status != UserStatus.Invisible)
+        if (notifyStatusChange)
         {
             await statusNotificationService.NotifyFriendsStatusChange(userId, newStatus);
+        }
+
+        if (isFirstConnection)
+        {
+            await statusNotificationService.NotifyUserOnline(userId);
         }
     }
 
     public async Task SetUserOfflineAsync(string userId, string connectionId)
     {
         bool isLastConnection = false;
+        bool shouldNotify = false;
 
-        lock (_lock)
+        if (_userConnections.TryGetValue(userId, out var connections))
         {
-            if (_userConnections.ContainsKey(userId))
+            lock (connections)
             {
-                _userConnections[userId].Remove(connectionId);
-                if (!_userConnections[userId].Any())
+                connections.TryRemove(connectionId, out _);
+                if (connections.IsEmpty)
                 {
-                    _userConnections.Remove(userId);
                     isLastConnection = true;
+                    _userConnections.TryRemove(userId, out _);
                 }
             }
         }
 
         if (isLastConnection)
         {
+            await using var transaction = await context.Database.BeginTransactionAsync();
+
             var user = await context.Users.FindAsync(userId);
             if (user != null && user.Status != UserStatus.Invisible)
             {
-                var previousStatus = user.Status;
                 user.Status = UserStatus.Offline;
                 user.LastSeen = DateTime.UtcNow;
                 await context.SaveChangesAsync();
+                shouldNotify = true;
+            }
 
+            await transaction.CommitAsync();
+
+            if (shouldNotify)
+            {
                 await statusNotificationService.NotifyFriendsStatusChange(
                     userId,
                     UserStatus.Offline);
@@ -84,60 +96,31 @@ public class UserStatusService(AppDbContext context, IStatusNotificationService 
         }
     }
 
-    public async Task<List<string>> GetOnlineUsersAsync(List<string> userIds)
+    public Task<List<string>> GetOnlineUsersAsync(List<string> userIds)
     {
-        var onlineUsers = new List<string>();
-
-        foreach (var userId in userIds)
-        {
-            var isConnected = IsUserConnected(userId);
-            if (isConnected)
-            {
-                var status = await GetActualUserStatusAsync(userId);
-                if (status == UserStatus.Online || status == UserStatus.Away || status == UserStatus.DoNotDisturb)
-                {
-                    onlineUsers.Add(userId);
-                }
-            }
-        }
-
-        return onlineUsers;
+        var onlineUsers = userIds.Where(IsUserConnected).ToList();
+        return Task.FromResult(onlineUsers);
     }
 
     public async Task<UserStatus> GetActualUserStatusAsync(string userId)
     {
-        var user = await context.Users
-            .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Id == userId);
-
-        if (user == null) return UserStatus.Offline;
-
-        var isConnected = IsUserConnected(userId);
-
-        if (!isConnected)
-        {
+        if (!IsUserConnected(userId))
             return UserStatus.Offline;
-        }
 
-        if (user.Status == UserStatus.Offline && isConnected)
-        {
-            return UserStatus.Online;
-        }
-
-        return user.Status;
+        var user = await context.Users.FindAsync(userId);
+        return user?.Status ?? UserStatus.Offline;
     }
 
     public Task<bool> IsUserOnlineAsync(string userId)
     {
-        var isConnected = IsUserConnected(userId);
-        return Task.FromResult(isConnected);
+        return Task.FromResult(IsUserConnected(userId));
     }
 
     private static bool IsUserConnected(string userId)
     {
-        lock (_lock)
-        {
-            return _userConnections.ContainsKey(userId) && _userConnections[userId].Count > 0;
-        }
+        return _userConnections.TryGetValue(
+            userId,
+            out var connections
+        ) && !connections.IsEmpty;
     }
 }

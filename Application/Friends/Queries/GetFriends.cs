@@ -37,14 +37,16 @@ public class GetFriends
                 .OrderBy(f => f.DisplayName)
                 .ToListAsync(cancellationToken);
 
-            foreach (var friend in friends)
+            var statusTasks = friends.Select(async friend =>
             {
                 var actualStatus = await userStatusService.GetActualUserStatusAsync(friend.Id);
                 var isConnected = await userStatusService.IsUserOnlineAsync(friend.Id);
 
                 friend.Status = actualStatus.ToString();
                 friend.IsOnline = isConnected && actualStatus.IsConsideredOnline();
-            }
+            });
+
+            await Task.WhenAll(statusTasks);
 
             return Result<List<FriendDto>>.Success(friends);
         }
