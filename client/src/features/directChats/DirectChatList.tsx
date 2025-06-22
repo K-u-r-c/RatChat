@@ -7,13 +7,13 @@ import {
   ListItem,
   ListItemAvatar,
   ListItemText,
-  Avatar,
   Chip,
   Paper,
 } from "@mui/material";
 import { Link } from "react-router";
 import { useDirectChats } from "../../lib/hooks/useDirectChats";
 import { timeAgo } from "../../lib/util/util";
+import AvatarWithStatus from "../../app/shared/components/AvatarWithStatus";
 
 export default function DirectChatsList() {
   const { directChats, isLoadingChats } = useDirectChats();
@@ -82,12 +82,13 @@ export default function DirectChatsList() {
                   divider
                 >
                   <ListItemAvatar>
-                    <Avatar
+                    <AvatarWithStatus
                       src={chat.otherUserImageUrl}
                       alt={chat.otherUserDisplayName}
+                      status={chat.status || "Offline"}
                     >
                       {chat.otherUserDisplayName[0]}
-                    </Avatar>
+                    </AvatarWithStatus>
                   </ListItemAvatar>
                   <ListItemText
                     primary={
@@ -118,11 +119,12 @@ export default function DirectChatsList() {
                       </Box>
                     }
                     secondary={
-                      <>
+                      <Box component="div">
                         {chat.lastMessageBody && (
                           <Typography
                             variant="body2"
                             color="text.secondary"
+                            component="div"
                             sx={{
                               overflow: "hidden",
                               textOverflow: "ellipsis",
@@ -137,13 +139,15 @@ export default function DirectChatsList() {
                           <Typography
                             variant="caption"
                             color="warning.main"
-                            sx={{ fontStyle: "italic", display: "block" }}
+                            component="div"
+                            sx={{ fontStyle: "italic" }}
                           >
                             Read-only (not friends)
                           </Typography>
                         )}
-                      </>
+                      </Box>
                     }
+                    secondaryTypographyProps={{ component: "div" }}
                   />
                 </ListItem>
               ))}

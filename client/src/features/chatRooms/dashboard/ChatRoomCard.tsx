@@ -13,6 +13,7 @@ import { Link } from "react-router";
 import { formatDate } from "../../../lib/util/util";
 import type { ChatRoom } from "../../../lib/types";
 import AvatarPopover from "../../../app/shared/components/AvatarPopover";
+import AvatarWithStatus from "../../../app/shared/components/AvatarWithStatus";
 
 type Props = {
   chatRoom: ChatRoom;
@@ -69,8 +70,15 @@ export default function ChatRoomCard({ chatRoom }: Props) {
           gap={2}
           sx={{ backgroundColor: "grey.200", py: 3, pl: 3 }}
         >
-          {chatRoom.members.map((att) => (
-            <AvatarPopover profile={att} key={att.id} />
+          {chatRoom.members.map((member) => (
+            <AvatarWithStatus
+              key={member.id}
+              src={member.imageUrl}
+              alt={member.displayName + " image"}
+              status={member.status || "Offline"}
+            >
+              <AvatarPopover profile={member} />
+            </AvatarWithStatus>
           ))}
         </Box>
       </CardContent>

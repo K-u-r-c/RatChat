@@ -6,6 +6,7 @@ using Application.Core;
 using Application.Friends.Validators;
 using Application.Interfaces;
 using Application.Profiles.Validators;
+using Application.Status.Validators;
 using Azure.Storage.Blobs;
 using Domain;
 using FluentValidation;
@@ -50,7 +51,6 @@ builder.Services.AddTransient<IResend, ResendClient>();
 builder.Services.AddTransient<IEmailSender<User>, EmailSender>();
 builder.Services.AddScoped<IUserAccessor, UserAccessor>();
 builder.Services.AddScoped<IMediaValidator, MediaValidator>();
-builder.Services.AddScoped<IFriendsNotificationService, FriendsNotificationService>();
 if (builder.Environment.IsDevelopment())
 {
     // MinIO for development
@@ -70,10 +70,14 @@ else
         new BlobServiceClient(builder.Configuration.GetConnectionString("AzureStorage")));
     builder.Services.AddScoped<IFileStorage, AzureBlobStorage>();
 }
+builder.Services.AddScoped<IFriendsNotificationService, FriendsNotificationService>();
+builder.Services.AddScoped<IUserStatusService, UserStatusService>();
+builder.Services.AddScoped<IStatusNotificationService, StatusNotificationService>();
 builder.Services.AddAutoMapper(typeof(MappingProfiles).Assembly);
 builder.Services.AddValidatorsFromAssemblyContaining<CreateChatRoomValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<UpdateProfileValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<SendFriendRequestValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<UpdateStatusValidator>();
 builder.Services.AddTransient<ExceptionMiddleware>();
 builder.Services.AddHostedService<MediaCleanupService>();
 builder.Services.AddIdentityApiEndpoints<User>(opt =>
@@ -117,6 +121,7 @@ app.MapGroup("api").MapIdentityApi<User>();
 app.MapHub<MessageHub>("/messages");
 app.MapHub<FriendsHub>("/friends");
 app.MapHub<DirectMessageHub>("/direct-messages");
+app.MapHub<StatusHub>("/status");
 app.MapFallbackToController("Index", "Fallback");
 
 using var scope = app.Services.CreateScope();

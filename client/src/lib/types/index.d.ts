@@ -17,6 +17,9 @@ export type User = {
   bannerUrl?: string;
   friendCode: string;
   hasPassword: boolean;
+  status: string;
+  customStatusMessage?: string;
+  lastSeen: Date;
 };
 
 export type ChatRoom = {
@@ -56,6 +59,10 @@ export type Profile = {
   bannerUrl?: string;
   friendsCount?: number;
   isFriend?: boolean;
+  isOnline?: boolean;
+  lastSeen?: Date;
+  status?: string;
+  customStatusMessage?: string;
 };
 
 export type Friend = {
@@ -67,6 +74,8 @@ export type Friend = {
   friendsSince: Date;
   isOnline: boolean;
   lastSeen?: Date;
+  status?: string;
+  customStatusMessage?: string;
 };
 
 export type FriendRequest = {
@@ -108,6 +117,8 @@ export type DirectChat = {
   unreadCount: number;
   isOnline: boolean;
   canSendMessages: boolean;
+  status?: string;
+  customStatusMessage?: string;
 };
 
 export type DirectMessage = {
@@ -171,4 +182,16 @@ export type MediaUploadResult = {
   category: string;
   chatRoomId?: string;
   channelId?: string;
+};
+
+export type UserStatusDto = {
+  userId: string;
+  status: string;
+  customMessage?: string;
+  lastSeen: Date;
+  isOnline: boolean;
+};
+
+export type OnlineUsersDto = {
+  userIds: string[];
 };

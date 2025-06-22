@@ -18,18 +18,29 @@ public class MediaCleanupService(
         {
             try
             {
-                await CleanupOrphanedMediaFiles();
+                await CleanupOrphanedMediaFiles(stoppingToken);
                 await Task.Delay(TimeSpan.FromHours(24), stoppingToken);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error occurred during media cleanup");
-                await Task.Delay(TimeSpan.FromMinutes(30), stoppingToken);
+                try
+                {
+                    await Task.Delay(TimeSpan.FromMinutes(30), stoppingToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
             }
         }
     }
 
-    private async Task CleanupOrphanedMediaFiles()
+    private async Task CleanupOrphanedMediaFiles(CancellationToken cancellationToken)
     {
         using var scope = serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -44,7 +55,7 @@ public class MediaCleanupService(
                 !context.Users.Any(u => u.BannerUrl != null && u.BannerUrl.Contains(m.PublicId)) &&
                 !context.Messages.Any(msg => msg.MediaPublicId == m.PublicId) &&
                 !context.DirectMessages.Any(dm => dm.MediaPublicId == m.PublicId))
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         if (orphanedFiles.Count == 0)
         {
@@ -75,7 +86,7 @@ public class MediaCleanupService(
 
         if (deletedCount > 0)
         {
-            await context.SaveChangesAsync();
+            await context.SaveChangesAsync(cancellationToken);
             logger.LogInformation("Cleanup completed. Deleted {Count} orphaned media files", deletedCount);
         }
     }
