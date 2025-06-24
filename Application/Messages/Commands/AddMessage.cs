@@ -25,7 +25,11 @@ public class AddMessage
         public string? MediaOriginalFileName { get; set; }
     }
 
-    public class Handler(AppDbContext context, IMapper mapper, IUserAccessor userAccessor)
+    public class Handler(
+        AppDbContext context,
+        IMapper mapper,
+        IUserAccessor userAccessor,
+        IRolePermissionService rolePermissionService)
         : IRequestHandler<Command, Result<MessageDto>>
     {
         public async Task<Result<MessageDto>> Handle(Command request, CancellationToken cancellationToken)
@@ -44,6 +48,12 @@ public class AddMessage
             if (chatRoom == null) return Result<MessageDto>.Failure("Could not find chat room", 404);
 
             var user = await userAccessor.GetUserAsync();
+
+            bool canSendMessage = await rolePermissionService.CanSendMessagesAsync(
+                user.Id, chatRoom.Id);
+            if (!canSendMessage)
+                return Result<MessageDto>.Failure("User don't have permission to send messages", 403);
+
 
             if (!Enum.TryParse<MessageType>(request.Type, out var messageType))
                 messageType = MessageType.Text;

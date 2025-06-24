@@ -31,8 +31,11 @@ public class RolePermissionService(AppDbContext context) : IRolePermissionServic
         if (chatRoom?.OwnerId == userId)
             return true;
 
-        var userPermissions = await GetUserPermissionsAsync(userId, chatRoomId);
-        return userPermissions.Contains(permission);
+        return await context.ChatRoomMemberRoles
+            .Where(mr => mr.UserId == userId && mr.ChatRoomId == chatRoomId)
+            .SelectMany(mr => mr.Role.RolePermissions)
+            .Where(rp => rp.Permission.Name == permission)
+            .AnyAsync(rp => rp.IsAllowed);
     }
     
     public async Task<List<string>> GetUserPermissionsAsync(string userId, string chatRoomId)
@@ -50,6 +53,16 @@ public class RolePermissionService(AppDbContext context) : IRolePermissionServic
             .ToListAsync();
     }
 
+    public async Task<bool> CanSendMessagesAsync(string userId, string chatRoomId)
+    {
+        return await HasPermissionAsync(userId, chatRoomId, ChatRoomPermissions.SendMessages);
+    }
+
+    public async Task<bool> CanCreateInvitationsAsync(string userId, string chatRoomId)
+    {
+        return await HasPermissionAsync(userId, chatRoomId, ChatRoomPermissions.CreateInvitations);
+    }
+
     public Task<bool> CanManageRoleAsync(string userId, string chatRoomId, string targetRoleId)
     {
         throw new NotImplementedException();
@@ -59,6 +72,4 @@ public class RolePermissionService(AppDbContext context) : IRolePermissionServic
     {
         throw new NotImplementedException();
     }
-
-
 }
