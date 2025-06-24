@@ -1,7 +1,6 @@
 using Application.ChatRooms.Commands;
 using Application.ChatRooms.DTOs;
 using Application.ChatRooms.Queries;
-using Application.Chats.Commands;
 using Application.Core;
 using Infrastructure.Security;
 using MediatR;

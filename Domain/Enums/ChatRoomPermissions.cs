@@ -3,14 +3,14 @@ namespace Domain.Enums;
 public static class ChatRoomPermissions
 {
     public const string SendMessages = "Send Messages";
-    public const string CreateInvitations = "Create Invitations";
+    public const string CreateInviteLinks = "Create invite links";
 
     // TODO: Implement more permissions
 
     /// <summary>
     /// Dictionary of all permissions and their descriptions.
     /// <para> 
-    /// Key: Name of permission.
+    /// Key: Name of permission. <br />
     /// Value: Description of the permission.
     /// </para>
     /// </summary>
@@ -18,6 +18,6 @@ public static class ChatRoomPermissions
         = new()
         {
             [SendMessages] = "Allows the user to send messages in the chat room.",
-            [CreateInvitations] = "Allows the user to create invitations for the chat room.",
+            [CreateInviteLinks] = "Allows the user to create invite links for the chat room.",
         };
 }

@@ -15,9 +15,9 @@ public class ChatRoomRoles
     public static readonly Dictionary<(string role, string permission), bool> DefaultsPermissions = new()
     {
         [(Moderator, ChatRoomPermissions.SendMessages)] = true,
-        [(Moderator, ChatRoomPermissions.CreateInvitations)] = true,
+        [(Moderator, ChatRoomPermissions.CreateInviteLinks)] = true,
 
         [(Member, ChatRoomPermissions.SendMessages)] = true,
-        [(Member, ChatRoomPermissions.CreateInvitations)] = false,
+        [(Member, ChatRoomPermissions.CreateInviteLinks)] = false,
     };
 }

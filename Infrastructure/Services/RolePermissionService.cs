@@ -58,9 +58,9 @@ public class RolePermissionService(AppDbContext context) : IRolePermissionServic
         return await HasPermissionAsync(userId, chatRoomId, ChatRoomPermissions.SendMessages);
     }
 
-    public async Task<bool> CanCreateInvitationsAsync(string userId, string chatRoomId)
+    public async Task<bool> CanCreateInviteLinkAsync(string userId, string chatRoomId)
     {
-        return await HasPermissionAsync(userId, chatRoomId, ChatRoomPermissions.CreateInvitations);
+        return await HasPermissionAsync(userId, chatRoomId, ChatRoomPermissions.CreateInviteLinks);
     }
 
     public Task<bool> CanManageRoleAsync(string userId, string chatRoomId, string targetRoleId)

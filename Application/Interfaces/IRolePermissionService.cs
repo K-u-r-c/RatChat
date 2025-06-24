@@ -7,5 +7,5 @@ public interface IRolePermissionService
     Task<List<string>> GetUserPermissionsAsync(string userId, string chatRoomId);
 
     Task<bool> CanSendMessagesAsync(string userId, string chatRoomId);
-    Task<bool> CanCreateInvitationsAsync(string userId, string chatRoomId);
+    Task<bool> CanCreateInviteLinkAsync(string userId, string chatRoomId);
 }
