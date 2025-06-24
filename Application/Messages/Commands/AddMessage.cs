@@ -52,7 +52,7 @@ public class AddMessage
             bool canSendMessage = await rolePermissionService.CanSendMessagesAsync(
                 user.Id, chatRoom.Id);
             if (!canSendMessage)
-                return Result<MessageDto>.Failure("User don't have permission to send messages", 403);
+                return Result<MessageDto>.Failure("You don't have permission to send messages", 403);
 
 
             if (!Enum.TryParse<MessageType>(request.Type, out var messageType))
