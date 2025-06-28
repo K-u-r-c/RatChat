@@ -1,4 +1,4 @@
-namespace Application.Roles.DTOs;
+namespace Application.ChatRoomRoles.DTOs;
 
 public class ChatRoomRoleDto
 {
@@ -7,6 +7,7 @@ public class ChatRoomRoleDto
     public string? Description { get; set; }
     public string Color { get; set; } = "#99AAB5";
     public DateTime CreatedAt { get; set; }
-    public int MemberCount { get; set; }
-    public List<ChatRoomPermissionDto> Permissions { get; set; } = [];
+    public required bool IsDefault { get; set; } = false;
+    public required string ChatRoomId { get; set; }
+    public List<ChatRoomRolePermissionDto> Permissions { get; set; } = [];
 }

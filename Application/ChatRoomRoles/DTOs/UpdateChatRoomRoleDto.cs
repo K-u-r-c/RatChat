@@ -1,9 +1,10 @@
 namespace Application.ChatRoomRoles.DTOs;
 
-public class CreateRoleDto
+public class UpdateChatRoomRoleDto
 {
-    public required string Name { get; set; }
+    public required string Id { get; set; }
+    public string? Name { get; set; }
     public string? Description { get; set; }
-    public string Color { get; set; } = "#99AAB5";
+    public string? Color { get; set; }
     public List<RolePermissionDto> Permissions { get; set; } = [];
 }

@@ -1,12 +1,11 @@
-using Application.Roles.DTOs;
-
 namespace Application.ChatRoomRoles.DTOs;
 
 public class MemberRoleDto
 {
     public required string UserId { get; set; }
-    public required string UserDisplayName { get; set; }
-    public string? UserImageUrl { get; set; }
-    public List<ChatRoomRoleDto> Roles { get; set; } = [];
-    public DateTime DateJoined { get; set; }
+    public required string ChatRoomId { get; set; }
+    public required string RoleId { get; set; }
+    public required string RoleName { get; set; }
+    public required DateTime AssignedAt { get; set; }
+    public string? AssignedBy { get; set; }
 }
