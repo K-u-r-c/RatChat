@@ -62,14 +62,4 @@ public class RolePermissionService(AppDbContext context) : IRolePermissionServic
     {
         return await HasPermissionAsync(userId, chatRoomId, ChatRoomPermissions.CreateInviteLinks);
     }
-
-    public Task<bool> CanManageRoleAsync(string userId, string chatRoomId, string targetRoleId)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<bool> CanManageUserAsync(string userId, string chatRoomId, string targetUserId)
-    {
-        throw new NotImplementedException();
-    }
 }

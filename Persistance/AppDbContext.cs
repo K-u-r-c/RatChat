@@ -48,8 +48,8 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
             entity.HasKey(r => r.Id);
 
             entity.Property(r => r.Name).IsRequired().HasMaxLength(50);
-            entity.Property(r => r.Description).IsRequired().HasMaxLength(200);
             entity.Property(r => r.Color).IsRequired().HasMaxLength(7);
+            entity.Property(r => r.Description).HasMaxLength(200);
 
             entity.HasOne(r => r.ChatRoom)
                 .WithMany(cr => cr.Roles)
