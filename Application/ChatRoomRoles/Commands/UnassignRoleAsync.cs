@@ -31,6 +31,10 @@ public class UnassignRoleAsync
             {
                 return Result<Unit>.Failure(ex.Message, 404);
             }
+            catch (ArgumentException ex)
+            {
+                return Result<Unit>.Failure(ex.Message, 400);
+            }
         }
     }
 }

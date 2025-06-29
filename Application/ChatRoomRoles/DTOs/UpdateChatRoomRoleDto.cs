@@ -6,5 +6,5 @@ public class UpdateChatRoomRoleDto
     public string? Name { get; set; }
     public string? Description { get; set; }
     public string? Color { get; set; }
-    public List<RolePermissionDto> Permissions { get; set; } = [];
+    public List<ChangeRolePermissionDto> Permissions { get; set; } = [];
 }

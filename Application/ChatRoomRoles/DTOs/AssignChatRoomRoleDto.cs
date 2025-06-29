@@ -1,7 +1,8 @@
 namespace Application.ChatRoomRoles.DTOs;
 
-public class AssignChatRoomRoleDto : BaseChatRoomRoleDto
+public class AssignChatRoomRoleDto
 {
+    public required string Id { get; set; }
     public required string UserId { get; set; }
     
     // Optional, can be null if not assigned by a user

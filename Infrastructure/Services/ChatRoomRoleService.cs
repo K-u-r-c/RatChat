@@ -54,13 +54,13 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
         if (await context.ChatRoomRoles.AnyAsync(crr => crr.ChatRoomId == createRoleDto.ChatRoomId &&
             crr.Name == createRoleDto.Name))
             throw new ArgumentException($"ChatRoom with id {createRoleDto.ChatRoomId}" +
-                $"already contains role named {createRoleDto.Name}");
+                $" already contains role named {createRoleDto.Name}");
 
         var chatRoomRole = new ChatRoomRole
         {
             Name = createRoleDto.Name,
-            Color = createRoleDto.Color,
             Description = createRoleDto.Description,
+            Color = createRoleDto.Color,
             IsDefault = false,
             ChatRoomId = createRoleDto.ChatRoomId
         };
@@ -151,7 +151,7 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
         foreach (var permission in updateRoleDto.Permissions)
         {
             var existingPermission = await context.ChatRoomRolePermissions
-                .FirstOrDefaultAsync(crp => crp.RoleId == chatRoomRole.Id && crp.PermissionId == permission.Id);
+                .FirstOrDefaultAsync(rp => rp.RoleId == chatRoomRole.Id && rp.PermissionId == permission.Id);
 
             if (existingPermission != null)
             {
@@ -188,27 +188,24 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
 
     public async Task<MemberRoleDto> AssignRoleAsync(AssignChatRoomRoleDto assignRoleDto)
     {
-        await EnsureChatRoomExistsAsync(assignRoleDto.ChatRoomId);
-
         if (!await context.Users.AnyAsync(u => u.Id == assignRoleDto.UserId))
             throw new NoNullAllowedException($"User with id {assignRoleDto.UserId} does not exist");
 
         var chatRoomRole = await context.ChatRoomRoles
-            .FirstOrDefaultAsync(crr => crr.Id == assignRoleDto.Id && crr.ChatRoomId == assignRoleDto.ChatRoomId)
-            ?? throw new NoNullAllowedException($"ChatRoomRole with id {assignRoleDto.Id}" +
-            $"does not exist in chatroom {assignRoleDto.ChatRoomId}");
+            .FirstOrDefaultAsync(crr => crr.Id == assignRoleDto.Id)
+            ?? throw new NoNullAllowedException($"ChatRoomRole with id {assignRoleDto.Id} does not exist");
+
 
         if (await context.ChatRoomMemberRoles.CountAsync(mr =>
             mr.RoleId == assignRoleDto.Id &&
-            mr.ChatRoomId == assignRoleDto.ChatRoomId &&
             mr.UserId == assignRoleDto.UserId) == 1)
-            throw new InvalidOperationException($"User {assignRoleDto.UserId} already has role" +
-            $"{assignRoleDto.Id} in chatroom {assignRoleDto.ChatRoomId}");
+            throw new InvalidOperationException($"User {assignRoleDto.UserId} already" +
+            $"has role {assignRoleDto.Id}");
 
         var chatRoomMemberRole = new ChatRoomMemberRole
         {
             UserId = assignRoleDto.UserId,
-            ChatRoomId = assignRoleDto.ChatRoomId,
+            ChatRoomId = chatRoomRole.ChatRoomId,
             RoleId = chatRoomRole.Id,
             AssignedById = assignRoleDto.AssignedById
         };
@@ -253,17 +250,14 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
 
     public async Task UnassignRoleAsync(UnassignChatRoomRoleDto unassignRoleDto)
     {
-        await EnsureChatRoomExistsAsync(unassignRoleDto.ChatRoomId);
-
         if (!await context.Users.AnyAsync(u => u.Id == unassignRoleDto.UserId))
             throw new NoNullAllowedException($"User with id {unassignRoleDto.UserId} does not exist");
 
-        var chatRoomMemberRole = await context.ChatRoomMemberRoles
+        await context.ChatRoomMemberRoles
             .Where(mr => mr.UserId == unassignRoleDto.UserId &&
-                                       mr.ChatRoomId == unassignRoleDto.ChatRoomId &&
                                        mr.RoleId == unassignRoleDto.Id)
             .ExecuteDeleteAsync();
-
+        // TODO: Check if this is correct, as ExecuteDeleteAsync will return the number of affected rows
     }
     
     private async Task EnsureChatRoomExistsAsync(string chatRoomId)

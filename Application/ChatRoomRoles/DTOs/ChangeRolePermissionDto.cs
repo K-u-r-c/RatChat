@@ -1,7 +1,7 @@
 namespace Application.ChatRoomRoles.DTOs;
 
-public class UnassignChatRoomRoleDto
+public class ChangeRolePermissionDto
 {
     public required string Id { get; set; }
-    public required string UserId { get; set; }
+    public required bool IsAllowed { get; set; }
 }

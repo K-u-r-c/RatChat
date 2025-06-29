@@ -13,7 +13,9 @@ public class UpdateRoleAsync
         public required UpdateChatRoomRoleDto UpdateChatRoomRoleDto { get; set; }
     }
 
-    public class Handler(IChatRoomRoleService chatRoomRoleService) 
+    public class Handler(
+        IChatRoomRoleService chatRoomRoleService,
+        IRolePermissionService rolePermissionService) 
         : IRequestHandler<Command, Result<Unit>>
     {
         public async Task<Result<Unit>> Handle(Command request, CancellationToken cancellationToken)
@@ -21,6 +23,10 @@ public class UpdateRoleAsync
             try
             {
                 await chatRoomRoleService.UpdateRoleAsync(request.UpdateChatRoomRoleDto);
+
+                await rolePermissionService.ChangePermissionsAsync(request.UpdateChatRoomRoleDto.Id,
+                    request.UpdateChatRoomRoleDto.Permissions);
+
                 return Result<Unit>.Success(Unit.Value);
             }
             catch (NoNullAllowedException ex)
@@ -30,6 +36,10 @@ public class UpdateRoleAsync
             catch (InvalidOperationException ex)
             {
                 return Result<Unit>.Failure(ex.Message, 404);
+            }
+            catch (ArgumentException ex)
+            {
+                return Result<Unit>.Failure(ex.Message, 400);
             }
         }
     }

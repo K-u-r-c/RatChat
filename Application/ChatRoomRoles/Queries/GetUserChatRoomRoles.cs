@@ -14,7 +14,9 @@ public class GetUserChatRoomRoles
         public required string UserId { get; set; }
     }
 
-    public class Handler(IChatRoomRoleService chatRoomRoleService) 
+    public class Handler(
+        IChatRoomRoleService chatRoomRoleService,
+        IRolePermissionService rolePermissionService) 
         : IRequestHandler<Query, Result<List<ChatRoomRoleDto>>>
     {
         public async Task<Result<List<ChatRoomRoleDto>>> Handle(Query request, CancellationToken cancellationToken)
@@ -22,6 +24,13 @@ public class GetUserChatRoomRoles
             try
             {
                 var roles = await chatRoomRoleService.GetRolesAsync(request.ChatRoomId, request.UserId);
+
+                foreach (var role in roles)
+                {
+                    var permissions = await rolePermissionService.GetPermissionsAsync(role.Id);
+                    role.Permissions = permissions;
+                }
+
                 return Result<List<ChatRoomRoleDto>>.Success(roles);
             }
             catch (NoNullAllowedException ex)
@@ -31,6 +40,10 @@ public class GetUserChatRoomRoles
             catch (InvalidOperationException ex)
             {
                 return Result<List<ChatRoomRoleDto>>.Failure(ex.Message, 404);
+            }
+            catch (Exception ex)
+            {
+                return Result<List<ChatRoomRoleDto>>.Failure("An unexpected error occurred: " + ex.Message, 500);
             }
         }
     }

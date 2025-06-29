@@ -12,23 +12,28 @@ public class CreateChatRoomRole
         public required CreateChatRoomRoleDto CreateChatRoomRoleDto { get; set; }
     }
 
-    public class Handler(IChatRoomRoleService chatRoomRoleService) 
+    public class Handler(
+        IChatRoomRoleService chatRoomRoleService,
+        IRolePermissionService rolePermissionService) 
         : IRequestHandler<Command, Result<ChatRoomRoleDto>>
     {
         public async Task<Result<ChatRoomRoleDto>> Handle(Command request, CancellationToken cancellationToken)
         {
             try
             {
-                var result = await chatRoomRoleService.CreateCustomRoleAsync(request.CreateChatRoomRoleDto);
+                var createdRole = await chatRoomRoleService.CreateCustomRoleAsync(request.CreateChatRoomRoleDto);
 
-                if (result != null)
-                {
-                    return Result<ChatRoomRoleDto>.Success(result);
-                }
-                else
-                {
+                if (createdRole == null)
                     return Result<ChatRoomRoleDto>.Failure("Failed to create chat room role", 400);
-                }
+
+                var createdPermissions = await rolePermissionService.CreatePermissionsAsync(createdRole.Id);
+
+                if (createdPermissions == null || createdPermissions.Count == 0)
+                    return Result<ChatRoomRoleDto>.Failure("Failed to create permissions for the role", 400);
+
+                createdRole.Permissions = createdPermissions;
+
+                return Result<ChatRoomRoleDto>.Success(createdRole);
             }
             catch (ArgumentException ex)
             {

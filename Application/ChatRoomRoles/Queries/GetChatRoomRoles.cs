@@ -13,7 +13,9 @@ public class GetChatRoomRoles
         public required string ChatRoomId { get; set; }
     }
 
-    public class Handler(IChatRoomRoleService chatRoomRoleService)
+    public class Handler(
+        IChatRoomRoleService chatRoomRoleService,
+        IRolePermissionService rolePermissionService)
         : IRequestHandler<Query, Result<List<ChatRoomRoleDto>>>
     {
         public async Task<Result<List<ChatRoomRoleDto>>> Handle(Query request, CancellationToken cancellationToken)
@@ -21,6 +23,13 @@ public class GetChatRoomRoles
             try
             {
                 var roles = await chatRoomRoleService.GetRolesAsync(request.ChatRoomId);
+
+                foreach (var role in roles)
+                {
+                    var permissions = await rolePermissionService.GetPermissionsAsync(role.Id);
+                    role.Permissions = permissions;
+                }
+
                 return Result<List<ChatRoomRoleDto>>.Success(roles);
             }
             catch (NoNullAllowedException ex)
