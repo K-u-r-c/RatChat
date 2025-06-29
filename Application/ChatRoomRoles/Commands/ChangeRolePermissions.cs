@@ -23,9 +23,17 @@ public class ChangeRolePermissions
                 await rolePermissionService.ChangePermissionsAsync(request.RoleId, request.ChangeRolePermissionDtos);
                 return Result<Unit>.Success(Unit.Value);
             }
-            catch (Exception ex)
+            catch (ChatRoomRoleNotFoundException ex)
             {
-                return Result<Unit>.Failure("Failed to change role permissions: " + ex.Message, 400);
+                return Result<Unit>.Failure(ex.Message, 404);
+            }
+            catch (ChatRoomPermissionsNotFoundException ex)
+            {
+                return Result<Unit>.Failure(ex.Message, 404);
+            }
+            catch
+            {
+                return Result<Unit>.Failure("An unexpected error occurred while changing role permissions", 500);
             }
         }
     }

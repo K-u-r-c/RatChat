@@ -1,5 +1,6 @@
 using System.Data;
 using Application.ChatRoomRoles.DTOs;
+using Application.Core;
 using Application.Interfaces;
 using Domain;
 using Domain.Enums;
@@ -12,12 +13,12 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
 {
     public async Task InitializeDefaultRolesAsync(string chatRoomId)
     {
+        await EnsureChatRoomExistsAsync(chatRoomId);
+
         var storedPermissions = await context.ChatRoomPermissions.ToListAsync();
 
         if (storedPermissions.Count == 0)
-            throw new NoNullAllowedException("No permissions to initiate roles in the given context");
-
-        await EnsureChatRoomExistsAsync(chatRoomId);
+            throw new ChatRoomPermissionsNotFoundException("No permissions to initiate roles in the given context");
 
         var roles = ChatRoomRoles.Defaults
             .Select(r => new ChatRoomRole
@@ -53,7 +54,7 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
 
         if (await context.ChatRoomRoles.AnyAsync(crr => crr.ChatRoomId == createRoleDto.ChatRoomId &&
             crr.Name == createRoleDto.Name))
-            throw new ArgumentException($"ChatRoom with id {createRoleDto.ChatRoomId}" +
+            throw new ChatRoomRoleAlreadyExistsException($"ChatRoom with id {createRoleDto.ChatRoomId}" +
                 $" already contains role named {createRoleDto.Name}");
 
         var chatRoomRole = new ChatRoomRole
@@ -69,7 +70,8 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
 
         var saved = await context.SaveChangesAsync() > 0;
         if (!saved)
-            throw new Exception("Failed to create chat room role. Database save operation did not succeed.");
+            throw new ContextSaveOperationFailedException("Failed to create chat room role. " +
+            "Database save operation did not succeed.");
 
         return new ChatRoomRoleDto
         {
@@ -103,12 +105,11 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
 
         return roles;
     }
+
     public async Task<List<ChatRoomRoleDto>> GetRolesAsync(string chatRoomId, string userId)
     {
         await EnsureChatRoomExistsAsync(chatRoomId);
-
-        if (!await context.Users.AnyAsync(u => u.Id == userId))
-            throw new NoNullAllowedException($"User with id {userId} does not exist");
+        await EnsureUserExistsAsync(userId);
 
         var roles = await context.ChatRoomMemberRoles
             .Where(mr => mr.ChatRoomId == chatRoomId && mr.UserId == userId)
@@ -132,7 +133,7 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
     {
         var chatRoomRole = await context.ChatRoomRoles
             .FirstOrDefaultAsync(crr => crr.Id == updateRoleDto.Id)
-            ?? throw new NoNullAllowedException($"ChatRoomRole with id {updateRoleDto.Id} does not exist");
+            ?? throw new ChatRoomRoleNotFoundException($"ChatRoomRole with id {updateRoleDto.Id} does not exist");
 
         if (updateRoleDto.Name != null)
         {
@@ -159,19 +160,21 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
             }
         }
 
-        await context.SaveChangesAsync();
+        var saved = await context.SaveChangesAsync() > 0;
+        if (!saved)
+            throw new ContextSaveOperationFailedException("Failed to update chat room role. " +
+            "Database save operation did not succeed.");
     }
 
     public async Task DeleteRoleAsync(string chatRoomRoleId)
     {
-        if (!await context.ChatRoomRoles.AnyAsync(crr => crr.Id == chatRoomRoleId))
-            throw new NoNullAllowedException($"ChatRoomRole with id {chatRoomRoleId} does not exist");
+        await EnsureRoleExistsAsync(chatRoomRoleId);
 
         var chatRoomRole = await context.ChatRoomRoles
             .FirstAsync(crr => crr.Id == chatRoomRoleId);
 
         if (chatRoomRole.IsDefault)
-            throw new InvalidOperationException("Cannot delete a default role");
+            throw new CannotDeleteDefaultRoleException("Cannot delete a default role");
 
         context.ChatRoomRoles.Remove(chatRoomRole);
 
@@ -188,18 +191,19 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
 
     public async Task<MemberRoleDto> AssignRoleAsync(AssignChatRoomRoleDto assignRoleDto)
     {
-        if (!await context.Users.AnyAsync(u => u.Id == assignRoleDto.UserId))
-            throw new NoNullAllowedException($"User with id {assignRoleDto.UserId} does not exist");
+        await EnsureUserExistsAsync(assignRoleDto.UserId);
+
+        if (assignRoleDto.AssignedById != null)
+            await EnsureUserExistsAsync(assignRoleDto.AssignedById);
 
         var chatRoomRole = await context.ChatRoomRoles
             .FirstOrDefaultAsync(crr => crr.Id == assignRoleDto.Id)
-            ?? throw new NoNullAllowedException($"ChatRoomRole with id {assignRoleDto.Id} does not exist");
-
+            ?? throw new ChatRoomRoleNotFoundException($"ChatRoomRole with id {assignRoleDto.Id} does not exist");
 
         if (await context.ChatRoomMemberRoles.CountAsync(mr =>
             mr.RoleId == assignRoleDto.Id &&
             mr.UserId == assignRoleDto.UserId) == 1)
-            throw new InvalidOperationException($"User {assignRoleDto.UserId} already" +
+            throw new UserAlreadyHasRoleException($"User {assignRoleDto.UserId} already" +
             $"has role {assignRoleDto.Id}");
 
         var chatRoomMemberRole = new ChatRoomMemberRole
@@ -227,14 +231,13 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
 
     public async Task AssignMemberRoleAsync(string userId, string chatRoomId)
     {
-        if (!await context.Users.AnyAsync(u => u.Id == userId))
-            throw new NoNullAllowedException($"User with id {userId} does not exist");
+        await EnsureUserExistsAsync(userId);
 
         await EnsureChatRoomExistsAsync(chatRoomId);
 
         var memberRole = await context.ChatRoomRoles
             .FirstAsync(r => r.ChatRoomId == chatRoomId && r.Name == ChatRoomRoles.Member)
-            ?? throw new NoNullAllowedException($"No Member role found for this chatroom {chatRoomId}");
+            ?? throw new ChatRoomRoleNotFoundException($"No Member role found for this chatroom {chatRoomId}");
 
         var chatroomMemberRole = new ChatRoomMemberRole
         {
@@ -250,19 +253,30 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
 
     public async Task UnassignRoleAsync(UnassignChatRoomRoleDto unassignRoleDto)
     {
-        if (!await context.Users.AnyAsync(u => u.Id == unassignRoleDto.UserId))
-            throw new NoNullAllowedException($"User with id {unassignRoleDto.UserId} does not exist");
+        await EnsureUserExistsAsync(unassignRoleDto.UserId);
+        await EnsureRoleExistsAsync(unassignRoleDto.Id);
 
         await context.ChatRoomMemberRoles
             .Where(mr => mr.UserId == unassignRoleDto.UserId &&
                                        mr.RoleId == unassignRoleDto.Id)
             .ExecuteDeleteAsync();
-        // TODO: Check if this is correct, as ExecuteDeleteAsync will return the number of affected rows
     }
-    
+
     private async Task EnsureChatRoomExistsAsync(string chatRoomId)
     {
         if (!await context.ChatRooms.AnyAsync(cr => cr.Id == chatRoomId))
-            throw new NoNullAllowedException($"ChatRoom with id {chatRoomId} does not exist");
+            throw new ChatRoomNotFoundException($"ChatRoom with id {chatRoomId} does not exist");
+    }
+
+    private async Task EnsureUserExistsAsync(string userId)
+    {
+        if (!await context.Users.AnyAsync(u => u.Id == userId))
+            throw new UserNotFoundException($"User with id {userId} does not exist");
+    }
+
+    private async Task EnsureRoleExistsAsync(string roleId)
+    {
+        if (!await context.ChatRoomRoles.AnyAsync(r => r.Id == roleId))
+            throw new ChatRoomRoleNotFoundException($"Role with ID {roleId} does not exist.");
     }
 }

@@ -29,17 +29,21 @@ public class UpdateRoleAsync
 
                 return Result<Unit>.Success(Unit.Value);
             }
-            catch (NoNullAllowedException ex)
-            {
-                return Result<Unit>.Failure(ex.Message, 400);
-            }
-            catch (InvalidOperationException ex)
+            catch (ChatRoomRoleNotFoundException ex)
             {
                 return Result<Unit>.Failure(ex.Message, 404);
             }
-            catch (ArgumentException ex)
+            catch (ChatRoomPermissionsNotFoundException ex)
             {
-                return Result<Unit>.Failure(ex.Message, 400);
+                return Result<Unit>.Failure(ex.Message, 404);
+            }
+            catch (ContextSaveOperationFailedException ex)
+            {
+                return Result<Unit>.Failure(ex.Message, 500);
+            }
+            catch
+            {
+                return Result<Unit>.Failure("An unexpected error occurred while updating chat room role", 500);
             }
         }
     }

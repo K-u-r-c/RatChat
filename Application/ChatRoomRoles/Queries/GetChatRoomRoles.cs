@@ -32,13 +32,18 @@ public class GetChatRoomRoles
 
                 return Result<List<ChatRoomRoleDto>>.Success(roles);
             }
-            catch (NoNullAllowedException ex)
-            {
-                return Result<List<ChatRoomRoleDto>>.Failure(ex.Message, 400);
-            }
-            catch (InvalidOperationException ex)
+            catch (ChatRoomNotFoundException ex)
             {
                 return Result<List<ChatRoomRoleDto>>.Failure(ex.Message, 404);
+            }
+            catch (ChatRoomRoleNotFoundException ex)
+            {
+                return Result<List<ChatRoomRoleDto>>.Failure(ex.Message, 500);
+            }
+            catch
+            {
+                return Result<List<ChatRoomRoleDto>>.Failure("An unexpected error occurred while " +
+                "retrieving chat room roles.", 500);
             }
         }
     }

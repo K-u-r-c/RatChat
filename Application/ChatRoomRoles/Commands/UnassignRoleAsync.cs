@@ -23,17 +23,17 @@ public class UnassignRoleAsync
                 await chatRoomRoleService.UnassignRoleAsync(request.UnassignChatRoomRoleDto);
                 return Result<Unit>.Success(Unit.Value);
             }
-            catch (NoNullAllowedException ex)
-            {
-                return Result<Unit>.Failure(ex.Message, 400);
-            }
-            catch (InvalidOperationException ex)
+            catch (UserNotFoundException ex)
             {
                 return Result<Unit>.Failure(ex.Message, 404);
             }
-            catch (ArgumentException ex)
+            catch (ChatRoomRoleNotFoundException ex)
             {
-                return Result<Unit>.Failure(ex.Message, 400);
+                return Result<Unit>.Failure(ex.Message, 404);
+            }
+            catch
+            {
+                return Result<Unit>.Failure("An unexpected error occurred while unassigning role from user", 500);
             }
         }
     }

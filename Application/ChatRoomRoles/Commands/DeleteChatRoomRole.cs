@@ -22,13 +22,17 @@ public class DeleteChatRoomRole
                 await chatRoomRoleService.DeleteRoleAsync(request.ChatRoomRoleId);
                 return Result<Unit>.Success(Unit.Value);
             }
-            catch (NoNullAllowedException ex)
-            {
-                return Result<Unit>.Failure(ex.Message, 400);
-            }
-            catch (InvalidOperationException ex)
+            catch (ChatRoomRoleNotFoundException ex)
             {
                 return Result<Unit>.Failure(ex.Message, 404);
+            }
+            catch (CannotDeleteDefaultRoleException ex)
+            {
+                return Result<Unit>.Failure(ex.Message, 404);
+            }
+            catch
+            {
+                return Result<Unit>.Failure("An unexpected error occurred while deleting chat room role", 500);
             }
         }
     }

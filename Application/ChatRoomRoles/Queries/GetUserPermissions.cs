@@ -23,9 +23,18 @@ public class GetUserPermissions
                 var permissions = await rolePermissionService.GetUserPermissionsAsync(request.UserId, request.ChatRoomId);
                 return Result<List<ChatRoomPermissionDto>>.Success(permissions);
             }
-            catch (Exception ex)
+            catch (ChatRoomNotFoundException ex)
             {
-                return Result<List<ChatRoomPermissionDto>>.Failure("Failed to get user permissions: " + ex.Message, 400);
+                return Result<List<ChatRoomPermissionDto>>.Failure(ex.Message, 404);
+            }
+            catch (UserNotFoundException ex)
+            {
+                return Result<List<ChatRoomPermissionDto>>.Failure(ex.Message, 404);
+            }
+            catch
+            {
+                return Result<List<ChatRoomPermissionDto>>.Failure("An unexpected error occurred while " +
+                "retrieving user's chatroom permissions", 500);
             }
         }
     }

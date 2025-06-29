@@ -1,5 +1,6 @@
 using System.Data;
 using Application.ChatRoomRoles.DTOs;
+using Application.Core;
 using Application.Interfaces;
 using Domain;
 using Domain.Enums;
@@ -29,11 +30,10 @@ public class RolePermissionService(AppDbContext context) : IRolePermissionServic
 
     public async Task<List<ChatRoomRolePermissionDto>> CreatePermissionsAsync(string roleId)
     {
-        if (!await context.ChatRoomRoles.AnyAsync(r => r.Id == roleId))
-            throw new ArgumentException($"Role with ID {roleId} does not exist.");
+        await EnsureRoleExistsAsync(roleId);
 
         var permissions = await context.ChatRoomPermissions.ToListAsync()
-            ?? throw new NoNullAllowedException("No permissions found in the database.");
+            ?? throw new ChatRoomPermissionsNotFoundException("No permissions found in the database.");
 
         var rolePermissionsDtos = permissions.Select(p => new ChatRoomRolePermissionDto
         {
@@ -58,15 +58,14 @@ public class RolePermissionService(AppDbContext context) : IRolePermissionServic
 
         var saved = await context.SaveChangesAsync() > 0;
         if (!saved)
-            throw new Exception("Failed to create chat room role. Database save operation did not succeed.");
+            throw new ContextSaveOperationFailedException("Failed to create chat room permissions. Database save operation did not succeed.");
 
         return rolePermissionsDtos;
     }
 
     public async Task<List<ChatRoomRolePermissionDto>> GetPermissionsAsync(string roleId)
     {
-        if (!await context.ChatRoomRoles.AnyAsync(r => r.Id == roleId))
-            throw new ArgumentException($"Role with ID {roleId} does not exist.");
+        await EnsureRoleExistsAsync(roleId);
 
         return await context.ChatRoomRolePermissions
             .Where(rp => rp.RoleId == roleId)
@@ -85,6 +84,9 @@ public class RolePermissionService(AppDbContext context) : IRolePermissionServic
 
     public async Task<List<ChatRoomPermissionDto>> GetUserPermissionsAsync(string userId, string chatRoomId)
     {
+        await EnsureChatRoomExistsAsync(chatRoomId);
+        await EnsureUserExistsAsync(userId);
+
         var chatRoom = await context.ChatRooms.FirstOrDefaultAsync(cr => cr.Id == chatRoomId);
         if (chatRoom?.OwnerId == userId)
             return await context.ChatRoomPermissions
@@ -121,6 +123,9 @@ public class RolePermissionService(AppDbContext context) : IRolePermissionServic
 
     private async Task<bool> HasPermissionAsync(string userId, string chatRoomId, string permissionName)
     {
+        await EnsureChatRoomExistsAsync(chatRoomId);
+        await EnsureUserExistsAsync(userId);
+
         var chatRoom = await context.ChatRooms.FirstOrDefaultAsync(cr => cr.Id == chatRoomId);
         if (chatRoom?.OwnerId == userId)
             return true;
@@ -134,8 +139,7 @@ public class RolePermissionService(AppDbContext context) : IRolePermissionServic
 
     public async Task ChangePermissionsAsync(string roleId, List<ChangeRolePermissionDto> changeRolePermissionDtos)
     {
-        if (!await context.ChatRoomRoles.AnyAsync(r => r.Id == roleId))
-        throw new ArgumentException($"Role with ID {roleId} does not exist.");
+        await EnsureRoleExistsAsync(roleId);
 
         var permissionIds = changeRolePermissionDtos.Select(x => x.Id).ToList();
 
@@ -144,7 +148,7 @@ public class RolePermissionService(AppDbContext context) : IRolePermissionServic
             .ToListAsync();
 
         if (rolePermissions.Count != permissionIds.Count)
-            throw new ArgumentException("One or more permissions do not exist for this role.");
+            throw new ChatRoomRoleNotFoundException("One or more permissions do not exist for this role.");
 
         foreach (var changePermissionDto in changeRolePermissionDtos)
         {
@@ -155,5 +159,23 @@ public class RolePermissionService(AppDbContext context) : IRolePermissionServic
         }
 
         await context.SaveChangesAsync();
+    }
+    
+    private async Task EnsureChatRoomExistsAsync(string chatRoomId)
+    {
+        if (!await context.ChatRooms.AnyAsync(cr => cr.Id == chatRoomId))
+            throw new ChatRoomNotFoundException($"ChatRoom with id {chatRoomId} does not exist");
+    }
+
+    private async Task EnsureUserExistsAsync(string userId)
+    {
+        if (!await context.Users.AnyAsync(u => u.Id == userId))
+            throw new UserNotFoundException($"User with id {userId} does not exist");
+    }
+
+    private async Task EnsureRoleExistsAsync(string roleId)
+    {
+        if (!await context.ChatRoomRoles.AnyAsync(r => r.Id == roleId))
+            throw new ChatRoomRoleNotFoundException($"Role with ID {roleId} does not exist.");
     }
 }

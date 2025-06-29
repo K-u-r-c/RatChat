@@ -23,26 +23,38 @@ public class CreateChatRoomRole
             {
                 var createdRole = await chatRoomRoleService.CreateCustomRoleAsync(request.CreateChatRoomRoleDto);
 
-                if (createdRole == null)
-                    return Result<ChatRoomRoleDto>.Failure("Failed to create chat room role", 400);
-
-                var createdPermissions = await rolePermissionService.CreatePermissionsAsync(createdRole.Id);
-
-                if (createdPermissions == null || createdPermissions.Count == 0)
-                    return Result<ChatRoomRoleDto>.Failure("Failed to create permissions for the role", 400);
+                var createdPermissions =
+                    await rolePermissionService.CreatePermissionsAsync(createdRole.Id);
 
                 createdRole.Permissions = createdPermissions;
 
                 return Result<ChatRoomRoleDto>.Success(createdRole);
             }
-            catch (ArgumentException ex)
+            catch (ChatRoomNotFoundException ex)
             {
-                return Result<ChatRoomRoleDto>.Failure(ex.Message, 400);
+                return Result<ChatRoomRoleDto>.Failure(ex.Message, 404);
             }
-            catch (Exception ex)
+            catch (ChatRoomRoleAlreadyExistsException ex)
             {
-                return Result<ChatRoomRoleDto>.Failure("An unexpected error occurred: " + ex.Message, 500);
+                return Result<ChatRoomRoleDto>.Failure(ex.Message, 409);
             }
+            catch (ContextSaveOperationFailedException ex)
+            {
+                return Result<ChatRoomRoleDto>.Failure(ex.Message, 500);
+            }
+            catch (ChatRoomRoleNotFoundException ex)
+            {
+                return Result<ChatRoomRoleDto>.Failure(ex.Message, 500);
+            }
+            catch (ChatRoomPermissionsNotFoundException ex)
+            {
+                return Result<ChatRoomRoleDto>.Failure(ex.Message, 404);
+            }
+            catch
+            {
+                return Result<ChatRoomRoleDto>.Failure("An unexpected error occurred while creating chat room role", 500);
+            }
+
         }
     }
 }

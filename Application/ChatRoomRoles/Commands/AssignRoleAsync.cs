@@ -23,13 +23,25 @@ public class AssignRoleAsync
                 var role = await chatRoomRoleService.AssignRoleAsync(request.AssignChatRoomRoleDto);
                 return Result<MemberRoleDto>.Success(role);
             }
-            catch (NoNullAllowedException ex)
+            catch (ChatRoomNotFoundException ex)
+            {
+                return Result<MemberRoleDto>.Failure(ex.Message, 404);
+            }
+            catch (UserNotFoundException ex)
+            {
+                return Result<MemberRoleDto>.Failure(ex.Message, 404);
+            }
+            catch (ChatRoomRoleNotFoundException ex)
+            {
+                return Result<MemberRoleDto>.Failure(ex.Message, 404);
+            }
+            catch (UserAlreadyHasRoleException ex)
             {
                 return Result<MemberRoleDto>.Failure(ex.Message, 400);
             }
-            catch (InvalidOperationException ex)
+            catch
             {
-                return Result<MemberRoleDto>.Failure(ex.Message, 404);
+                return Result<MemberRoleDto>.Failure("An unexpected error occurred while assigning role to user", 500);
             }
         }
     }
