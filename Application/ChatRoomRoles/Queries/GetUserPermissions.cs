@@ -9,8 +9,8 @@ public class GetUserPermissions
 {
     public class Query : IRequest<Result<List<ChatRoomPermissionDto>>>
     {
-        public required string UserId { get; set; }
         public required string ChatRoomId { get; set; }
+        public required string UserId { get; set; }
     }
 
     public class Handler(IRolePermissionService rolePermissionService) 

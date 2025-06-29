@@ -24,6 +24,16 @@ public class ChatRoomRolesController : BaseApiController
         }));
     }
 
+    [HttpGet("{chatRoomId}/permissions/{userId}")]
+    public async Task<ActionResult<List<ChatRoomPermissionDto>>> GetUserPermissions(string chatRoomId, string userId)
+    {
+        return HandleResult(await Mediator.Send(new GetUserPermissions.Query
+        {
+            ChatRoomId = chatRoomId,
+            UserId = userId
+        }));
+    }
+
     [HttpPost]
     public async Task<ActionResult<ChatRoomRoleDto>> CreateRole(CreateChatRoomRoleDto dto)
     {

@@ -99,13 +99,14 @@ public class RolePermissionService(AppDbContext context) : IRolePermissionServic
             .Where(mr => mr.UserId == userId && mr.ChatRoomId == chatRoomId)
             .SelectMany(mr => mr.Role.RolePermissions)
             .Where(rp => rp.IsAllowed)
-            .DistinctBy(rp => rp.PermissionId)
             .Select(rp => new ChatRoomPermissionDto
             {
                 Id = rp.Permission.Id,
                 Name = rp.Permission.Name,
                 Description = rp.Permission.Description
-            }).ToListAsync();
+            })
+            .Distinct()
+            .ToListAsync();
     }
 
     public async Task<bool> CanSendMessagesAsync(string userId, string chatRoomId)
