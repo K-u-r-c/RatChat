@@ -42,9 +42,9 @@ import { toast } from "react-toastify";
 import MessageAvatarWithStatus from "./MessageAvatarWithStatus";
 import EmojiPickerComponent from "../../../app/shared/components/EmojiPicker";
 import EmojiSettingsDialog from "../../../app/shared/components/EmojiSettingsDialog";
+import { useEmojiPreferences } from "../../../lib/hooks/useEmojiPreferences";
 import {
   formatMessageWithEmojis,
-  getDefaultEmoji,
   convertTextToEmoji,
 } from "../../../lib/util/emojiUtils";
 
@@ -124,10 +124,12 @@ const MediaChatComponent = observer(function MediaChatComponent({
 
   const { uploadMedia } = useMedia();
 
-  // Determine chat type and ID for emoji settings
-  const chatType = chatRoomId ? "chatroom" : "direct";
+  const { useEmojiPreference } = useEmojiPreferences();
+  const chatType = chatRoomId ? "ChatRoom" : "DirectChat";
   const chatId = chatRoomId || directChatId || "";
-  const defaultEmoji = getDefaultEmoji(chatType, chatId);
+
+  const { data: emojiPreference } = useEmojiPreference(chatType, chatId);
+  const defaultEmoji = emojiPreference?.defaultEmoji || "👍";
 
   const {
     register,
@@ -145,7 +147,6 @@ const MediaChatComponent = observer(function MediaChatComponent({
     rootMargin: "100px 0px 0px 0px",
   });
 
-  // Handle menu actions
   const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
     setMenuAnchorEl(event.currentTarget);
   };
@@ -159,20 +160,17 @@ const MediaChatComponent = observer(function MediaChatComponent({
     handleMenuClose();
   };
 
-  // Handle emoji selection
   const handleEmojiSelect = (emoji: string) => {
     const currentValue = currentMessage || "";
     const newValue = currentValue + emoji;
     setValue("body", newValue);
   };
 
-  // Handle quick emoji reaction
   const handleQuickReact = (emoji: string) => {
     setValue("body", emoji);
     handleSubmit(addMessage)();
   };
 
-  // Rest of the existing code for media handling...
   useEffect(() => {
     const handlePaste = async (event: ClipboardEvent) => {
       const items = event.clipboardData?.items;
@@ -312,7 +310,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
       ],
     },
     maxFiles: 1,
-    maxSize: 200 * 1024 * 1024, // 200MB max
+    maxSize: 200 * 1024 * 1024,
     noClick: true,
   });
 
@@ -371,7 +369,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
       return MediaCategory.ChatRoomOther;
     }
 
-    return MediaCategory.ChatRoomDocument; // Default for unknown types
+    return MediaCategory.ChatRoomDocument;
   };
 
   const getMessageType = (file: File): MessageType => {
@@ -622,7 +620,6 @@ const MediaChatComponent = observer(function MediaChatComponent({
     }
   };
 
-  // Rest of the component logic remains the same...
   useEffect(() => {
     if (
       inView &&
@@ -716,7 +713,6 @@ const MediaChatComponent = observer(function MediaChatComponent({
         return;
       }
 
-      // Handle regular file upload from file selector or drag & drop
       if (selectedFile && mediaPreview) {
         const category = getMediaCategory(selectedFile);
         const messageType = getMessageType(selectedFile);
@@ -737,7 +733,6 @@ const MediaChatComponent = observer(function MediaChatComponent({
           originalFileName: uploadResult.originalFileName,
         });
 
-        // Clean up file state
         setSelectedFile(null);
         if (mediaPreview) {
           URL.revokeObjectURL(mediaPreview);
@@ -746,7 +741,6 @@ const MediaChatComponent = observer(function MediaChatComponent({
         return;
       }
 
-      // Handle regular text message with emoji conversion
       const trimmedBody = data.body?.trimEnd();
       if (trimmedBody) {
         await onSendMessage(trimmedBody);
@@ -1237,7 +1231,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
       <EmojiSettingsDialog
         open={showEmojiSettings}
         onClose={() => setShowEmojiSettings(false)}
-        chatType={chatType}
+        chatType={chatRoomId ? "chatroom" : "direct"}
         chatId={chatId}
         chatName={title}
       />

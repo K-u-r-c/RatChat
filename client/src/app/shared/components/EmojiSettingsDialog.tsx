@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -10,10 +10,11 @@ import {
   Grid,
   Paper,
   IconButton,
+  CircularProgress,
 } from "@mui/material";
 import { Close } from "@mui/icons-material";
 import EmojiPickerComponent from "./EmojiPicker";
-import { setDefaultEmoji, getDefaultEmoji } from "../../../lib/util/emojiUtils";
+import { useEmojiPreferences } from "../../../lib/hooks/useEmojiPreferences";
 
 type Props = {
   open: boolean;
@@ -23,7 +24,6 @@ type Props = {
   chatName: string;
 };
 
-// Popular emojis for quick selection
 const POPULAR_EMOJIS = [
   "👍",
   "❤️",
@@ -58,23 +58,60 @@ export default function EmojiSettingsDialog({
   chatId,
   chatName,
 }: Props) {
-  const [currentEmoji, setCurrentEmoji] = useState(() =>
-    getDefaultEmoji(chatType, chatId)
+  const { useEmojiPreference, setEmojiPreference } = useEmojiPreferences();
+
+  const backendChatType = chatType === "chatroom" ? "ChatRoom" : "DirectChat";
+
+  const { data: emojiPreference, isLoading } = useEmojiPreference(
+    backendChatType,
+    chatId
   );
+
+  const [currentEmoji, setCurrentEmoji] = useState("👍");
+
+  useEffect(() => {
+    if (emojiPreference) {
+      setCurrentEmoji(emojiPreference.defaultEmoji);
+    }
+  }, [emojiPreference]);
 
   const handleEmojiSelect = (emoji: string) => {
     setCurrentEmoji(emoji);
   };
 
-  const handleSave = () => {
-    setDefaultEmoji(chatType, chatId, currentEmoji);
-    onClose();
+  const handleSave = async () => {
+    try {
+      await setEmojiPreference.mutateAsync({
+        chatType: backendChatType,
+        chatId,
+        defaultEmoji: currentEmoji,
+      });
+      onClose();
+    } catch {
+      // Error handling is done in the mutation
+    }
   };
 
   const handleCancel = () => {
-    setCurrentEmoji(getDefaultEmoji(chatType, chatId));
+    if (emojiPreference) {
+      setCurrentEmoji(emojiPreference.defaultEmoji);
+    } else {
+      setCurrentEmoji("👍");
+    }
     onClose();
   };
+
+  if (isLoading) {
+    return (
+      <Dialog open={open} onClose={handleCancel} maxWidth="sm" fullWidth>
+        <DialogContent>
+          <Box display="flex" justifyContent="center" alignItems="center" p={4}>
+            <CircularProgress />
+          </Box>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onClose={handleCancel} maxWidth="sm" fullWidth>
@@ -148,8 +185,19 @@ export default function EmojiSettingsDialog({
 
       <DialogActions>
         <Button onClick={handleCancel}>Cancel</Button>
-        <Button onClick={handleSave} variant="contained">
-          Save Default Emoji
+        <Button
+          onClick={handleSave}
+          variant="contained"
+          disabled={setEmojiPreference.isPending}
+        >
+          {setEmojiPreference.isPending ? (
+            <>
+              <CircularProgress size={20} sx={{ mr: 1 }} />
+              Saving...
+            </>
+          ) : (
+            "Save Default Emoji"
+          )}
         </Button>
       </DialogActions>
     </Dialog>
