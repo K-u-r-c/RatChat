@@ -7,7 +7,6 @@ public class DirectMessage
     public string Id { get; set; } = Guid.NewGuid().ToString();
     public required string Body { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public bool IsRead { get; set; } = false;
     public MessageType Type { get; set; } = MessageType.Text;
 
     // Media properties

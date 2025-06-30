@@ -8,7 +8,6 @@ public class DirectMessageDto
     public required string SenderId { get; set; }
     public required string SenderDisplayName { get; set; }
     public string? SenderImageUrl { get; set; }
-    public bool IsRead { get; set; }
     public bool IsOwnMessage { get; set; }
     public string Type { get; set; } = "Text";
 
