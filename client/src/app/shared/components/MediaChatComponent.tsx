@@ -13,6 +13,10 @@ import {
   DialogActions,
   Paper,
   Chip,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
 } from "@mui/material";
 import {
   AttachFile,
@@ -22,6 +26,8 @@ import {
   Send,
   Code,
   Archive,
+  MoreVert,
+  Settings,
 } from "@mui/icons-material";
 import { Link } from "react-router";
 import { timeAgo } from "../../../lib/util/util";
@@ -34,6 +40,13 @@ import { useMedia, MediaCategory } from "../../../lib/hooks/useMedia";
 import type { MessageType, MediaUploadResult } from "../../../lib/types";
 import { toast } from "react-toastify";
 import MessageAvatarWithStatus from "./MessageAvatarWithStatus";
+import EmojiPickerComponent from "../../../app/shared/components/EmojiPicker";
+import EmojiSettingsDialog from "../../../app/shared/components/EmojiSettingsDialog";
+import {
+  formatMessageWithEmojis,
+  getDefaultEmoji,
+  convertTextToEmoji,
+} from "../../../lib/util/emojiUtils";
 
 type BaseMessage = {
   id: string;
@@ -71,6 +84,7 @@ type Props = {
   ) => Promise<void>;
   showUserProfiles?: boolean;
   chatRoomId?: string;
+  directChatId?: string;
 };
 
 const MediaChatComponent = observer(function MediaChatComponent({
@@ -79,6 +93,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
   onSendMessage,
   showUserProfiles = true,
   chatRoomId,
+  directChatId,
 }: Props) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -104,21 +119,60 @@ const MediaChatComponent = observer(function MediaChatComponent({
     file: null,
     preview: null,
   });
+  const [showEmojiSettings, setShowEmojiSettings] = useState(false);
+  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
 
   const { uploadMedia } = useMedia();
+
+  // Determine chat type and ID for emoji settings
+  const chatType = chatRoomId ? "chatroom" : "direct";
+  const chatId = chatRoomId || directChatId || "";
+  const defaultEmoji = getDefaultEmoji(chatType, chatId);
 
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { isSubmitting },
   } = useForm();
+
+  const currentMessage = watch("body") || "";
 
   const { ref: loadMoreRef, inView } = useInView({
     threshold: 0.1,
     rootMargin: "100px 0px 0px 0px",
   });
 
+  // Handle menu actions
+  const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
+    setMenuAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setMenuAnchorEl(null);
+  };
+
+  const handleEmojiSettingsOpen = () => {
+    setShowEmojiSettings(true);
+    handleMenuClose();
+  };
+
+  // Handle emoji selection
+  const handleEmojiSelect = (emoji: string) => {
+    const currentValue = currentMessage || "";
+    const newValue = currentValue + emoji;
+    setValue("body", newValue);
+  };
+
+  // Handle quick emoji reaction
+  const handleQuickReact = (emoji: string) => {
+    setValue("body", emoji);
+    handleSubmit(addMessage)();
+  };
+
+  // Rest of the existing code for media handling...
   useEffect(() => {
     const handlePaste = async (event: ClipboardEvent) => {
       const items = event.clipboardData?.items;
@@ -421,13 +475,9 @@ const MediaChatComponent = observer(function MediaChatComponent({
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Set the file for preview without uploading
       setSelectedFile(file);
       const preview = URL.createObjectURL(file);
       setMediaPreview(preview);
-
-      // Don't open the dialog, just show preview in the input area
-      // The file will be uploaded when the user submits the form
     }
   };
 
@@ -449,10 +499,19 @@ const MediaChatComponent = observer(function MediaChatComponent({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
-  const renderMediaContent = (message: BaseMessage) => {
+  const renderMessageContent = (message: BaseMessage) => {
     if (message.type === "Text" || !message.mediaUrl) {
+      const formatted = formatMessageWithEmojis(message.body);
       return (
-        <Typography sx={{ whiteSpace: "pre-wrap" }}>{message.body}</Typography>
+        <Typography
+          sx={{
+            whiteSpace: "pre-wrap",
+            fontSize: formatted.isLargeEmoji ? "2rem" : "inherit",
+            lineHeight: formatted.isLargeEmoji ? 1.2 : "inherit",
+          }}
+        >
+          {formatted.text}
+        </Typography>
       );
     }
 
@@ -466,7 +525,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
           <Box>
             {message.body && message.body !== message.mediaOriginalFileName && (
               <Typography sx={{ whiteSpace: "pre-wrap", mb: 1 }}>
-                {message.body}
+                {convertTextToEmoji(message.body)}
               </Typography>
             )}
             <img
@@ -486,7 +545,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
           <Box>
             {message.body && message.body !== message.mediaOriginalFileName && (
               <Typography sx={{ whiteSpace: "pre-wrap", mb: 1 }}>
-                {message.body}
+                {convertTextToEmoji(message.body)}
               </Typography>
             )}
             <video
@@ -505,7 +564,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
           <Box>
             {message.body && message.body !== message.mediaOriginalFileName && (
               <Typography sx={{ whiteSpace: "pre-wrap", mb: 1 }}>
-                {message.body}
+                {convertTextToEmoji(message.body)}
               </Typography>
             )}
             <audio {...commonProps} controls src={message.mediaUrl}>
@@ -519,7 +578,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
           <Box>
             {message.body && message.body !== message.mediaOriginalFileName && (
               <Typography sx={{ whiteSpace: "pre-wrap", mb: 1 }}>
-                {message.body}
+                {convertTextToEmoji(message.body)}
               </Typography>
             )}
             <Paper
@@ -557,7 +616,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
       default:
         return (
           <Typography sx={{ whiteSpace: "pre-wrap" }}>
-            {message.body}
+            {convertTextToEmoji(message.body)}
           </Typography>
         );
     }
@@ -687,7 +746,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
         return;
       }
 
-      // Handle regular text message
+      // Handle regular text message with emoji conversion
       const trimmedBody = data.body?.trimEnd();
       if (trimmedBody) {
         await onSendMessage(trimmedBody);
@@ -741,41 +800,64 @@ const MediaChatComponent = observer(function MediaChatComponent({
         }}
       >
         <Typography variant="h6">{title}</Typography>
-        {!isAtBottom && (
-          <Button
-            onClick={scrollToBottom}
-            variant="contained"
-            size="small"
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          {!isAtBottom && (
+            <Button
+              onClick={scrollToBottom}
+              variant="contained"
+              size="small"
+              sx={{
+                backgroundColor: "rgba(255,255,255,0.2)",
+                "&:hover": { backgroundColor: "rgba(255,255,255,0.3)" },
+                position: "relative",
+              }}
+            >
+              {newMessageCount > 0 && (
+                <Box
+                  sx={{
+                    position: "absolute",
+                    top: -8,
+                    right: -8,
+                    backgroundColor: "error.main",
+                    color: "white",
+                    borderRadius: "50%",
+                    width: 20,
+                    height: 20,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "0.75rem",
+                    fontWeight: "bold",
+                  }}
+                >
+                  {newMessageCount}
+                </Box>
+              )}
+              ↓ New messages
+            </Button>
+          )}
+          <IconButton
+            onClick={handleMenuClick}
             sx={{
-              backgroundColor: "rgba(255,255,255,0.2)",
-              "&:hover": { backgroundColor: "rgba(255,255,255,0.3)" },
-              position: "relative",
+              color: "white",
+              "&:hover": { backgroundColor: "rgba(255,255,255,0.1)" },
             }}
           >
-            {newMessageCount > 0 && (
-              <Box
-                sx={{
-                  position: "absolute",
-                  top: -8,
-                  right: -8,
-                  backgroundColor: "error.main",
-                  color: "white",
-                  borderRadius: "50%",
-                  width: 20,
-                  height: 20,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "0.75rem",
-                  fontWeight: "bold",
-                }}
-              >
-                {newMessageCount}
-              </Box>
-            )}
-            ↓ New messages
-          </Button>
-        )}
+            <MoreVert />
+          </IconButton>
+          <Menu
+            anchorEl={menuAnchorEl}
+            open={Boolean(menuAnchorEl)}
+            onClose={handleMenuClose}
+          >
+            <MenuItem onClick={handleEmojiSettingsOpen}>
+              <ListItemIcon>
+                <Settings fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Emoji Settings</ListItemText>
+            </MenuItem>
+          </Menu>
+        </Box>
       </Box>
 
       {/* Drag overlay */}
@@ -886,7 +968,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
                     )}
                   </Box>
 
-                  {renderMediaContent(message)}
+                  {renderMessageContent(message)}
                 </Box>
               </Box>
             ))}
@@ -1030,6 +1112,12 @@ const MediaChatComponent = observer(function MediaChatComponent({
                   },
                 }}
               />
+              <EmojiPickerComponent
+                onEmojiSelect={handleEmojiSelect}
+                onQuickReact={handleQuickReact}
+                defaultEmoji={defaultEmoji}
+                disabled={isSubmitting || uploadMedia.isPending}
+              />
               <IconButton
                 onClick={handleFileSelect}
                 color="primary"
@@ -1144,6 +1232,15 @@ const MediaChatComponent = observer(function MediaChatComponent({
           />
         </DialogContent>
       </Dialog>
+
+      {/* Emoji Settings Dialog */}
+      <EmojiSettingsDialog
+        open={showEmojiSettings}
+        onClose={() => setShowEmojiSettings(false)}
+        chatType={chatType}
+        chatId={chatId}
+        chatName={title}
+      />
     </div>
   );
 });

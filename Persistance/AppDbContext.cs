@@ -15,6 +15,7 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
     public required DbSet<FriendRequest> FriendRequests { get; set; }
     public required DbSet<DirectChat> DirectChats { get; set; }
     public required DbSet<DirectMessage> DirectMessages { get; set; }
+    public required DbSet<EmojiPreference> EmojiPreferences { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -128,6 +129,23 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
             x.HasOne(m => m.ChatRoom)
                 .WithMany()
                 .HasForeignKey(m => m.ChatRoomId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<EmojiPreference>(x =>
+        {
+            x.HasKey(ep => ep.Id);
+            x.Property(ep => ep.UserId).IsRequired();
+            x.Property(ep => ep.ChatType).IsRequired().HasMaxLength(20);
+            x.Property(ep => ep.ChatId).IsRequired().HasMaxLength(50);
+            x.Property(ep => ep.DefaultEmoji).IsRequired().HasMaxLength(10);
+
+            x.HasIndex(ep => new { ep.UserId, ep.ChatType, ep.ChatId })
+                .IsUnique();
+
+            x.HasOne(ep => ep.User)
+                .WithMany()
+                .HasForeignKey(ep => ep.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

@@ -3,6 +3,7 @@ using API.SignalR;
 using Application.ChatRooms.Queries;
 using Application.ChatRooms.Validators;
 using Application.Core;
+using Application.EmojiPreferences.Validators;
 using Application.Friends.Validators;
 using Application.Interfaces;
 using Application.Profiles.Validators;
@@ -78,6 +79,7 @@ builder.Services.AddValidatorsFromAssemblyContaining<CreateChatRoomValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<UpdateProfileValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<SendFriendRequestValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<UpdateStatusValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<SetEmojiPreferenceValidator>();
 builder.Services.AddTransient<ExceptionMiddleware>();
 builder.Services.AddHostedService<MediaCleanupService>();
 builder.Services.AddIdentityApiEndpoints<User>(opt =>
