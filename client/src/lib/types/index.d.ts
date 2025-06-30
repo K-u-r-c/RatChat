@@ -114,7 +114,6 @@ export type DirectChat = {
   lastMessageAt: Date;
   lastMessageBody?: string;
   lastMessageSenderId?: string;
-  unreadCount: number;
   isOnline: boolean;
   canSendMessages: boolean;
   status?: string;
@@ -128,7 +127,6 @@ export type DirectMessage = {
   senderId: string;
   senderDisplayName: string;
   senderImageUrl?: string;
-  isRead: boolean;
   isOwnMessage: boolean;
   type: MessageType;
 

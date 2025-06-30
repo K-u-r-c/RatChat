@@ -37,8 +37,6 @@ public class GetDirectChats
                     LastMessageAt = dc.LastMessageAt,
                     LastMessageBody = dc.LastMessageBody,
                     LastMessageSenderId = dc.LastMessageSenderId,
-                    UnreadCount = dc.Messages.Count(m =>
-                        m.SenderId != currentUser.Id && !m.IsRead),
                     CanSendMessages = context.UserFriends.Any(uf =>
                         (
                             uf.UserId == currentUser.Id &&

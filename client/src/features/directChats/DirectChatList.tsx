@@ -7,7 +7,6 @@ import {
   ListItem,
   ListItemAvatar,
   ListItemText,
-  Chip,
   Paper,
 } from "@mui/material";
 import { Link } from "react-router";
@@ -105,13 +104,6 @@ export default function DirectChatsList() {
                         <Box
                           sx={{ display: "flex", gap: 1, alignItems: "center" }}
                         >
-                          {chat.unreadCount > 0 && (
-                            <Chip
-                              label={chat.unreadCount}
-                              color="primary"
-                              size="small"
-                            />
-                          )}
                           <Typography variant="caption" color="text.secondary">
                             {timeAgo(chat.lastMessageAt)}
                           </Typography>
