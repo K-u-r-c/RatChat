@@ -3,7 +3,7 @@ import { observer } from "mobx-react-lite";
 import { useDirectMessages } from "../../lib/hooks/useDirectMessages";
 import { useDirectChats } from "../../lib/hooks/useDirectChats";
 import { Typography, Box, Avatar, Alert } from "@mui/material";
-import MediaChatComponent from "../../app/shared/components/MediaChatComponent";
+import MediaChatComponent from "../../app/shared/components/mediaChatComponent/MediaChatComponent";
 import type { MessageType, MediaUploadResult } from "../../lib/types";
 
 const DirectChatDetails = observer(function DirectChatDetails() {
@@ -96,6 +96,7 @@ const DirectChatDetails = observer(function DirectChatDetails() {
         }
         showUserProfiles={false}
         chatRoomId={undefined}
+        directChatId={id}
       />
     </Box>
   );

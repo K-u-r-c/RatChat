@@ -33,6 +33,32 @@ export type ChatRoom = {
   adminImageUrl?: string;
 };
 
+export type BaseMessage = {
+  id: string;
+  createdAt: Date;
+  body: string;
+  type: MessageType;
+  senderId?: string;
+  senderDisplayName?: string;
+  senderImageUrl?: string;
+  displayName?: string;
+  userId?: string;
+  imageUrl?: string;
+  mediaUrl?: string;
+  mediaPublicId?: string;
+  mediaType?: string;
+  mediaFileSize?: number;
+  mediaOriginalFileName?: string;
+};
+
+export type BaseMessageStore = {
+  messages: BaseMessage[];
+  hasOlderMessages: boolean;
+  isLoadingOlder: boolean;
+  loadOlderMessages: () => void;
+  hubConnection: unknown;
+};
+
 export type ChatMessage = {
   id: string;
   createdAt: Date;
