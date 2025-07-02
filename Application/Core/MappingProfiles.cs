@@ -1,12 +1,12 @@
 using Application.ChatRooms.DTOs;
 using Application.DirectChats.DTOs;
 using Application.DirectMessages.DTOs;
+using Application.EmojiPreferences.DTOs;
 using Application.Friends.DTOs;
 using Application.Messages.DTOs;
 using Application.Profiles.DTOs;
 using AutoMapper;
 using Domain;
-using Domain.Enums;
 using Domain.Extensions;
 
 namespace Application.Core;
@@ -127,5 +127,7 @@ public class MappingProfiles : Profile
             .ForMember(d => d.ReceiverDisplayName, o => o.MapFrom(s => s.Receiver.DisplayName))
             .ForMember(d => d.ReceiverImageUrl, o => o.MapFrom(s => s.Receiver.ImageUrl))
             .ForMember(d => d.Status, o => o.MapFrom(s => s.Status.ToString()));
+
+        CreateMap<EmojiPreference, EmojiPreferenceDto>();
     }
 }
