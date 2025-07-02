@@ -40,7 +40,6 @@ const MediaChatComponent = observer(function MediaChatComponent({
   chatRoomId,
   directChatId,
 }: MediaChatComponentProps) {
-  // Dialog states
   const [imageDialog, setImageDialog] = useState<{
     open: boolean;
     src: string | null;
@@ -50,14 +49,12 @@ const MediaChatComponent = observer(function MediaChatComponent({
   });
   const [showEmojiSettings, setShowEmojiSettings] = useState(false);
 
-  // Chat type and emoji preferences
   const chatType = chatRoomId ? "ChatRoom" : "DirectChat";
   const chatId = chatRoomId || directChatId || "";
   const { useEmojiPreference } = useEmojiPreferences();
   const { data: emojiPreference } = useEmojiPreference(chatType, chatId);
   const defaultEmoji = emojiPreference?.defaultEmoji || "👍";
 
-  // Hooks
   const scrollHandler = useScrollHandler({ messageStore });
   const fileUpload = useFileUpload({
     chatRoomId,
@@ -65,13 +62,11 @@ const MediaChatComponent = observer(function MediaChatComponent({
     onReset: () => {}, // Will be called from handleSubmit
   });
 
-  // Intersection observer for loading older messages
   const { ref: loadMoreRef, inView } = useInView({
     threshold: 0.1,
     rootMargin: "100px 0px 0px 0px",
   });
 
-  // Load older messages when scrolled to top
   useEffect(() => {
     if (
       inView &&
@@ -86,7 +81,6 @@ const MediaChatComponent = observer(function MediaChatComponent({
     }
   }, [inView, messageStore, scrollHandler]);
 
-  // Handle form submission
   const handleSubmit = async (data: FieldValues) => {
     try {
       if (fileUpload.pendingPaste.file) {
@@ -110,7 +104,6 @@ const MediaChatComponent = observer(function MediaChatComponent({
     }
   };
 
-  // Event handlers
   const handleImageClick = (src: string) => {
     setImageDialog({ open: true, src });
   };
@@ -207,10 +200,8 @@ const MediaChatComponent = observer(function MediaChatComponent({
               <ChatInput
                 onSubmit={handleSubmit}
                 onFileSelect={fileUpload.handleFileSelect}
-                onEmojiSelect={() => {}} // Handled internally by ChatInput
-                onQuickReact={() => {}} // Handled internally by ChatInput
                 defaultEmoji={defaultEmoji}
-                isSubmitting={false} // You may need to track this state
+                isSubmitting={false}
                 isUploading={fileUpload.isUploading}
                 hasFileAttached={hasFileAttached}
                 placeholder={

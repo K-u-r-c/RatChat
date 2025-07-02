@@ -280,7 +280,6 @@ export function useFileUpload({
     }
   };
 
-  // Handle paste events
   useEffect(() => {
     const handlePaste = async (event: ClipboardEvent) => {
       const items = event.clipboardData?.items;
@@ -310,23 +309,16 @@ export function useFileUpload({
   }, []);
 
   return {
-    // State
     selectedFile: state.selectedFile,
     mediaPreview: state.mediaPreview,
     pendingPaste: state.pendingPaste,
     isDragActive,
     isUploading: uploadMedia.isPending,
-
-    // Dropzone props
     dropzoneProps: getRootProps(),
     inputProps: getInputProps(),
-
-    // File input
     fileInputRef,
     handleFileSelect,
     handleFileChange,
-
-    // Actions
     clearSelectedFile,
     clearPendingPaste,
     uploadSelectedFile,

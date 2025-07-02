@@ -6,8 +6,8 @@ import EmojiPickerComponent from "../EmojiPicker";
 interface ChatInputProps {
   onSubmit: (data: FieldValues) => Promise<void>;
   onFileSelect: () => void;
-  onEmojiSelect: (emoji: string) => void;
-  onQuickReact: (emoji: string) => void;
+  onEmojiSelect?: (emoji: string) => void;
+  onQuickReact?: (emoji: string) => void;
   defaultEmoji: string;
   isSubmitting: boolean;
   isUploading: boolean;
@@ -44,13 +44,17 @@ export default function ChatInput({
   const handleEmojiSelect = (emoji: string) => {
     const newValue = currentMessage + emoji;
     setValue("body", newValue);
-    onEmojiSelect(emoji);
+    if (onEmojiSelect) {
+      onEmojiSelect(emoji);
+    }
   };
 
   const handleQuickReact = (emoji: string) => {
     setValue("body", emoji);
     handleSubmit(handleFormSubmit)();
-    onQuickReact(emoji);
+    if (onQuickReact) {
+      onQuickReact(emoji);
+    }
   };
 
   return (
