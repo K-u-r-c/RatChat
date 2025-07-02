@@ -132,13 +132,8 @@ export function convertTextToEmoji(text: string): string {
 
   for (const textEmoji of sortedKeys) {
     const emoji = EMOJI_MAPPINGS[textEmoji];
-    if (textEmoji.startsWith(":") && textEmoji.endsWith(":")) {
-      const regex = new RegExp(`\\B${escapeRegExp(textEmoji)}\\B`, "g");
-      result = result.replace(regex, emoji);
-    } else {
-      const regex = new RegExp(`\\B${escapeRegExp(textEmoji)}\\B`, "g");
-      result = result.replace(regex, emoji);
-    }
+    const regex = new RegExp(`\\B${escapeRegExp(textEmoji)}\\B`, "g");
+    result = result.replace(regex, emoji);
   }
 
   return result;
