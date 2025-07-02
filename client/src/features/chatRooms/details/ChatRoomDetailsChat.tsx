@@ -1,7 +1,7 @@
 import { useParams } from "react-router";
 import { observer } from "mobx-react-lite";
 import { useMessages } from "../../../lib/hooks/useMessages";
-import MediaChatComponent from "../../../app/shared/components/MediaChatComponent";
+import MediaChatComponent from "../../../app/shared/components/mediaChatComponent/MediaChatComponent";
 import type { MessageType, MediaUploadResult } from "../../../lib/types";
 
 const ChatRoomDetailsChat = observer(function ChatRoomDetailsChat() {
