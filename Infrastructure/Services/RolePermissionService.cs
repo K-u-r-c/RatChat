@@ -21,7 +21,8 @@ public class RolePermissionService(AppDbContext context) : IRolePermissionServic
             {
                 Name = p.Key,
                 Description = p.Value,
-            }).ToList();
+            })
+            .ToList();
 
         context.ChatRoomPermissions.AddRange(permissions);
 
@@ -35,7 +36,8 @@ public class RolePermissionService(AppDbContext context) : IRolePermissionServic
         var permissions = await context.ChatRoomPermissions.ToListAsync()
             ?? throw new ChatRoomPermissionsNotFoundException("No permissions found in the database.");
 
-        var rolePermissionsDtos = permissions.Select(p => new ChatRoomRolePermissionDto
+        var rolePermissionsDtos = permissions
+        .Select(p => new ChatRoomRolePermissionDto
         {
             RoleId = roleId,
             Permission = new ChatRoomPermissionDto
@@ -45,20 +47,24 @@ public class RolePermissionService(AppDbContext context) : IRolePermissionServic
                 Description = p.Description,
             },
             IsAllowed = false,
-        }).ToList();
+        })
+        .ToList();
 
-        var rolePermissions = rolePermissionsDtos.Select(dto => new ChatRoomRolePermission
+        var rolePermissions = rolePermissionsDtos
+        .Select(dto => new ChatRoomRolePermission
         {
             RoleId = dto.RoleId,
             PermissionId = dto.Permission.Id,
             IsAllowed = dto.IsAllowed,
-        }).ToList();
+        })
+        .ToList();
 
         context.ChatRoomRolePermissions.AddRange(rolePermissions);
 
         var saved = await context.SaveChangesAsync() > 0;
         if (!saved)
-            throw new ContextSaveOperationFailedException("Failed to create chat room permissions. Database save operation did not succeed.");
+            throw new ContextSaveOperationFailedException("Failed to create chat room permissions." +
+            " Database save operation did not succeed.");
 
         return rolePermissionsDtos;
     }
@@ -79,7 +85,8 @@ public class RolePermissionService(AppDbContext context) : IRolePermissionServic
                     Description = rp.Permission.Description,
                 },
                 IsAllowed = rp.IsAllowed
-            }).ToListAsync();
+            })
+            .ToListAsync();
     }
 
     public async Task<List<ChatRoomPermissionDto>> GetUserPermissionsAsync(string userId, string chatRoomId)
@@ -95,7 +102,8 @@ public class RolePermissionService(AppDbContext context) : IRolePermissionServic
                     Id = p.Id,
                     Name = p.Name,
                     Description = p.Description
-                }).ToListAsync();
+                })
+                .ToListAsync();
 
         return await context.ChatRoomMemberRoles
             .Where(mr => mr.UserId == userId && mr.ChatRoomId == chatRoomId)

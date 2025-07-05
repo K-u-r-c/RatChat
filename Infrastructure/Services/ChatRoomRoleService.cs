@@ -28,7 +28,8 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
                 Color = r.Value.Color,
                 IsDefault = true,
                 ChatRoomId = chatRoomId
-            }).ToList();
+            })
+            .ToList();
 
         context.ChatRoomRoles.AddRange(roles);
 
@@ -83,6 +84,27 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
             CreatedAt = chatRoomRole.CreatedAt,
             ChatRoomId = chatRoomRole.ChatRoomId,
         };
+    }
+
+    public async Task<ChatRoomRoleDto> GetRoleAsync(string roleId)
+    {
+        await EnsureRoleExistsAsync(roleId);
+
+        var chatRoomRole = await context.ChatRoomRoles
+            .Where(crr => crr.Id == roleId)
+            .Select(crr => new ChatRoomRoleDto
+            {
+                Id = crr.Id,
+                Name = crr.Name,
+                Color = crr.Color,
+                Description = crr.Description,
+                IsDefault = crr.IsDefault,
+                CreatedAt = crr.CreatedAt,
+                ChatRoomId = crr.ChatRoomId
+            })
+            .FirstAsync();
+
+        return chatRoomRole;
     }
 
     public async Task<List<ChatRoomRoleDto>> GetRolesAsync(string chatRoomId)
@@ -204,7 +226,7 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
             mr.RoleId == assignRoleDto.Id &&
             mr.UserId == assignRoleDto.UserId) == 1)
             throw new UserAlreadyHasRoleException($"User {assignRoleDto.UserId} already" +
-            $"has role {assignRoleDto.Id}");
+            $" has role {assignRoleDto.Id}");
 
         var chatRoomMemberRole = new ChatRoomMemberRole
         {

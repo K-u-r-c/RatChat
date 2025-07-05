@@ -7,6 +7,7 @@ public interface IChatRoomRoleService
     Task InitializeDefaultRolesAsync(string chatRoomId);
 
     Task<ChatRoomRoleDto> CreateCustomRoleAsync(CreateChatRoomRoleDto createRoleDto);
+    Task<ChatRoomRoleDto> GetRoleAsync(string roleId);
     Task<List<ChatRoomRoleDto>> GetRolesAsync(string chatRoomId);
     Task<List<ChatRoomRoleDto>> GetRolesAsync(string chatRoomId, string userId);
     Task DeleteRoleAsync(string chatRoomRoleId);
