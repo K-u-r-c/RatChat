@@ -128,6 +128,7 @@ app.MapHub<MessageHub>("/messages");
 app.MapHub<FriendsHub>("/friends");
 app.MapHub<DirectMessageHub>("/direct-messages");
 app.MapHub<StatusHub>("/status");
+app.MapHub<ChatRoomRolesHub>("/chatroom-roles");
 app.MapFallbackToController("Index", "Fallback");
 
 using var scope = app.Services.CreateScope();

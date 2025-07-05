@@ -9,7 +9,7 @@ public class ChatRoomRoles
         = new()
         {
             [Moderator] = ("Moderator with moderation permissions", "#00ff00"), // Green color
-            [Member] = ("Regular member with basic permissions", "#ffffff") // White color
+            [Member] = ("Regular member with basic permissions", "#333333") // Grey color
         };
     
     public static readonly Dictionary<(string role, string permission), bool> DefaultsPermissions = new()
