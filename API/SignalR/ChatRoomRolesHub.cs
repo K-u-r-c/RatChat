@@ -8,7 +8,20 @@ namespace API.SignalR;
 
 public class ChatRoomRolesHub(IMediator mediator) : Hub
 {
-    public async Task<List<ChatRoomRoleDto>> GetRoles(string chatRoomId)
+    public async Task CreateRole(CreateChatRoomRoleDto dto)
+    {
+        var result = await mediator.Send(new CreateChatRoomRole.Command { CreateChatRoomRoleDto = dto });
+        if (result.IsSuccess && result.Value != null)
+        {
+            await Clients.Group(dto.ChatRoomId).SendAsync("RoleCreated", result.Value);
+        }
+        else
+        {
+            throw new HubException("Failed to create role");
+        }
+    }
+
+     public async Task<List<ChatRoomRoleDto>> GetRoles(string chatRoomId)
     {
         var result = await mediator.Send(new GetChatRoomRoles.Query { ChatRoomId = chatRoomId });
         if (result.IsSuccess && result.Value != null)
@@ -21,16 +34,29 @@ public class ChatRoomRolesHub(IMediator mediator) : Hub
         }
     }
 
-    public async Task CreateRole(CreateChatRoomRoleDto dto)
+    public async Task<List<ChatRoomRoleDto>> GetUserRoles(string chatRoomId, string userId)
     {
-        var result = await mediator.Send(new CreateChatRoomRole.Command { CreateChatRoomRoleDto = dto });
+        var result = await mediator.Send(new GetUserChatRoomRoles.Query { ChatRoomId = chatRoomId, UserId = userId });
         if (result.IsSuccess && result.Value != null)
         {
-            await Clients.Group(dto.ChatRoomId).SendAsync("RoleCreated", result.Value);
+            return result.Value;
         }
         else
         {
-            throw new HubException("Failed to create role");
+            throw new HubException("Failed to retrieve user roles");
+        }
+    }
+
+    public async Task<List<ChatRoomPermissionDto>> GetUserPermissions(string chatRoomId, string userId)
+    {
+        var result = await mediator.Send(new GetUserPermissions.Query { ChatRoomId = chatRoomId, UserId = userId });
+        if (result.IsSuccess && result.Value != null)
+        {
+            return result.Value;
+        }
+        else
+        {
+            throw new HubException("Failed to retrieve user permissions");
         }
     }
 

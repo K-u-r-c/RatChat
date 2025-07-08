@@ -59,6 +59,25 @@ export type BaseMessageStore = {
   hubConnection: unknown;
 };
 
+export type ChatRoomRole = {
+  id: string;
+  name: string;
+  description?: string;
+  color: string;
+  createdAt?: Date | undefined;
+  isDefault: boolean;
+  chatRoomId: string;
+  permissions: ChatRoomPermission[];
+};
+
+export type ChatRoomPermission = {
+  id: string;
+  roleId: string;
+  name: string;
+  description: string;
+  isAllowed: boolean;
+}
+
 export type ChatMessage = {
   id: string;
   createdAt: Date;
