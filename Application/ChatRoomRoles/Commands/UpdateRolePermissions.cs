@@ -10,7 +10,7 @@ public class ChangeRolePermissions
     public class Command : IRequest<Result<Unit>>
     {
         public required string RoleId { get; set; }
-        public required List<ChangeRolePermissionDto> ChangeRolePermissionDtos { get; set; }
+        public required List<UpdateRolePermissionDto> ChangeRolePermissionDtos { get; set; }
     }
 
     public class Handler(IRolePermissionService rolePermissionService) 

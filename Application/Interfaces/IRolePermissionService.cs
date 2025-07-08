@@ -12,5 +12,5 @@ public interface IRolePermissionService
     Task<bool> CanSendMessagesAsync(string userId, string chatRoomId);
     Task<bool> CanCreateInviteLinkAsync(string userId, string chatRoomId);
 
-    Task ChangePermissionsAsync(string roleId, List<ChangeRolePermissionDto> changeRolePermissionDtos);
+    Task ChangePermissionsAsync(string roleId, List<UpdateRolePermissionDto> changeRolePermissionDtos);
 }

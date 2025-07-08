@@ -145,7 +145,7 @@ public class RolePermissionService(AppDbContext context) : IRolePermissionServic
             .AnyAsync(rp => rp.IsAllowed);
     }
 
-    public async Task ChangePermissionsAsync(string roleId, List<ChangeRolePermissionDto> changeRolePermissionDtos)
+    public async Task ChangePermissionsAsync(string roleId, List<UpdateRolePermissionDto> changeRolePermissionDtos)
     {
         await EnsureRoleExistsAsync(roleId);
 
