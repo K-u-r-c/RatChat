@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-// Schema pojedynczej permisji z backendu (zagnieżdżone "permission")
 const ChatRoomPermissionFromServerSchema = z.object({
   roleId: z.string(),
   isAllowed: z.boolean(),
@@ -11,7 +10,6 @@ const ChatRoomPermissionFromServerSchema = z.object({
   }),
 });
 
-// Spłaszczona permisja (frontend)
 export const ChatRoomPermissionSchema = ChatRoomPermissionFromServerSchema.transform((val) => ({
   roleId: val.roleId,
   isAllowed: val.isAllowed,
@@ -20,11 +18,10 @@ export const ChatRoomPermissionSchema = ChatRoomPermissionFromServerSchema.trans
   description: val.permission.description,
 }));
 
-// Schema roli z backendu
 export const ChatRoomRoleSchema = z.object({
   id: z.string(),
   name: z.string(),
-  description: z.string().optional(),
+  description: z.string().nullable().optional(),
   color: z.string(),
   createdAt: z.string().transform((str) => new Date(str)).optional(),
   isDefault: z.boolean(),
@@ -34,5 +31,32 @@ export const ChatRoomRoleSchema = z.object({
     .transform((arr) => arr.map((val) => ChatRoomPermissionSchema.parse(val))),
 });
 
+export const CreateChatRoomRoleSchema = z.object({
+  name: z.string().max(50, "Role name is too long"),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Pass color in format #xxxxxx"),
+  description: z.string().max(200, "Description is too long").nullable().optional(),
+});
+
+export const UpdateRolePermissionSchema = z.object({
+  id: z.string(),
+  isAllowed: z.boolean(),
+});
+
+export const UpdateChatRoomRoleSchema = z.object({
+  id: z.string(),
+  name: z.string().max(50, "Role name is too long").optional(),
+  description: z.string().max(200, "Description is too long").nullable().optional(),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Pass color in format #xxxxxx").optional(),
+  permissions: z.array(UpdateRolePermissionSchema).optional(),
+});
+
+export const DeleteChatRoomRoleSchema = z.object({
+  id: z.string(),
+});
+
 export type ChatRoomPermissionFromServer = z.input<typeof ChatRoomPermissionSchema>;
 export type ChatRoomRoleFromServer = z.input<typeof ChatRoomRoleSchema>;
+export type UpdateRolePermission = z.infer<typeof UpdateRolePermissionSchema>;
+export type UpdateChatRoomRole = z.infer<typeof UpdateChatRoomRoleSchema>;
+export type DeleteChatRoomRole = z.infer<typeof DeleteChatRoomRoleSchema>;
+export type CreateChatRoomRole = z.infer<typeof CreateChatRoomRoleSchema>;

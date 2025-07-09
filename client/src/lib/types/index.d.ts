@@ -62,7 +62,7 @@ export type BaseMessageStore = {
 export type ChatRoomRole = {
   id: string;
   name: string;
-  description?: string;
+  description?: string | null | undefined;
   color: string;
   createdAt?: Date | undefined;
   isDefault: boolean;

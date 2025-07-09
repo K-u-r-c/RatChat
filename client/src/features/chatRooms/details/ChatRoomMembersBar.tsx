@@ -1,4 +1,4 @@
-import { Box, Avatar, Typography, Chip, Stack } from "@mui/material";
+import { Box, Avatar, Typography, Chip } from "@mui/material";
 import { useChatRooms } from "../../../lib/hooks/useChatRooms";
 import { useChatRoomRolesRealtime } from "../../../lib/hooks/useChatRoomRolesRealtime";
 import { useParams } from "react-router";

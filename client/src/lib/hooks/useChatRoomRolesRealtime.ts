@@ -7,7 +7,11 @@ import {
 } from "@microsoft/signalr";
 import { runInAction } from "mobx";
 import type { ChatRoomRole } from "../types";
-import { ChatRoomRoleSchema } from "../schemas/chatRoomRoleSchema";
+import { 
+  ChatRoomRoleSchema, 
+  type CreateChatRoomRole, 
+  type UpdateChatRoomRole
+} from "../schemas/chatRoomRoleSchema";
 
 export const useChatRoomRolesRealtime = (chatRoomId?: string) => {
   const created = useRef(false);
@@ -93,15 +97,10 @@ export const useChatRoomRolesRealtime = (chatRoomId?: string) => {
       });
     },
 
-    async createRole(options: { name: string; color: string; description?: string }) {
+    async createRole(role: CreateChatRoomRole) {
       if (!this.hubConnection || this.hubConnection.state !== HubConnectionState.Connected) return;
       try {
-        await this.hubConnection.invoke("CreateRole", {
-          chatRoomId,
-          name: options.name,
-          color: options.color,
-          description: options.description,
-        });
+        await this.hubConnection.invoke("CreateRole", role);
       } catch (error) {
         if (import.meta.env.DEV) {
           console.error("Error creating role:", error);
@@ -146,17 +145,10 @@ export const useChatRoomRolesRealtime = (chatRoomId?: string) => {
       }
     },
     
-    async updateRole(options: { id: string; name?: string; color?: string; description?: string; permissions?: { id: string; isAllowed: boolean }[] }) {
+    async updateRole(role: UpdateChatRoomRole) {
       if (!this.hubConnection || this.hubConnection.state !== HubConnectionState.Connected) return;
       try {
-        await this.hubConnection.invoke("UpdateRole", {
-          chatRoomId,
-          id: options.id,
-          name: options.name,
-          color: options.color,
-          description: options.description,
-          permissions: options.permissions,
-        });
+        await this.hubConnection.invoke("UpdateRole", role);
       } catch (error) {
         if (import.meta.env.DEV) {
           console.error("Error updating role:", error);
