@@ -42,8 +42,7 @@ export const useChatRoomRolesRealtime = (chatRoomId?: string) => {
           }});
 
       this.hubConnection.on(
-        "LoadChatRoomRoles",
-        (retrievedRoles: any[]) => {
+        "LoadChatRoomRoles", (retrievedRoles: any[]) => {
           runInAction(() => {
             const parsed = retrievedRoles
               .map((role: any) => {
@@ -100,7 +99,10 @@ export const useChatRoomRolesRealtime = (chatRoomId?: string) => {
     async createRole(role: CreateChatRoomRole) {
       if (!this.hubConnection || this.hubConnection.state !== HubConnectionState.Connected) return;
       try {
-        await this.hubConnection.invoke("CreateRole", role);
+        await this.hubConnection.invoke("CreateRole", {
+          ChatRoomId: chatRoomId,
+          ...role
+        });
       } catch (error) {
         if (import.meta.env.DEV) {
           console.error("Error creating role:", error);
