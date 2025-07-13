@@ -10,7 +10,8 @@ public class ChatRoomRolesHub(IMediator mediator) : Hub
 {
     public async Task CreateRole(CreateChatRoomRoleDto dto)
     {
-        var result = await mediator.Send(new CreateChatRoomRole.Command { CreateChatRoomRoleDto = dto });
+        var result = await mediator.Send(
+            new CreateChatRoomRole.Command { CreateChatRoomRoleDto = dto });
         if (result.IsSuccess && result.Value != null)
         {
             await Clients.Group(dto.ChatRoomId).SendAsync("RoleCreated", result.Value);
@@ -23,7 +24,8 @@ public class ChatRoomRolesHub(IMediator mediator) : Hub
 
      public async Task<List<ChatRoomRoleDto>> GetRoles(string chatRoomId)
     {
-        var result = await mediator.Send(new GetChatRoomRoles.Query { ChatRoomId = chatRoomId });
+        var result = await mediator.Send(
+            new GetChatRoomRoles.Query { ChatRoomId = chatRoomId });
         if (result.IsSuccess && result.Value != null)
         {
             return result.Value;
@@ -36,7 +38,8 @@ public class ChatRoomRolesHub(IMediator mediator) : Hub
 
     public async Task<List<ChatRoomRoleDto>> GetUserRoles(string chatRoomId, string userId)
     {
-        var result = await mediator.Send(new GetUserChatRoomRoles.Query { ChatRoomId = chatRoomId, UserId = userId });
+        var result = await mediator.Send(
+            new GetUserChatRoomRoles.Query { ChatRoomId = chatRoomId, UserId = userId });
         if (result.IsSuccess && result.Value != null)
         {
             return result.Value;
@@ -49,7 +52,8 @@ public class ChatRoomRolesHub(IMediator mediator) : Hub
 
     public async Task<List<ChatRoomPermissionDto>> GetUserPermissions(string chatRoomId, string userId)
     {
-        var result = await mediator.Send(new GetUserPermissions.Query { ChatRoomId = chatRoomId, UserId = userId });
+        var result = await mediator.Send(
+            new GetUserPermissions.Query { ChatRoomId = chatRoomId, UserId = userId });
         if (result.IsSuccess && result.Value != null)
         {
             return result.Value;
@@ -62,7 +66,8 @@ public class ChatRoomRolesHub(IMediator mediator) : Hub
 
     public async Task UpdateRole(UpdateChatRoomRoleDto dto)
     {
-        var result = await mediator.Send(new UpdateRoleAsync.Command { UpdateChatRoomRoleDto = dto });
+        var result = await mediator.Send(
+            new UpdateChatRoomRole.Command { UpdateChatRoomRoleDto = dto });
         if (result.IsSuccess)
         {
             if (result.Value == null)
@@ -79,7 +84,8 @@ public class ChatRoomRolesHub(IMediator mediator) : Hub
 
     public async Task DeleteRole(string roleId, string chatRoomId)
     {
-        var result = await mediator.Send(new DeleteChatRoomRole.Command { ChatRoomRoleId = roleId });
+        var result = await mediator.Send(
+            new DeleteChatRoomRole.Command { ChatRoomRoleId = roleId });
         if (result.IsSuccess)
         {
             await Clients.Group(chatRoomId).SendAsync("RoleDeleted", roleId);
@@ -92,10 +98,11 @@ public class ChatRoomRolesHub(IMediator mediator) : Hub
 
     public async Task AssignRole(AssignChatRoomRoleDto dto)
     {
-        var result = await mediator.Send(new AssignRoleAsync.Command { AssignChatRoomRoleDto = dto });
+        var result = await mediator.Send(
+            new AssignChatRoomRole.Command { AssignChatRoomRoleDto = dto });
         if (result.IsSuccess && result.Value != null)
         {
-            await Clients.Group(dto.Id).SendAsync("RoleAssigned", result.Value);
+            await Clients.Group(dto.ChatRoomId).SendAsync("RoleAssigned", result.Value);
         }
         else
         {
@@ -105,10 +112,11 @@ public class ChatRoomRolesHub(IMediator mediator) : Hub
 
     public async Task UnassignRole(UnassignChatRoomRoleDto dto)
     {
-        var result = await mediator.Send(new UnassignRoleAsync.Command { UnassignChatRoomRoleDto = dto });
-        if (result.IsSuccess)
+        var result = await mediator.Send(
+            new UnassignChatRoomRole.Command { UnassignChatRoomRoleDto = dto });
+        if (result.IsSuccess && result.Value != null)
         {
-            await Clients.Group(dto.Id).SendAsync("RoleUnassigned", dto);
+            await Clients.Group(dto.ChatRoomId).SendAsync("RoleUnassigned", result.Value);
         }
         else
         {
@@ -125,18 +133,30 @@ public class ChatRoomRolesHub(IMediator mediator) : Hub
 
         await Groups.AddToGroupAsync(Context.ConnectionId, chatRoomId!);
 
+        var chatRoomRoles = await mediator.Send(
+            new GetChatRoomRoles.Query { ChatRoomId = chatRoomId! });
 
-        var result = await mediator.Send(new GetChatRoomRoles.Query { ChatRoomId = chatRoomId! });
-
-        if (result.IsSuccess && result.Value != null)
+        if (chatRoomRoles.IsSuccess && chatRoomRoles.Value != null)
         {
-            await Clients.Caller.SendAsync("LoadChatRoomRoles", result.Value);
+            await Clients.Caller.SendAsync("LoadChatRoomRoles", chatRoomRoles.Value);
         }
         else
         {
             throw new HubException("Failed to load chat room roles");
         }
-        
+
+        var usersRoles = await mediator.Send(
+            new GetUsersChatRoomRoles.Query { ChatRoomId = chatRoomId! });
+
+        if (usersRoles.IsSuccess && usersRoles.Value != null)
+        {
+            await Clients.Caller.SendAsync("UsersRoleLoaded", usersRoles.Value);
+        }
+        else
+        {
+            throw new HubException("Failed to load members roles");
+        }
+
         await base.OnConnectedAsync();
     }
 }

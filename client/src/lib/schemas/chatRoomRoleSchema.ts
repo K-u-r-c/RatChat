@@ -57,10 +57,22 @@ export const DeleteChatRoomRoleSchema = z.object({
 export const AssignChatRoomRoleSchema = z.object({
   id: z.string(),
   userId: z.string(),
+  chatRoomId: z.string().optional(),
   assignedById: z.string().optional()
 })
 
 export const UnassignChatRoomRoleSchema = z.object({
+  id: z.string(),
+  userId: z.string(),
+  chatRoomId: z.string().optional()
+})
+
+export const AssignedChatRoomRoleSchema = z.object({
+  userId: z.string(),
+  role: ChatRoomRoleSchema
+})
+
+export const UnassignedChatRoomRoleSchema = z.object({
   id: z.string(),
   userId: z.string()
 })
@@ -73,3 +85,5 @@ export type UpdateChatRoomRole = z.infer<typeof UpdateChatRoomRoleSchema>;
 export type DeleteChatRoomRole = z.infer<typeof DeleteChatRoomRoleSchema>;
 export type AssignChatRoomRole = z.infer<typeof AssignChatRoomRoleSchema>;
 export type UnassignChatRoomRole = z.infer<typeof UnassignChatRoomRoleSchema>;
+export type AssignedChatRoomRole = z.infer<typeof AssignedChatRoomRoleSchema>;
+export type UnassignedChatRoomRole = z.infer<typeof UnassignedChatRoomRoleSchema>;

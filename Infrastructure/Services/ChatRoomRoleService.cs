@@ -151,6 +151,34 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
         return roles;
     }
 
+    public async Task<Dictionary<string, List<ChatRoomRoleDto>>> GetUsersRolesAsync(string chatRoomId)
+    {
+        await EnsureChatRoomExistsAsync(chatRoomId);
+
+        var memberRoles = await context.ChatRoomMemberRoles
+            .Where(mr => mr.ChatRoomId == chatRoomId)
+            .Include(mr => mr.Role)
+            .Select(mr => new
+            {
+                UserId = mr.UserId,
+                Role = new ChatRoomRoleDto
+                {
+                    Id = mr.Role.Id,
+                    Name = mr.Role.Name,
+                    Color = mr.Role.Color,
+                    Description = mr.Role.Description,
+                    IsDefault = mr.Role.IsDefault,
+                    CreatedAt = mr.Role.CreatedAt,
+                    ChatRoomId = mr.ChatRoomId
+                }
+            })
+            .ToListAsync();
+
+        return memberRoles
+            .GroupBy(x => x.UserId)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.Role).ToList());
+    }
+
     public async Task UpdateRoleAsync(UpdateChatRoomRoleDto updateRoleDto)
     {
         var chatRoomRole = await context.ChatRoomRoles
@@ -211,7 +239,7 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
             .FirstOrDefaultAsync();
     }
 
-    public async Task<MemberRoleDto> AssignRoleAsync(AssignChatRoomRoleDto assignRoleDto)
+    public async Task<AssignedChatRoomRoleDto> AssignRoleAsync(AssignChatRoomRoleDto assignRoleDto)
     {
         await EnsureUserExistsAsync(assignRoleDto.UserId);
 
@@ -240,14 +268,19 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
 
         await context.SaveChangesAsync();
 
-        return new MemberRoleDto
+        return new AssignedChatRoomRoleDto
         {
             UserId = chatRoomMemberRole.UserId,
-            ChatRoomId = chatRoomMemberRole.ChatRoomId,
-            RoleId = chatRoomMemberRole.RoleId,
-            RoleName = chatRoomRole.Name,
-            AssignedAt = chatRoomMemberRole.AssignedAt,
-            AssignedBy = chatRoomMemberRole.AssignedById
+            Role = new ChatRoomRoleDto
+            {
+                Id = chatRoomRole.Id,
+                Name = chatRoomRole.Name,
+                Color = chatRoomRole.Color,
+                Description = chatRoomRole.Description,
+                IsDefault = chatRoomRole.IsDefault,
+                CreatedAt = chatRoomRole.CreatedAt,
+                ChatRoomId = chatRoomRole.ChatRoomId
+            },
         };
     }
 
@@ -273,7 +306,7 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
         await context.SaveChangesAsync();
     }
 
-    public async Task UnassignRoleAsync(UnassignChatRoomRoleDto unassignRoleDto)
+    public async Task<UnassignedChatRoomRoleDto> UnassignRoleAsync(UnassignChatRoomRoleDto unassignRoleDto)
     {
         await EnsureUserExistsAsync(unassignRoleDto.UserId);
         await EnsureRoleExistsAsync(unassignRoleDto.Id);
@@ -282,6 +315,12 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
             .Where(mr => mr.UserId == unassignRoleDto.UserId &&
                                        mr.RoleId == unassignRoleDto.Id)
             .ExecuteDeleteAsync();
+
+        return new UnassignedChatRoomRoleDto
+        {
+            Id = unassignRoleDto.Id,
+            UserId = unassignRoleDto.UserId
+        };
     }
 
     private async Task EnsureChatRoomExistsAsync(string chatRoomId)

@@ -20,7 +20,7 @@ public class ChangeRolePermissions
         {
             try
             {
-                await rolePermissionService.ChangePermissionsAsync(request.RoleId, request.ChangeRolePermissionDtos);
+                await rolePermissionService.UpdatePermissionsAsync(request.RoleId, request.ChangeRolePermissionDtos);
                 return Result<Unit>.Success(Unit.Value);
             }
             catch (ChatRoomRoleNotFoundException ex)

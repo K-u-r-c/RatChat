@@ -7,11 +7,13 @@ import ChatRoomRolesBar from "./ChatRoomRolesBar";
 import ChatRoomMembersBar from "./ChatRoomMembersBar";
 import { useChatRoomRolesRealtime } from "../../../lib/hooks/useChatRoomRolesRealtime";
 import { observer } from "mobx-react-lite";
+import { useAccount } from "../../../lib/hooks/useAccount";
 
 const ChatRoomDetails = observer(function ChatRoomDetails() {
   const { id } = useParams();
+  const { currentUser } = useAccount();
   const { chatRoom, isLoadingChatRoom } = useChatRooms(id);
-  const { rolesStore } = useChatRoomRolesRealtime(id);
+  const { rolesStore } = useChatRoomRolesRealtime(id, currentUser?.id);
 
   if (isLoadingChatRoom) return <Typography>Loading...</Typography>;
   if (!chatRoom) return <Typography>Activity not found</Typography>;
@@ -24,7 +26,13 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
         createRole={rolesStore.createRole} 
         updateRole={rolesStore.updateRole}
         deleteRole={rolesStore.deleteRole} />
-      <ChatRoomMembersBar />
+      <ChatRoomMembersBar
+        members={chatRoom.members}
+        memberRoles={rolesStore.memberRoles}
+        roles={rolesStore.roles}
+        assignRole={rolesStore.assignRole}
+        unassignRole={rolesStore.unassignRole}
+      />
       <ChatRoomDetailsChat />
     </Box>
   );

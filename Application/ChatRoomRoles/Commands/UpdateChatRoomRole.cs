@@ -6,7 +6,7 @@ using MediatR;
 
 namespace Application.ChatRoomRoles.Commands;
 
-public class UpdateRoleAsync
+public class UpdateChatRoomRole
 {
     public class Command : IRequest<Result<ChatRoomRoleDto>>
     {
@@ -24,7 +24,7 @@ public class UpdateRoleAsync
             {
                 await chatRoomRoleService.UpdateRoleAsync(request.UpdateChatRoomRoleDto);
 
-                await rolePermissionService.ChangePermissionsAsync(
+                await rolePermissionService.UpdatePermissionsAsync(
                     request.UpdateChatRoomRoleDto.Id,
                     request.UpdateChatRoomRoleDto.Permissions);
                 

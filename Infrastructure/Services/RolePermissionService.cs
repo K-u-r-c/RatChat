@@ -145,11 +145,11 @@ public class RolePermissionService(AppDbContext context) : IRolePermissionServic
             .AnyAsync(rp => rp.IsAllowed);
     }
 
-    public async Task ChangePermissionsAsync(string roleId, List<UpdateRolePermissionDto> changeRolePermissionDtos)
+    public async Task UpdatePermissionsAsync(string roleId, List<UpdateRolePermissionDto> updateRolePermissionDtos)
     {
         await EnsureRoleExistsAsync(roleId);
 
-        var permissionIds = changeRolePermissionDtos.Select(x => x.Id).ToList();
+        var permissionIds = updateRolePermissionDtos.Select(x => x.Id).ToList();
 
         var rolePermissions = await context.ChatRoomRolePermissions
             .Where(rp => rp.RoleId == roleId && permissionIds.Contains(rp.PermissionId))
@@ -158,7 +158,7 @@ public class RolePermissionService(AppDbContext context) : IRolePermissionServic
         if (rolePermissions.Count != permissionIds.Count)
             throw new ChatRoomRoleNotFoundException("One or more permissions do not exist for this role.");
 
-        foreach (var changePermissionDto in changeRolePermissionDtos)
+        foreach (var changePermissionDto in updateRolePermissionDtos)
         {
             var rolePermission = rolePermissions
                 .First(rp => rp.PermissionId == changePermissionDto.Id);

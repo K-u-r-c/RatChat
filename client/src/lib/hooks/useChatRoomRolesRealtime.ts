@@ -8,20 +8,26 @@ import {
 import { runInAction } from "mobx";
 import type { ChatRoomRole } from "../types";
 import { 
+  AssignedChatRoomRoleSchema,
   ChatRoomRoleSchema, 
+  UnassignedChatRoomRoleSchema, 
+  type AssignChatRoomRole, 
   type CreateChatRoomRole, 
+  type UnassignChatRoomRole, 
   type UpdateChatRoomRole
 } from "../schemas/chatRoomRoleSchema";
 
-export const useChatRoomRolesRealtime = (chatRoomId?: string) => {
+export const useChatRoomRolesRealtime = (chatRoomId?: string, userId?: string) => {
   const created = useRef(false);
 
   const rolesStore = useLocalObservable(() => ({
     roles: [] as ChatRoomRole[],
+    memberRoles: new Map<string, ChatRoomRole[]>(),
     hubConnection: null as HubConnection | null,
 
     createHubConnection(chatRoomId: string) {
       if (!chatRoomId) return;
+      if (!userId) return;
 
       this.hubConnection = new HubConnectionBuilder()
         .withUrl(
@@ -93,6 +99,69 @@ export const useChatRoomRolesRealtime = (chatRoomId?: string) => {
       this.hubConnection.on("RoleDeleted", (roleId: string) => {
         runInAction(() => {
           this.roles = this.roles.filter((r) => r.id !== roleId);
+          
+          for (const [userId, roles] of this.memberRoles.entries()) {
+            const updatedRoles = roles.filter((r) => r.id !== roleId);
+            this.memberRoles.set(userId, updatedRoles);
+          }
+        });
+      });
+
+      this.hubConnection.on("UsersRoleLoaded", (data: { [userId: string]: any[] }) => {
+        runInAction(() => {
+          const newMemberRoles = new Map<string, ChatRoomRole[]>();
+          for (const userId in data) {
+            const roles = data[userId]
+              .map(role => {
+                const result = ChatRoomRoleSchema.safeParse(role);
+                if (!result.success) {
+                  if (import.meta.env.DEV) 
+                    console.error("Role validation error (UsersRoleLoaded):", result.error, role);
+                  return null;
+                }
+                return result.data;
+              })
+              .filter(Boolean) as ChatRoomRole[];
+            newMemberRoles.set(userId, roles.sort((a, b) => 
+              new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()));
+          }
+          this.memberRoles = newMemberRoles;
+        });
+      });
+
+      this.hubConnection.on("RoleAssigned", (retrievedRole: any) => {
+        runInAction(() => {
+          const result = AssignedChatRoomRoleSchema.safeParse(retrievedRole);
+          if (!result.success) {
+            if (import.meta.env.DEV)
+              console.error("Role validation error (RoleAssigned):", result.error, retrievedRole);
+            return;
+          }
+          const { userId, role } = result.data;
+          const userRoles = this.memberRoles.get(userId) || [];
+          const updatedRoles = [...userRoles, role].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+          
+          const newMemberRoles = new Map(this.memberRoles);
+          newMemberRoles.set(userId, updatedRoles);
+          this.memberRoles = newMemberRoles;
+        });
+      });
+
+      this.hubConnection.on("RoleUnassigned", (retrievedRole: any) => {
+        runInAction(() => {
+          const result = UnassignedChatRoomRoleSchema.safeParse(retrievedRole);
+          if (!result.success) {
+            if (import.meta.env.DEV) 
+              console.error("Role validation error (RoleUnassigned):", result.error, retrievedRole);
+            return;
+          }
+          const { userId, id: roleId } = result.data;
+          const userRoles = this.memberRoles.get(userId) || [];
+          const updatedRoles = userRoles.filter(r => r.id !== roleId);
+
+          const newMemberRoles = new Map(this.memberRoles);
+          newMemberRoles.set(userId, updatedRoles);
+          this.memberRoles = newMemberRoles;
         });
       });
     },
@@ -107,6 +176,31 @@ export const useChatRoomRolesRealtime = (chatRoomId?: string) => {
       } catch (error) {
         if (import.meta.env.DEV) {
           console.error("Error creating role:", error);
+        }
+      }
+    },
+
+    async assignRole(assignment: AssignChatRoomRole) {
+      if (!this.hubConnection || this.hubConnection.state !== HubConnectionState.Connected) return;
+      try {
+        assignment.chatRoomId = chatRoomId;
+        assignment.assignedById = userId;
+        await this.hubConnection.invoke("AssignRole", assignment);
+      } catch (error) {
+        if (import.meta.env.DEV) {
+          console.error("Error assigning role:", error);
+        }
+      }
+    },
+
+    async unassignRole(assignment: UnassignChatRoomRole) {
+      if (!this.hubConnection || this.hubConnection.state !== HubConnectionState.Connected) return;
+      try {
+        assignment.chatRoomId = chatRoomId;
+        await this.hubConnection.invoke("UnassignRole", assignment);
+      } catch (error) {
+        if (import.meta.env.DEV) {
+          console.error("Error unassigning role:", error);
         }
       }
     },
@@ -190,7 +284,10 @@ export const useChatRoomRolesRealtime = (chatRoomId?: string) => {
   return {
     rolesStore,
     roles: rolesStore.roles,
+    memberRoles: rolesStore.memberRoles,
     createRole: rolesStore.createRole,
+    assignRole: rolesStore.assignRole,
+    unassignRole: rolesStore.unassignRole,
     getUserRoles: rolesStore.getUserRoles,
     getUserPermissions: rolesStore.getUserPermissions,
     updateRole: rolesStore.updateRole,
