@@ -64,7 +64,7 @@ export type ChatRoomRole = {
   name: string;
   description?: string | null | undefined;
   color: string;
-  createdAt?: Date | undefined;
+  createdAt: Date;
   isDefault: boolean;
   chatRoomId: string;
   permissions: ChatRoomPermission[];

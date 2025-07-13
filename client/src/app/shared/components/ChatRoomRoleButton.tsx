@@ -7,10 +7,11 @@ import ChatRoomRoleUpdateForm from "../../../features/chatRooms/forms/ChatRoomRo
 
 type Props = {
   role: ChatRoomRole;
-  rolesHook: ReturnType<typeof useChatRoomRolesRealtime>["roles"];
+  updateRole: ReturnType<typeof useChatRoomRolesRealtime>["updateRole"];
+  deleteRole: ReturnType<typeof useChatRoomRolesRealtime>["deleteRole"];
 };
 
-export function ChatRoomRoleButton({ role, rolesHook }: Props) {
+export function ChatRoomRoleButton({ role, updateRole, deleteRole }: Props) {
   const [open, setOpen] = useState(false);
 
   const handleClose = () => {
@@ -18,21 +19,21 @@ export function ChatRoomRoleButton({ role, rolesHook }: Props) {
   };
 
   const handleUpdate = async (data: UpdateChatRoomRole) => {
-    if (!rolesHook.updateRole) return;
-    await rolesHook.updateRole(data);
+    if (!updateRole) return;
+    await updateRole(data);
     setOpen(false);
   };
 
   const handleDelete = async () => {
-    if (!rolesHook.deleteRole || role.isDefault) return;
+    if (!deleteRole || role.isDefault) return;
     try {
-      await rolesHook.deleteRole(role.id);
+      await deleteRole(role.id);
       setOpen(false);
     } catch (err: any) {
       if (err?.message?.includes("connection being closed")) {
-        alert("Nie można usunąć roli: połączenie z serwerem zostało przerwane.");
+      alert("Cannot delete role: connection to the server has been lost.");
       } else {
-        alert("Wystąpił błąd podczas usuwania roli.");
+      alert("An error occurred while deleting the role.");
       }
     }
   };

@@ -56,7 +56,8 @@ export const useChatRoomRolesRealtime = (chatRoomId?: string) => {
                 return result.data;
               })
               .filter(Boolean) as ChatRoomRole[];
-            this.roles = parsed;
+            this.roles = parsed.sort((a, b) => 
+              new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
           });
         }
       )
@@ -70,7 +71,8 @@ export const useChatRoomRolesRealtime = (chatRoomId?: string) => {
             }
             return;
           }
-          this.roles.push(result.data);
+          this.roles = [...this.roles, result.data].sort((a, b) => 
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
         });
       });
 
@@ -84,8 +86,7 @@ export const useChatRoomRolesRealtime = (chatRoomId?: string) => {
             return;
           }
           const role = result.data;
-          const idx = this.roles.findIndex((r) => r.id === role.id);
-          if (idx !== -1) this.roles[idx] = role;
+          this.roles = this.roles.map(r => r.id === role.id ? role : r);
         });
       });
 
@@ -176,7 +177,7 @@ export const useChatRoomRolesRealtime = (chatRoomId?: string) => {
     },
   }));
 
-   useEffect(() => {
+  useEffect(() => {
     if (chatRoomId && !created.current) {
       rolesStore.createHubConnection(chatRoomId);
       created.current = true;
@@ -187,6 +188,12 @@ export const useChatRoomRolesRealtime = (chatRoomId?: string) => {
   }, [chatRoomId, rolesStore]);
 
   return {
-    roles: rolesStore
+    rolesStore,
+    roles: rolesStore.roles,
+    createRole: rolesStore.createRole,
+    getUserRoles: rolesStore.getUserRoles,
+    getUserPermissions: rolesStore.getUserPermissions,
+    updateRole: rolesStore.updateRole,
+    deleteRole: rolesStore.deleteRole,
   };
 };

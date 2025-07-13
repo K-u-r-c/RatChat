@@ -23,7 +23,7 @@ export const ChatRoomRoleSchema = z.object({
   name: z.string(),
   description: z.string().nullable().optional(),
   color: z.string(),
-  createdAt: z.string().transform((str) => new Date(str)).optional(),
+  createdAt: z.string().transform((str) => new Date(str)),
   isDefault: z.boolean(),
   chatRoomId: z.string(),
   permissions: z
@@ -54,9 +54,22 @@ export const DeleteChatRoomRoleSchema = z.object({
   id: z.string(),
 });
 
+export const AssignChatRoomRoleSchema = z.object({
+  id: z.string(),
+  userId: z.string(),
+  assignedById: z.string().optional()
+})
+
+export const UnassignChatRoomRoleSchema = z.object({
+  id: z.string(),
+  userId: z.string()
+})
+
 export type ChatRoomPermissionFromServer = z.input<typeof ChatRoomPermissionSchema>;
 export type ChatRoomRoleFromServer = z.input<typeof ChatRoomRoleSchema>;
+export type CreateChatRoomRole = z.infer<typeof CreateChatRoomRoleSchema>;
 export type UpdateRolePermission = z.infer<typeof UpdateRolePermissionSchema>;
 export type UpdateChatRoomRole = z.infer<typeof UpdateChatRoomRoleSchema>;
 export type DeleteChatRoomRole = z.infer<typeof DeleteChatRoomRoleSchema>;
-export type CreateChatRoomRole = z.infer<typeof CreateChatRoomRoleSchema>;
+export type AssignChatRoomRole = z.infer<typeof AssignChatRoomRoleSchema>;
+export type UnassignChatRoomRole = z.infer<typeof UnassignChatRoomRoleSchema>;
