@@ -1,5 +1,5 @@
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Box, Typography, Checkbox } from "@mui/material";
-import type { Profile, ChatRoomRole } from "../../../lib/types";
+import type { Profile } from "../../../lib/types";
 import type { useChatRoomRolesRealtime } from "../../../lib/hooks/useChatRoomRolesRealtime";
 import { useState, useEffect, useMemo } from "react";
 import type { AssignChatRoomRole, UnassignChatRoomRole } from "../../../lib/schemas/chatRoomRoleSchema";
@@ -8,8 +8,8 @@ type Props = {
   open: boolean;
   onClose: () => void;
   members: Profile[];
-  roles: ChatRoomRole[];
-  memberRoles: Map<string, ChatRoomRole[]>;
+  roles: ReturnType<typeof useChatRoomRolesRealtime>["roles"];
+  memberRoles: ReturnType<typeof useChatRoomRolesRealtime>["memberRoles"];
   assignRole: ReturnType<typeof useChatRoomRolesRealtime>["assignRole"];
   unassignRole: ReturnType<typeof useChatRoomRolesRealtime>["unassignRole"];
   loading?: boolean;
@@ -39,7 +39,6 @@ export default function ChatRoomManageRolesForm({
     setLocalAssignments(initial);
   }, [open, members, memberRoles, roles]);
 
-  // Sprawdź czy są zmiany względem memberRoles
   const isDirty = useMemo(() => {
     for (const member of members) {
       const prevRoles = new Set((memberRoles.get(member.id) || []).map(r => r.id));

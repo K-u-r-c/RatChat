@@ -1,18 +1,19 @@
 import { Avatar, Box, Tooltip, Typography, Button } from "@mui/material";
-import type { Profile, ChatRoomRole } from "../../../lib/types";
+import type { Profile } from "../../../lib/types";
 import { useState } from "react";
 import ChatRoomManageRolesForm from "../forms/ChatRoomManageRolesForm";
 import type { useChatRoomRolesRealtime } from "../../../lib/hooks/useChatRoomRolesRealtime";
+import { observer } from "mobx-react-lite";
 
 type Props = {
   members: Profile[];
-  memberRoles: Map<string, ChatRoomRole[]>;
-  roles: ChatRoomRole[];
+  roles: ReturnType<typeof useChatRoomRolesRealtime>["roles"];
+  memberRoles: ReturnType<typeof useChatRoomRolesRealtime>["memberRoles"];
   assignRole: ReturnType<typeof useChatRoomRolesRealtime>["assignRole"];
   unassignRole: ReturnType<typeof useChatRoomRolesRealtime>["unassignRole"];
 };
 
-export default function ChatRoomMembersBar({ members, memberRoles, roles, assignRole, unassignRole }: Props) {
+const ChatRoomMembersBar = observer(({ members, memberRoles, roles, assignRole, unassignRole }: Props) => {
   const [open, setOpen] = useState(false);
 
   return (
@@ -95,4 +96,6 @@ export default function ChatRoomMembersBar({ members, memberRoles, roles, assign
       />
     </>
   );
-}
+});
+
+export default ChatRoomMembersBar;

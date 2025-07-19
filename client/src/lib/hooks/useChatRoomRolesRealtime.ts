@@ -66,7 +66,7 @@ export const useChatRoomRolesRealtime = (chatRoomId?: string, userId?: string) =
               new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
           });
         }
-      )
+      );
 
       this.hubConnection.on("RoleCreated", (retrievedRole: any) => {
         runInAction(() => {
@@ -91,17 +91,23 @@ export const useChatRoomRolesRealtime = (chatRoomId?: string, userId?: string) =
             }
             return;
           }
-          const role = result.data;
-          this.roles = this.roles.map(r => r.id === role.id ? role : r);
+          const updatedRole = result.data;
+          this.roles = this.roles.map(r => r.id === updatedRole.id ? updatedRole : r);
+
+          const newMemberRoles = new Map<string, ChatRoomRole[]>();
+          for (const [userId, userRoles] of this.memberRoles.entries()) {
+            const updatedUserRoles = userRoles.map(role => role.id === updatedRole.id ? updatedRole : role);
+            newMemberRoles.set(userId, updatedUserRoles);
+          }
+          this.memberRoles = newMemberRoles;
         });
       });
 
       this.hubConnection.on("RoleDeleted", (roleId: string) => {
         runInAction(() => {
           this.roles = this.roles.filter((r) => r.id !== roleId);
-          
-          for (const [userId, roles] of this.memberRoles.entries()) {
-            const updatedRoles = roles.filter((r) => r.id !== roleId);
+          for (const [userId, roleObjs] of this.memberRoles.entries()) {
+            const updatedRoles = roleObjs.filter((r) => r.id !== roleId);
             this.memberRoles.set(userId, updatedRoles);
           }
         });
@@ -111,7 +117,7 @@ export const useChatRoomRolesRealtime = (chatRoomId?: string, userId?: string) =
         runInAction(() => {
           const newMemberRoles = new Map<string, ChatRoomRole[]>();
           for (const userId in data) {
-            const roles = data[userId]
+            const roleIds = data[userId]
               .map(role => {
                 const result = ChatRoomRoleSchema.safeParse(role);
                 if (!result.success) {
@@ -119,11 +125,14 @@ export const useChatRoomRolesRealtime = (chatRoomId?: string, userId?: string) =
                     console.error("Role validation error (UsersRoleLoaded):", result.error, role);
                   return null;
                 }
-                return result.data;
+                return result.data.id;
               })
+              .filter(Boolean) as string[];
+
+            const roleObjects = roleIds
+              .map(id => this.roles.find(r => r.id === id))
               .filter(Boolean) as ChatRoomRole[];
-            newMemberRoles.set(userId, roles.sort((a, b) => 
-              new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()));
+            newMemberRoles.set(userId, roleObjects);
           }
           this.memberRoles = newMemberRoles;
         });
@@ -138,9 +147,10 @@ export const useChatRoomRolesRealtime = (chatRoomId?: string, userId?: string) =
             return;
           }
           const { userId, role } = result.data;
+          const roleObj = this.roles.find(r => r.id === role.id);
+          if (!roleObj) return;
           const userRoles = this.memberRoles.get(userId) || [];
-          const updatedRoles = [...userRoles, role].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-          
+          const updatedRoles = [...userRoles, roleObj];
           const newMemberRoles = new Map(this.memberRoles);
           newMemberRoles.set(userId, updatedRoles);
           this.memberRoles = newMemberRoles;
@@ -158,7 +168,6 @@ export const useChatRoomRolesRealtime = (chatRoomId?: string, userId?: string) =
           const { userId, id: roleId } = result.data;
           const userRoles = this.memberRoles.get(userId) || [];
           const updatedRoles = userRoles.filter(r => r.id !== roleId);
-
           const newMemberRoles = new Map(this.memberRoles);
           newMemberRoles.set(userId, updatedRoles);
           this.memberRoles = newMemberRoles;
