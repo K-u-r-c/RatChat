@@ -16,16 +16,41 @@ import {
   type UnassignChatRoomRole, 
   type UpdateChatRoomRole
 } from "../schemas/chatRoomRoleSchema";
+import { CHATROOM_PERMISSIONS } from "../types/chatroomPermissions";
 
-export const useChatRoomRolesRealtime = (chatRoomId?: string, userId?: string) => {
+export const useChatRoomRolesRealtime = (
+  chatRoomId?: string, 
+  userId?: string,
+  isAdmin?: boolean) => {
   const created = useRef(false);
 
   const rolesStore = useLocalObservable(() => ({
     roles: [] as ChatRoomRole[],
     memberRoles: new Map<string, ChatRoomRole[]>(),
+    isAdmin: isAdmin,
     hubConnection: null as HubConnection | null,
 
-    createHubConnection(chatRoomId: string) {
+    get userPermissions() {
+      if (!userId) return {};
+      const map: Record<string, boolean> = {};
+      if (this.isAdmin) {
+        Object.values(CHATROOM_PERMISSIONS).forEach(name => {
+          map[name] = true;
+        });
+        return map;
+      }
+      const userRoles = this.memberRoles.get(userId) || [];
+      const allPermissions = userRoles.flatMap(role => role.permissions);
+      const allowedNames = allPermissions.filter(
+        p => p.isAllowed).map(p => p.name);
+
+      Object.values(CHATROOM_PERMISSIONS).forEach(name => {
+        map[name] = allowedNames.includes(name);
+      });
+      return map;
+    },
+
+    createHubConnection() {
       if (!chatRoomId) return;
       if (!userId) return;
 
@@ -276,24 +301,37 @@ export const useChatRoomRolesRealtime = (chatRoomId?: string, userId?: string) =
     stopHubConnection() {
       if (this.hubConnection?.state === HubConnectionState.Connected) {
         this.hubConnection.stop().catch(() => {});
+        this.hubConnection = null;
       }
     },
   }));
 
+  // EFEKT 1: Zarządzanie połączeniem SignalR
   useEffect(() => {
-    if (chatRoomId && !created.current) {
-      rolesStore.createHubConnection(chatRoomId);
+    if (chatRoomId && userId && !created.current) {
+      rolesStore.createHubConnection();
       created.current = true;
     }
     return () => {
       rolesStore.stopHubConnection();
+      created.current = false;
     };
-  }, [chatRoomId, rolesStore]);
+  }, [chatRoomId, userId, rolesStore]);
+
+
+  // EFEKT 2: Synchronizacja stanu isAdmin
+  useEffect(() => {
+    runInAction(() => {
+      rolesStore.isAdmin = isAdmin;
+    });
+  }, [isAdmin, rolesStore]);
+
 
   return {
     rolesStore,
     roles: rolesStore.roles,
     memberRoles: rolesStore.memberRoles,
+    userPermissions: rolesStore.userPermissions,
     createRole: rolesStore.createRole,
     assignRole: rolesStore.assignRole,
     unassignRole: rolesStore.unassignRole,
