@@ -50,7 +50,7 @@ public class ChatRoomRolesHub(IMediator mediator) : Hub
         }
     }
 
-    public async Task<List<ChatRoomPermissionDto>> GetUserPermissions(string chatRoomId, string userId)
+    public async Task<UserPermissionsDto> GetUserPermissions(string chatRoomId, string userId)
     {
         var result = await mediator.Send(
             new GetUserPermissions.Query { ChatRoomId = chatRoomId, UserId = userId });

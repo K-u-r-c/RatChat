@@ -13,7 +13,8 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
   const { id } = useParams();
   const { currentUser } = useAccount();
   const { chatRoom, isLoadingChatRoom } = useChatRooms(id);
-  const { rolesStore } = useChatRoomRolesRealtime(id, currentUser?.id, chatRoom?.isAdmin);
+  const { rolesStore } = useChatRoomRolesRealtime(id, currentUser?.id,
+  );
 
   if (isLoadingChatRoom) return <Typography>Loading...</Typography>;
   if (!chatRoom) return <Typography>Activity not found</Typography>;

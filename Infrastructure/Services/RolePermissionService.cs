@@ -89,23 +89,32 @@ public class RolePermissionService(AppDbContext context) : IRolePermissionServic
             .ToListAsync();
     }
 
-    public async Task<List<ChatRoomPermissionDto>> GetUserPermissionsAsync(string userId, string chatRoomId)
+    public async Task<UserPermissionsDto> GetUserPermissionsAsync(string userId, string chatRoomId)
     {
         await EnsureChatRoomExistsAsync(chatRoomId);
         await EnsureUserExistsAsync(userId);
 
         var chatRoom = await context.ChatRooms.FirstOrDefaultAsync(cr => cr.Id == chatRoomId);
         if (chatRoom?.OwnerId == userId)
-            return await context.ChatRoomPermissions
-                .Select(p => new ChatRoomPermissionDto
-                {
-                    Id = p.Id,
-                    Name = p.Name,
-                    Description = p.Description
-                })
-                .ToListAsync();
+        {
+            return new UserPermissionsDto
+            {
+                IsOwner = true,
+                Permissions = await context.ChatRoomPermissions
+                    .Select(p => new ChatRoomPermissionDto
+                    {
+                        Id = p.Id,
+                        Name = p.Name,
+                        Description = p.Description
+                    })
+                    .ToListAsync()
+            };
+        }
 
-        return await context.ChatRoomMemberRoles
+        return new UserPermissionsDto
+        {
+            IsOwner = false,
+            Permissions = await context.ChatRoomMemberRoles
             .Where(mr => mr.UserId == userId && mr.ChatRoomId == chatRoomId)
             .SelectMany(mr => mr.Role.RolePermissions)
             .Where(rp => rp.IsAllowed)
@@ -116,7 +125,8 @@ public class RolePermissionService(AppDbContext context) : IRolePermissionServic
                 Description = rp.Permission.Description
             })
             .Distinct()
-            .ToListAsync();
+            .ToListAsync()
+        };
     }
 
     public async Task<bool> CanSendMessagesAsync(string userId, string chatRoomId)
