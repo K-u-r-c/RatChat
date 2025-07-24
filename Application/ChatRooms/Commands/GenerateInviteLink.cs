@@ -15,17 +15,12 @@ public class GenerateInviteLink
 
     public class Handler(
         IConfiguration configuration,
-        IUserAccessor userAccessor,
-        IRolePermissionService rolePermissionService) 
+        IUserAccessor userAccessor)
         : IRequestHandler<Command, Result<string>>
     {
         public async Task<Result<string>> Handle(Command request, CancellationToken cancellationToken)
         {
             var user = await userAccessor.GetUserAsync();
-
-            var hasPermission = await rolePermissionService.CanCreateInviteLinkAsync(user.Id, request.Id);
-            if (!hasPermission)
-                return Result<string>.Failure("User don't have permission to create invite links", 403);
 
             var expires = DateTime.UtcNow.AddMinutes(10);
             var token = Convert.ToBase64String(Guid.NewGuid().ToByteArray());

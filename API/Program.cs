@@ -26,6 +26,7 @@ using Minio;
 using Persistance;
 using Resend;
 using Application.ChatRoomRoles.Validators;
+using Domain.Enums;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -105,8 +106,18 @@ builder.Services.AddAuthorization(opt =>
     {
         policy.Requirements.Add(new IsAdminRequirement());
     });
+
+    foreach (var permissionName in ChatRoomPermissions.All.Keys)
+    {
+        opt.AddPolicy(permissionName, policy =>
+        {
+            policy.Requirements.Add(
+                new HasPermissionRequirement(permissionName));
+        });
+    }
 });
 builder.Services.AddTransient<IAuthorizationHandler, IsAdminRequirementHandler>();
+builder.Services.AddTransient<IAuthorizationHandler, HasPermissionRequirementHandler>();
 
 var app = builder.Build();
 

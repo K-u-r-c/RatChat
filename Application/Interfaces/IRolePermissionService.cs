@@ -9,8 +9,7 @@ public interface IRolePermissionService
 
     Task<List<ChatRoomRolePermissionDto>> GetPermissionsAsync(string roleId);
     Task<UserPermissionsDto> GetUserPermissionsAsync(string userId, string chatRoomId);
-    Task<bool> CanSendMessagesAsync(string userId, string chatRoomId);
-    Task<bool> CanCreateInviteLinkAsync(string userId, string chatRoomId);
+    Task<bool> HasPermissionAsync(string userId, string chatRoomId, string permissionName);
 
     Task UpdatePermissionsAsync(string roleId, List<UpdateRolePermissionDto> updateRolePermissionDtos);
 }

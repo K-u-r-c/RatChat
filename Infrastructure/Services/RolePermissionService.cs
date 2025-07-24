@@ -129,20 +129,15 @@ public class RolePermissionService(AppDbContext context) : IRolePermissionServic
         };
     }
 
-    public async Task<bool> CanSendMessagesAsync(string userId, string chatRoomId)
-    {
-        return await HasPermissionAsync(userId, chatRoomId, ChatRoomPermissions.SendMessages);
-    }
-
-    public async Task<bool> CanCreateInviteLinkAsync(string userId, string chatRoomId)
-    {
-        return await HasPermissionAsync(userId, chatRoomId, ChatRoomPermissions.CreateInviteLinks);
-    }
-
-    private async Task<bool> HasPermissionAsync(string userId, string chatRoomId, string permissionName)
+    public async Task<bool> HasPermissionAsync(string userId, string chatRoomId, string permissionName)
     {
         await EnsureChatRoomExistsAsync(chatRoomId);
         await EnsureUserExistsAsync(userId);
+        if (!ChatRoomPermissions.All.ContainsKey(permissionName))
+        {
+            throw new ChatRoomPermissionsNotFoundException(
+                $"Permission named {permissionName} not available in codebase");
+        }
 
         var chatRoom = await context.ChatRooms.FirstOrDefaultAsync(cr => cr.Id == chatRoomId);
         if (chatRoom?.OwnerId == userId)
