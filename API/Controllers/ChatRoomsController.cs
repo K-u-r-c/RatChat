@@ -76,7 +76,6 @@ public class ChatRoomsController : BaseApiController
     }
 
     [HttpPost("{id}/generateInviteLink")]
-    [Authorize(Policy = IsAdminStrings.IsChatRoomAdmin)]
     public async Task<ActionResult<string>> GenerateInviteLink(string id)
     {
         return HandleResult(await Mediator.Send(new GenerateInviteLink.Command { Id = id }));

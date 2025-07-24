@@ -25,6 +25,7 @@ using Microsoft.EntityFrameworkCore;
 using Minio;
 using Persistance;
 using Resend;
+using Application.ChatRoomRoles.Validators;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -84,6 +85,8 @@ builder.Services.AddValidatorsFromAssemblyContaining<UpdateProfileValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<SendFriendRequestValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<UpdateStatusValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<SetEmojiPreferenceValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<CreateChatRoomRoleValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<UpdateChatRoomRoleValidator>();
 builder.Services.AddTransient<ExceptionMiddleware>();
 builder.Services.AddHostedService<MediaCleanupService>();
 builder.Services.AddIdentityApiEndpoints<User>(opt =>
