@@ -4,6 +4,7 @@ import type { ChatRoomRole } from "../../../lib/types";
 import type { UpdateChatRoomRole } from "../../../lib/schemas/chatRoomRoleSchema";
 import { useChatRoomRolesRealtime } from "../../../lib/hooks/useChatRoomRolesRealtime";
 import ChatRoomRoleUpdateForm from "../../../features/chatRooms/forms/ChatRoomRoleUpdateForm";
+import { toast } from "react-toastify";
 
 type Props = {
   role: ChatRoomRole;
@@ -31,9 +32,9 @@ export function ChatRoomRoleButton({ role, updateRole, deleteRole }: Props) {
       setOpen(false);
     } catch (err: any) {
       if (err?.message?.includes("connection being closed")) {
-      alert("Cannot delete role: connection to the server has been lost.");
+        toast.error("Cannot delete role: connection to the server has been lost.");
       } else {
-      alert("An error occurred while deleting the role.");
+        toast.error("An error occurred while deleting the role.");
       }
     }
   };
