@@ -72,8 +72,8 @@ export default function ChatRoomManagement(
           variant="outlined"
           color="secondary"
           onClick={handleGenerateInvite}
-          disabled={!chatRoom?.isAdmin && 
-            !userPermissions[CHATROOM_PERMISSIONS.CreateInviteLinks] || 
+          disabled={(!chatRoom?.isAdmin && 
+            !userPermissions[CHATROOM_PERMISSIONS.CreateInviteLinks]) || 
             isGeneratingInvite}
         >
           Generate Invite Link
