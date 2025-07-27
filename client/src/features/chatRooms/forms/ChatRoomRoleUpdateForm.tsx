@@ -106,13 +106,17 @@ export default function ChatRoomRoleUpdateForm({ open, onClose, role, onSubmit, 
             <Typography variant="subtitle2" sx={{ mb: 1 }}>
               Permissions
             </Typography>
-            {permissions?.map((perm) => (
+            {permissions?.map((perm) => {
+              const rolePerm = role.permissions?.find(p => p.id === perm.id);
+              if (!rolePerm) return null;
+              return (
               <ChatRoomRolePermissionItem
                 key={perm.id}
-                permission={{ ...role.permissions.find(p => p.id === perm.id)!, ...perm }}
+                permission={{ ...rolePerm, ...perm }}
                 onChange={handlePermissionChange}
               />
-            ))}
+              );
+            })}
           </Box>
         </DialogContent>
         <DialogActions>
