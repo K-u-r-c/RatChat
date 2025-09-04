@@ -209,8 +209,9 @@ const MediaChatComponent = observer(function MediaChatComponent({
                 isUploading={fileUpload.isUploading}
                 hasFileAttached={hasFileAttached}
                 hasPermission={
-                  (userPermissions &&
-                    userPermissions[CHATROOM_PERMISSIONS.SendMessages]) ?? true
+                  chatRoomId === undefined ? true :
+                  userPermissions &&
+                    userPermissions[CHATROOM_PERMISSIONS.SendMessages] ? true : false
                 }
                 placeholder={
                   hasFileAttached
