@@ -2,8 +2,9 @@ using Application.Core;
 using MediatR;
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.WebUtilities;
+using Application.Interfaces;
 
-namespace Application.Chats.Commands;
+namespace Application.ChatRooms.Commands;
 
 public class GenerateInviteLink
 {
@@ -12,10 +13,15 @@ public class GenerateInviteLink
         public required string Id { get; set; }
     }
 
-    public class Handler(IConfiguration configuration) : IRequestHandler<Command, Result<string>>
+    public class Handler(
+        IConfiguration configuration,
+        IUserAccessor userAccessor)
+        : IRequestHandler<Command, Result<string>>
     {
-        public Task<Result<string>> Handle(Command request, CancellationToken cancellationToken)
+        public async Task<Result<string>> Handle(Command request, CancellationToken cancellationToken)
         {
+            var user = await userAccessor.GetUserAsync();
+
             var expires = DateTime.UtcNow.AddMinutes(10);
             var token = Convert.ToBase64String(Guid.NewGuid().ToByteArray());
             var joinToken = $"{request.Id}:{token}:{expires:o}";
@@ -23,10 +29,10 @@ public class GenerateInviteLink
 
             var clientUrl = configuration["ClientAppUrl"];
             if (string.IsNullOrEmpty(clientUrl))
-                return Task.FromResult(Result<string>.Failure("Client URL is not configured", 400));
+                return Result<string>.Failure("Client URL is not configured", 400);
 
             var url = $"{clientUrl}/chat-rooms/{request.Id}/{encodedToken}/join";
-            return Task.FromResult(Result<string>.Success(url));
+            return Result<string>.Success(url);
         }
     }
 }

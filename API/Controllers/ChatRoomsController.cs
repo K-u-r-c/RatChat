@@ -1,8 +1,8 @@
 using Application.ChatRooms.Commands;
 using Application.ChatRooms.DTOs;
 using Application.ChatRooms.Queries;
-using Application.Chats.Commands;
 using Application.Core;
+using Domain.Enums;
 using Infrastructure.Security;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -77,7 +77,7 @@ public class ChatRoomsController : BaseApiController
     }
 
     [HttpPost("{id}/generateInviteLink")]
-    [Authorize(Policy = IsAdminStrings.IsChatRoomAdmin)]
+    [Authorize(Policy = ChatRoomPermissions.CreateInviteLinks)]
     public async Task<ActionResult<string>> GenerateInviteLink(string id)
     {
         return HandleResult(await Mediator.Send(new GenerateInviteLink.Command { Id = id }));

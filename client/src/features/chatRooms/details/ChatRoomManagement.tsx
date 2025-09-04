@@ -1,8 +1,15 @@
 import { Box, Button, Stack } from "@mui/material";
 import { useParams, useNavigate } from "react-router";
 import { useChatRooms } from "../../../lib/hooks/useChatRooms";
+import type { useChatRoomRolesRealtime } from "../../../lib/hooks/useChatRoomRolesRealtime";
+import { CHATROOM_PERMISSIONS } from "../../../lib/types/chatroomPermissions";
 
-export default function ChatRoomManagement() {
+type Props = {
+  userPermissions: ReturnType<
+    typeof useChatRoomRolesRealtime
+  >["userPermissions"];
+};
+export default function ChatRoomManagement({ userPermissions }: Props) {
   const { id } = useParams();
   const navigate = useNavigate();
   const {
@@ -60,11 +67,16 @@ export default function ChatRoomManagement() {
         >
           Modify Chat Room
         </Button>
+
         <Button
           variant="outlined"
           color="secondary"
           onClick={handleGenerateInvite}
-          disabled={!chatRoom?.isAdmin || isGeneratingInvite}
+          disabled={
+            (!chatRoom?.isAdmin &&
+              !userPermissions[CHATROOM_PERMISSIONS.CreateInviteLinks]) ||
+            isGeneratingInvite
+          }
         >
           Generate Invite Link
         </Button>

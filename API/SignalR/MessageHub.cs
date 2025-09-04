@@ -2,13 +2,16 @@ using Application.Core;
 using Application.Messages.Commands;
 using Application.Messages.Queries;
 using Application.Messages.SignalR;
+using Domain.Enums;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 
 namespace API.SignalR;
 
 public class MessageHub(IMediator mediator) : Hub
 {
+    [Authorize(Policy = ChatRoomPermissions.SendMessages)]
     public async Task SendMessage(AddMessage.Command command)
     {
         try

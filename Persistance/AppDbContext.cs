@@ -16,6 +16,10 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
     public required DbSet<DirectChat> DirectChats { get; set; }
     public required DbSet<DirectMessage> DirectMessages { get; set; }
     public required DbSet<EmojiPreference> EmojiPreferences { get; set; }
+    public required DbSet<ChatRoomRole> ChatRoomRoles { get; set; }
+    public required DbSet<ChatRoomMemberRole> ChatRoomMemberRoles { get; set; }
+    public required DbSet<ChatRoomPermission> ChatRoomPermissions { get; set; }
+    public required DbSet<ChatRoomRolePermission> ChatRoomRolePermissions { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -32,6 +36,73 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
             .HasOne(x => x.ChatRoom)
             .WithMany(x => x.Members)
             .HasForeignKey(x => x.ChatRoomId);
+
+        builder.Entity<ChatRoom>()
+            .HasOne(cr => cr.Owner)
+            .WithMany(o => o.OwnedChatRooms)
+            .HasForeignKey(cr => cr.OwnerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<ChatRoomRole>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+
+            entity.Property(r => r.Name).IsRequired().HasMaxLength(50);
+            entity.Property(r => r.Color).IsRequired().HasMaxLength(7);
+            entity.Property(r => r.Description).HasMaxLength(200);
+
+            entity.HasOne(r => r.ChatRoom)
+                .WithMany(cr => cr.Roles)
+                .HasForeignKey(cr => cr.ChatRoomId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(r => new { r.ChatRoomId, r.Name }).IsUnique();
+        });
+
+        builder.Entity<ChatRoomMemberRole>(entity =>
+        {
+            entity.HasKey(mr => new { mr.UserId, mr.ChatRoomId, mr.RoleId });
+
+            entity.HasOne(mr => mr.User)
+                .WithMany(u => u.AssignedRoles)
+                .HasForeignKey(mr => mr.UserId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasOne(mr => mr.ChatRoom)
+                .WithMany()
+                .HasForeignKey(mr => mr.ChatRoomId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasOne(mr => mr.Role)
+                .WithMany(r => r.MemberRoles)
+                .HasForeignKey(mr => mr.RoleId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<ChatRoomPermission>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+
+            entity.Property(p => p.Name).IsRequired().HasMaxLength(50);
+            entity.Property(p => p.Description).HasMaxLength(500);
+
+            entity.HasIndex(p => p.Name).IsUnique();
+        });
+
+        builder.Entity<ChatRoomRolePermission>(entity =>
+        {
+            entity.HasKey(rp => new { rp.RoleId, rp.PermissionId });
+
+            entity.HasOne(rp => rp.Role)
+                .WithMany(r => r.RolePermissions)
+                .HasForeignKey(rp => rp.RoleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(rp => rp.Permission)
+                .WithMany(p => p.RolePermissions)
+                .HasForeignKey(rp => rp.PermissionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
 
         builder.Entity<UserFriend>(x =>
         {

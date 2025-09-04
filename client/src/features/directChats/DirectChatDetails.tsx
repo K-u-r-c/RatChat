@@ -97,6 +97,7 @@ const DirectChatDetails = observer(function DirectChatDetails() {
         showUserProfiles={false}
         chatRoomId={undefined}
         directChatId={id}
+        userPermissions={undefined}
       />
     </Box>
   );

@@ -25,7 +25,10 @@ public class AddMessage
         public string? MediaOriginalFileName { get; set; }
     }
 
-    public class Handler(AppDbContext context, IMapper mapper, IUserAccessor userAccessor)
+    public class Handler(
+        AppDbContext context,
+        IMapper mapper,
+        IUserAccessor userAccessor)
         : IRequestHandler<Command, Result<MessageDto>>
     {
         public async Task<Result<MessageDto>> Handle(Command request, CancellationToken cancellationToken)

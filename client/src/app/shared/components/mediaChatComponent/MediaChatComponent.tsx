@@ -18,6 +18,8 @@ import { useEmojiPreferences } from "../../../../lib/hooks/useEmojiPreferences";
 import { useScrollHandler } from "../../../../lib/hooks/useScrollHandler";
 import { useFileUpload } from "../../../../lib/hooks/useFileUpload";
 import EmojiSettingsDialog from "../EmojiSettingsDialog";
+import type { useChatRoomRolesRealtime } from "../../../../lib/hooks/useChatRoomRolesRealtime";
+import { CHATROOM_PERMISSIONS } from "../../../../lib/types/chatroomPermissions";
 
 interface MediaChatComponentProps {
   title: string;
@@ -30,6 +32,9 @@ interface MediaChatComponentProps {
   showUserProfiles?: boolean;
   chatRoomId?: string;
   directChatId?: string;
+  userPermissions?: ReturnType<
+    typeof useChatRoomRolesRealtime
+  >["userPermissions"];
 }
 
 const MediaChatComponent = observer(function MediaChatComponent({
@@ -39,6 +44,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
   showUserProfiles = true,
   chatRoomId,
   directChatId,
+  userPermissions,
 }: MediaChatComponentProps) {
   const [imageDialog, setImageDialog] = useState<{
     open: boolean;
@@ -204,6 +210,14 @@ const MediaChatComponent = observer(function MediaChatComponent({
                 isSubmitting={false}
                 isUploading={fileUpload.isUploading}
                 hasFileAttached={hasFileAttached}
+                hasPermission={
+                  chatRoomId === undefined
+                    ? true
+                    : userPermissions &&
+                      userPermissions[CHATROOM_PERMISSIONS.SendMessages]
+                    ? true
+                    : false
+                }
                 placeholder={
                   hasFileAttached
                     ? "Add a message with your file (optional)..."

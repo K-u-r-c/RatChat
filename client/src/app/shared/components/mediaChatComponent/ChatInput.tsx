@@ -12,6 +12,7 @@ interface ChatInputProps {
   isSubmitting: boolean;
   isUploading: boolean;
   hasFileAttached: boolean;
+  hasPermission: boolean;
   placeholder?: string;
 }
 
@@ -24,6 +25,7 @@ export default function ChatInput({
   isSubmitting,
   isUploading,
   hasFileAttached,
+  hasPermission = true,
   placeholder = "Enter your message (Enter to submit, Ctrl+V to paste images, SHIFT + Enter for new line)",
 }: ChatInputProps) {
   const { register, handleSubmit, reset, setValue, watch } = useForm();
@@ -67,6 +69,7 @@ export default function ChatInput({
         rows={2}
         placeholder={placeholder}
         onKeyDown={handleKeyDown}
+        disabled={!hasPermission}
         slotProps={{
           input: {
             endAdornment:

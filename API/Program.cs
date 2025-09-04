@@ -4,6 +4,7 @@ using Application.ChatRooms.Queries;
 using Application.ChatRooms.Validators;
 using Application.Core;
 using Application.EmojiPreferences.Validators;
+using Application.Development;
 using Application.Friends.Validators;
 using Application.Interfaces;
 using Application.Profiles.Validators;
@@ -24,6 +25,8 @@ using Microsoft.EntityFrameworkCore;
 using Minio;
 using Persistance;
 using Resend;
+using Application.ChatRoomRoles.Validators;
+using Domain.Enums;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -52,6 +55,9 @@ builder.Services.AddTransient<IResend, ResendClient>();
 builder.Services.AddTransient<IEmailSender<User>, EmailSender>();
 builder.Services.AddScoped<IUserAccessor, UserAccessor>();
 builder.Services.AddScoped<IMediaValidator, MediaValidator>();
+builder.Services.AddScoped<IFriendsNotificationService, FriendsNotificationService>();
+builder.Services.AddScoped<IRolePermissionService, RolePermissionService>();
+builder.Services.AddScoped<IChatRoomRoleService, ChatRoomRoleService>();
 if (builder.Environment.IsDevelopment())
 {
     // MinIO for development
@@ -80,6 +86,8 @@ builder.Services.AddValidatorsFromAssemblyContaining<UpdateProfileValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<SendFriendRequestValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<UpdateStatusValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<SetEmojiPreferenceValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<CreateChatRoomRoleValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<UpdateChatRoomRoleValidator>();
 builder.Services.AddTransient<ExceptionMiddleware>();
 builder.Services.AddHostedService<MediaCleanupService>();
 builder.Services.AddIdentityApiEndpoints<User>(opt =>
@@ -98,8 +106,18 @@ builder.Services.AddAuthorization(opt =>
     {
         policy.Requirements.Add(new IsAdminRequirement());
     });
+
+    foreach (var permissionName in ChatRoomPermissions.All.Keys)
+    {
+        opt.AddPolicy(permissionName, policy =>
+        {
+            policy.Requirements.Add(
+                new HasPermissionRequirement(permissionName));
+        });
+    }
 });
 builder.Services.AddTransient<IAuthorizationHandler, IsAdminRequirementHandler>();
+builder.Services.AddTransient<IAuthorizationHandler, HasPermissionRequirementHandler>();
 
 var app = builder.Build();
 
@@ -124,6 +142,7 @@ app.MapHub<MessageHub>("/messages");
 app.MapHub<FriendsHub>("/friends");
 app.MapHub<DirectMessageHub>("/direct-messages");
 app.MapHub<StatusHub>("/status");
+app.MapHub<ChatRoomRolesHub>("/chatroom-roles");
 app.MapFallbackToController("Index", "Fallback");
 
 using var scope = app.Services.CreateScope();
@@ -132,11 +151,13 @@ try
 {
     var context = services.GetRequiredService<AppDbContext>();
     var userManager = services.GetRequiredService<UserManager<User>>();
+    var rolePermissionService = services.GetRequiredService<IRolePermissionService>();
+    var chatRoomRoleService = services.GetRequiredService<IChatRoomRoleService>();
     await context.Database.MigrateAsync();
 
     if (builder.Environment.IsDevelopment())
     {
-        await DbInitializer.SeedData(context, userManager);
+        await DbInitializer.SeedData(context, userManager, rolePermissionService, chatRoomRoleService);
     }
 }
 catch (Exception ex)

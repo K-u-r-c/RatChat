@@ -30,7 +30,7 @@ public class CreateChatRoom
             {
                 ChatRoomId = chatRoom.Id,
                 UserId = user.Id,
-                IsAdmin = true
+                IsOwner = true
             };
 
             chatRoom.Members.Add(member);
