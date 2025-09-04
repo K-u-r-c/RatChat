@@ -32,7 +32,9 @@ interface MediaChatComponentProps {
   showUserProfiles?: boolean;
   chatRoomId?: string;
   directChatId?: string;
-  userPermissions? : ReturnType<typeof useChatRoomRolesRealtime>["userPermissions"];
+  userPermissions?: ReturnType<
+    typeof useChatRoomRolesRealtime
+  >["userPermissions"];
 }
 
 const MediaChatComponent = observer(function MediaChatComponent({
@@ -209,9 +211,12 @@ const MediaChatComponent = observer(function MediaChatComponent({
                 isUploading={fileUpload.isUploading}
                 hasFileAttached={hasFileAttached}
                 hasPermission={
-                  chatRoomId === undefined ? true :
-                  userPermissions &&
-                    userPermissions[CHATROOM_PERMISSIONS.SendMessages] ? true : false
+                  chatRoomId === undefined
+                    ? true
+                    : userPermissions &&
+                      userPermissions[CHATROOM_PERMISSIONS.SendMessages]
+                    ? true
+                    : false
                 }
                 placeholder={
                   hasFileAttached

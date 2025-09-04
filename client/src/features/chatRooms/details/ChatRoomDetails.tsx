@@ -13,21 +13,20 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
   const { id } = useParams();
   const { currentUser } = useAccount();
   const { chatRoom, isLoadingChatRoom } = useChatRooms(id);
-  const { rolesStore } = useChatRoomRolesRealtime(id, currentUser?.id,
-  );
+  const { rolesStore } = useChatRoomRolesRealtime(id, currentUser?.id);
 
   if (isLoadingChatRoom) return <Typography>Loading...</Typography>;
   if (!chatRoom) return <Typography>Activity not found</Typography>;
 
   return (
-    <Box sx = {{ flex: 1 }}>
-      <ChatRoomManagement
-        userPermissions={rolesStore.userPermissions} />
-      <ChatRoomRolesBar 
+    <Box sx={{ flex: 1 }}>
+      <ChatRoomManagement userPermissions={rolesStore.userPermissions} />
+      <ChatRoomRolesBar
         roles={rolesStore.roles}
-        createRole={rolesStore.createRole} 
+        createRole={rolesStore.createRole}
         updateRole={rolesStore.updateRole}
-        deleteRole={rolesStore.deleteRole} />
+        deleteRole={rolesStore.deleteRole}
+      />
       <ChatRoomMembersBar
         members={chatRoom.members}
         memberRoles={rolesStore.memberRoles}
@@ -35,8 +34,7 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
         assignRole={rolesStore.assignRole}
         unassignRole={rolesStore.unassignRole}
       />
-      <ChatRoomDetailsChat
-        userPermissions={rolesStore.userPermissions} />
+      <ChatRoomDetailsChat userPermissions={rolesStore.userPermissions} />
     </Box>
   );
 });

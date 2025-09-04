@@ -32,7 +32,9 @@ export function ChatRoomRoleButton({ role, updateRole, deleteRole }: Props) {
       setOpen(false);
     } catch (err: any) {
       if (err?.message?.includes("connection being closed")) {
-        toast.error("Cannot delete role: connection to the server has been lost.");
+        toast.error(
+          "Cannot delete role: connection to the server has been lost."
+        );
       } else {
         toast.error("An error occurred while deleting the role.");
       }
@@ -49,7 +51,9 @@ export function ChatRoomRoleButton({ role, updateRole, deleteRole }: Props) {
               <Typography variant="body2">{role.description}</Typography>
             )}
           </Box>
-        } arrow >
+        }
+        arrow
+      >
         <Box
           component="button"
           onClick={() => setOpen(true)}

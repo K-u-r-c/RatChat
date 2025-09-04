@@ -7,4 +7,5 @@ export const CHATROOM_PERMISSIONS = {
   CreateInviteLinks: "Create invite links",
 } as const;
 
-export type CHATROOM_PERMISSION = typeof CHATROOM_PERMISSIONS[keyof typeof CHATROOM_PERMISSIONS];
+export type CHATROOM_PERMISSION =
+  (typeof CHATROOM_PERMISSIONS)[keyof typeof CHATROOM_PERMISSIONS];

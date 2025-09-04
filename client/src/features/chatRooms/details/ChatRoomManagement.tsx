@@ -5,11 +5,11 @@ import type { useChatRoomRolesRealtime } from "../../../lib/hooks/useChatRoomRol
 import { CHATROOM_PERMISSIONS } from "../../../lib/types/chatroomPermissions";
 
 type Props = {
-    userPermissions: ReturnType<typeof useChatRoomRolesRealtime>["userPermissions"];
-}
-export default function ChatRoomManagement(
-  { userPermissions } : Props
-) {
+  userPermissions: ReturnType<
+    typeof useChatRoomRolesRealtime
+  >["userPermissions"];
+};
+export default function ChatRoomManagement({ userPermissions }: Props) {
   const { id } = useParams();
   const navigate = useNavigate();
   const {
@@ -72,9 +72,11 @@ export default function ChatRoomManagement(
           variant="outlined"
           color="secondary"
           onClick={handleGenerateInvite}
-          disabled={(!chatRoom?.isAdmin && 
-            !userPermissions[CHATROOM_PERMISSIONS.CreateInviteLinks]) || 
-            isGeneratingInvite}
+          disabled={
+            (!chatRoom?.isAdmin &&
+              !userPermissions[CHATROOM_PERMISSIONS.CreateInviteLinks]) ||
+            isGeneratingInvite
+          }
         >
           Generate Invite Link
         </Button>

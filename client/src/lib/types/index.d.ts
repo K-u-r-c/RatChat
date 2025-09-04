@@ -76,7 +76,7 @@ export type ChatRoomPermission = {
   name: string;
   description: string;
   isAllowed: boolean;
-}
+};
 
 export type ChatMessage = {
   id: string;

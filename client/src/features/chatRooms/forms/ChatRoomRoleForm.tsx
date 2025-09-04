@@ -1,7 +1,18 @@
-import { Box, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField } from "@mui/material";
+import {
+  Box,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+} from "@mui/material";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CreateChatRoomRoleSchema, type CreateChatRoomRole } from "../../../lib/schemas/chatRoomRoleSchema";
+import {
+  CreateChatRoomRoleSchema,
+  type CreateChatRoomRole,
+} from "../../../lib/schemas/chatRoomRoleSchema";
 import React from "react";
 
 type Props = {
@@ -68,12 +79,20 @@ export default function ChatRoomRoleForm({ open, onClose, onSubmit }: Props) {
               type="color"
               {...register("color")}
               value={color}
-              onChange={e => setValue("color", e.target.value)}
-              style={{ width: 40, height: 40, border: "none", background: "none", padding: 0 }}
+              onChange={(e) => setValue("color", e.target.value)}
+              style={{
+                width: 40,
+                height: 40,
+                border: "none",
+                background: "none",
+                padding: 0,
+              }}
             />
             <span style={{ fontFamily: "monospace" }}>{color}</span>
             {errors.color && (
-              <span style={{ color: "red", fontSize: 12 }}>{errors.color.message}</span>
+              <span style={{ color: "red", fontSize: 12 }}>
+                {errors.color.message}
+              </span>
             )}
           </Box>
           <TextField
@@ -88,11 +107,7 @@ export default function ChatRoomRoleForm({ open, onClose, onSubmit }: Props) {
         </DialogContent>
         <DialogActions>
           <Button onClick={onClose}>Cancel</Button>
-          <Button
-            type="submit"
-            variant="contained"
-            disabled={isSubmitting}
-          >
+          <Button type="submit" variant="contained" disabled={isSubmitting}>
             Add
           </Button>
         </DialogActions>

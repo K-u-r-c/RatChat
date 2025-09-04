@@ -1,8 +1,20 @@
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Box, Typography, Checkbox } from "@mui/material";
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Box,
+  Typography,
+  Checkbox,
+} from "@mui/material";
 import type { Profile } from "../../../lib/types";
 import type { useChatRoomRolesRealtime } from "../../../lib/hooks/useChatRoomRolesRealtime";
 import { useState, useEffect, useMemo } from "react";
-import type { AssignChatRoomRole, UnassignChatRoomRole } from "../../../lib/schemas/chatRoomRoleSchema";
+import type {
+  AssignChatRoomRole,
+  UnassignChatRoomRole,
+} from "../../../lib/schemas/chatRoomRoleSchema";
 
 type Props = {
   open: boolean;
@@ -26,14 +38,16 @@ export default function ChatRoomManageRolesForm({
   loading,
 }: Props) {
   // Local state for role assignments
-  const [localAssignments, setLocalAssignments] = useState<Map<string, Set<string>>>(new Map());
+  const [localAssignments, setLocalAssignments] = useState<
+    Map<string, Set<string>>
+  >(new Map());
 
   useEffect(() => {
     const initial = new Map<string, Set<string>>();
-    members.forEach(member => {
+    members.forEach((member) => {
       initial.set(
         member.id,
-        new Set((memberRoles.get(member.id) || []).map(r => r.id))
+        new Set((memberRoles.get(member.id) || []).map((r) => r.id))
       );
     });
     setLocalAssignments(initial);
@@ -41,7 +55,9 @@ export default function ChatRoomManageRolesForm({
 
   const isDirty = useMemo(() => {
     for (const member of members) {
-      const prevRoles = new Set((memberRoles.get(member.id) || []).map(r => r.id));
+      const prevRoles = new Set(
+        (memberRoles.get(member.id) || []).map((r) => r.id)
+      );
       const newRoles = localAssignments.get(member.id) || new Set();
       if (prevRoles.size !== newRoles.size) return true;
       for (const roleId of prevRoles) {
@@ -55,7 +71,7 @@ export default function ChatRoomManageRolesForm({
   }, [members, memberRoles, localAssignments]);
 
   const handleToggle = (userId: string, roleId: string, checked: boolean) => {
-    setLocalAssignments(prev => {
+    setLocalAssignments((prev) => {
       const updated = new Map(prev);
       const userRoles = new Set(updated.get(userId) || []);
       if (checked) {
@@ -70,18 +86,26 @@ export default function ChatRoomManageRolesForm({
 
   const handleConfirm = async () => {
     for (const member of members) {
-      const prevRoles = new Set((memberRoles.get(member.id) || []).map(r => r.id));
+      const prevRoles = new Set(
+        (memberRoles.get(member.id) || []).map((r) => r.id)
+      );
       const newRoles = localAssignments.get(member.id) || new Set();
 
       for (const roleId of newRoles) {
         if (!prevRoles.has(roleId)) {
-          const assignment: AssignChatRoomRole = { id: roleId, userId: member.id };
+          const assignment: AssignChatRoomRole = {
+            id: roleId,
+            userId: member.id,
+          };
           await assignRole(assignment);
         }
       }
       for (const roleId of prevRoles) {
         if (!newRoles.has(roleId)) {
-          const unassignment: UnassignChatRoomRole = { id: roleId, userId: member.id };
+          const unassignment: UnassignChatRoomRole = {
+            id: roleId,
+            userId: member.id,
+          };
           await unassignRole(unassignment);
         }
       }
@@ -94,7 +118,7 @@ export default function ChatRoomManageRolesForm({
       <DialogTitle>Manage Roles</DialogTitle>
       <DialogContent>
         <Box sx={{ overflowX: "auto" }}>
-          {(!roles || roles.length === 0) ? (
+          {!roles || roles.length === 0 ? (
             <Typography color="text.secondary" sx={{ p: 2 }}>
               No roles available.
             </Typography>
@@ -103,30 +127,53 @@ export default function ChatRoomManageRolesForm({
               <thead>
                 <tr>
                   <th style={{ textAlign: "left", padding: 8 }}>User</th>
-                  {roles.map(role => (
-                    <th key={role.id} style={{ padding: 8, background: role.color, color: "#fff" }}>
+                  {roles.map((role) => (
+                    <th
+                      key={role.id}
+                      style={{
+                        padding: 8,
+                        background: role.color,
+                        color: "#fff",
+                      }}
+                    >
                       {role.name}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {members.map(member => (
+                {members.map((member) => (
                   <tr key={member.id}>
                     <td style={{ padding: 8 }}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <img src={member.imageUrl} alt={member.displayName} width={32} height={32} style={{ borderRadius: "50%" }} />
-                        <Typography variant="body2" sx={{ ml: 1 }}>{member.displayName}</Typography>
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                      >
+                        <img
+                          src={member.imageUrl}
+                          alt={member.displayName}
+                          width={32}
+                          height={32}
+                          style={{ borderRadius: "50%" }}
+                        />
+                        <Typography variant="body2" sx={{ ml: 1 }}>
+                          {member.displayName}
+                        </Typography>
                       </Box>
                     </td>
-                    {roles.map(role => {
-                      const checked = localAssignments.get(member.id)?.has(role.id) ?? false;
+                    {roles.map((role) => {
+                      const checked =
+                        localAssignments.get(member.id)?.has(role.id) ?? false;
                       return (
-                        <td key={role.id} style={{ textAlign: "center", padding: 8 }}>
+                        <td
+                          key={role.id}
+                          style={{ textAlign: "center", padding: 8 }}
+                        >
                           <Checkbox
                             checked={checked}
                             disabled={loading}
-                            onChange={e => handleToggle(member.id, role.id, e.target.checked)}
+                            onChange={(e) =>
+                              handleToggle(member.id, role.id, e.target.checked)
+                            }
                             color="primary"
                           />
                         </td>
