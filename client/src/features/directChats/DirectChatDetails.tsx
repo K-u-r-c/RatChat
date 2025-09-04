@@ -16,7 +16,8 @@ const DirectChatDetails = observer(function DirectChatDetails() {
   const handleSendMessage = async (
     body: string,
     type: MessageType = "Text",
-    mediaData?: Partial<MediaUploadResult>
+    mediaData?: Partial<MediaUploadResult>,
+    replyToMessageId?: string
   ) => {
     if (!currentChat?.canSendMessages) return;
 
@@ -31,6 +32,7 @@ const DirectChatDetails = observer(function DirectChatDetails() {
         mediaFileSize: mediaData.fileSize,
         mediaOriginalFileName: mediaData.originalFileName,
       }),
+      ...(replyToMessageId && { replyToMessageId }),
     };
 
     if (type === "Text") {

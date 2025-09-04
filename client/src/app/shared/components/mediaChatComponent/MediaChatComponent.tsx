@@ -1,4 +1,4 @@
-import { Card, CardContent, Box } from "@mui/material";
+import { Card, CardContent, Box, Typography } from "@mui/material";
 import { useState, useEffect } from "react";
 import { observer } from "mobx-react-lite";
 import { useInView } from "react-intersection-observer";
@@ -25,7 +25,8 @@ interface MediaChatComponentProps {
   onSendMessage: (
     body: string,
     type?: MessageType,
-    mediaData?: Partial<MediaUploadResult>
+    mediaData?: Partial<MediaUploadResult>,
+    replyToMessageId?: string
   ) => Promise<void>;
   showUserProfiles?: boolean;
   chatRoomId?: string;
@@ -48,6 +49,13 @@ const MediaChatComponent = observer(function MediaChatComponent({
     src: null,
   });
   const [showEmojiSettings, setShowEmojiSettings] = useState(false);
+  const [replyToMessageId, setReplyToMessageId] = useState<string | undefined>(undefined);
+  const [replyPreview, setReplyPreview] = useState<{
+    displayName?: string;
+    body?: string;
+    type?: MessageType;
+    mediaOriginalFileName?: string;
+  } | undefined>(undefined);
 
   const chatType = chatRoomId ? "ChatRoom" : "DirectChat";
   const chatId = chatRoomId || directChatId || "";
@@ -58,7 +66,8 @@ const MediaChatComponent = observer(function MediaChatComponent({
   const scrollHandler = useScrollHandler({ messageStore });
   const fileUpload = useFileUpload({
     chatRoomId,
-    onUpload: onSendMessage,
+    onUpload: async (body, type, mediaData) =>
+      onSendMessage(body, type, mediaData, replyToMessageId),
     onReset: () => {}, // Will be called from handleSubmit
   });
 
@@ -95,12 +104,14 @@ const MediaChatComponent = observer(function MediaChatComponent({
 
       const trimmedBody = data.body?.trimEnd();
       if (trimmedBody) {
-        await onSendMessage(trimmedBody);
+        await onSendMessage(trimmedBody, "Text", undefined, replyToMessageId);
       }
     } catch (error) {
       console.error("Send message error:", error);
     } finally {
       scrollHandler.scrollToBottom();
+      setReplyToMessageId(undefined);
+      setReplyPreview(undefined);
     }
   };
 
@@ -132,6 +143,33 @@ const MediaChatComponent = observer(function MediaChatComponent({
   const hasFileAttached = !!(
     fileUpload.pendingPaste.file || fileUpload.selectedFile
   );
+
+  const handleReplyClick = (messageId: string) => {
+    const msg = messageStore.messages.find((m) => m.id === messageId);
+    if (!msg) return;
+    setReplyToMessageId(msg.id);
+    setReplyPreview({
+      displayName: msg.senderDisplayName || msg.displayName,
+      body: msg.body,
+      type: msg.type,
+      mediaOriginalFileName: msg.mediaOriginalFileName,
+    });
+  };
+
+  const handleJumpToMessage = (messageId: string) => {
+    const el = document.getElementById(`msg-${messageId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.animate(
+        [
+          { backgroundColor: "transparent" },
+          { backgroundColor: "rgba(255, 235, 59, 0.3)" },
+          { backgroundColor: "transparent" },
+        ],
+        { duration: 1200 }
+      );
+    }
+  };
 
   return (
     <div {...fileUpload.dropzoneProps}>
@@ -170,11 +208,47 @@ const MediaChatComponent = observer(function MediaChatComponent({
               onFileDownload={handleFileDownload}
               loadMoreRef={loadMoreRef}
               messagesEndRef={scrollHandler.messagesEndRef}
+              onReplyClick={handleReplyClick}
+              onJumpToMessage={handleJumpToMessage}
             />
           </Box>
 
           {/* Message input area */}
           <Box sx={{ p: 2, borderTop: "1px solid", borderColor: "divider" }}>
+            {/* Reply context */}
+            {replyToMessageId && (
+              <Card sx={{ mb: 1, bgcolor: "action.hover" }}>
+                <CardContent sx={{ py: 1.5 }}>
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                      Replying to {replyPreview?.displayName}
+                    </Typography>
+                    <Box flexGrow={1} />
+                    <Box
+                      component="button"
+                      onClick={() => {
+                        setReplyToMessageId(undefined);
+                        setReplyPreview(undefined);
+                      }}
+                      sx={{
+                        border: "none",
+                        background: "transparent",
+                        cursor: "pointer",
+                        color: "text.secondary",
+                        fontSize: 12,
+                      }}
+                    >
+                      cancel
+                    </Box>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {replyPreview?.type && replyPreview.type !== "Text"
+                      ? `📎 ${replyPreview?.mediaOriginalFileName || replyPreview?.type}`
+                      : replyPreview?.body}
+                  </Typography>
+                </CardContent>
+              </Card>
+            )}
             {/* File previews */}
             {fileUpload.pendingPaste.file &&
               fileUpload.pendingPaste.preview && (

@@ -101,7 +101,24 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
                 .HasForeignKey(dm => dm.DirectChatId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            // Self-referencing reply relationship
+            x.HasOne(dm => dm.ReplyToDirectMessage)
+                .WithMany()
+                .HasForeignKey(dm => dm.ReplyToDirectMessageId)
+                .OnDelete(DeleteBehavior.NoAction);
+
             x.HasIndex(dm => new { dm.DirectChatId, dm.CreatedAt });
+        });
+
+        // Reply relationship for chat room messages
+        builder.Entity<Message>(x =>
+        {
+            x.HasOne(m => m.ReplyToMessage)
+                .WithMany()
+                .HasForeignKey(m => m.ReplyToMessageId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            x.HasIndex(m => new { m.ChatRoomId, m.CreatedAt });
         });
 
         builder.Entity<User>()

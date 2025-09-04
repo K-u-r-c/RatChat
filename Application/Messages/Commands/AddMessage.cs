@@ -18,6 +18,8 @@ public class AddMessage
         public required string ChatRoomId { get; set; }
         public string Type { get; set; } = "Text";
 
+        public string? ReplyToMessageId { get; set; }
+
         public string? MediaUrl { get; set; }
         public string? MediaPublicId { get; set; }
         public string? MediaType { get; set; }
@@ -58,8 +60,21 @@ public class AddMessage
                 MediaPublicId = request.MediaPublicId,
                 MediaType = request.MediaType,
                 MediaFileSize = request.MediaFileSize,
-                MediaOriginalFileName = request.MediaOriginalFileName
+                MediaOriginalFileName = request.MediaOriginalFileName,
+                ReplyToMessageId = null
             };
+
+            if (!string.IsNullOrEmpty(request.ReplyToMessageId))
+            {
+                var repliedTo = await context.Messages
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(m => m.Id == request.ReplyToMessageId, cancellationToken);
+                if (repliedTo == null || repliedTo.ChatRoomId != chatRoom.Id)
+                {
+                    return Result<MessageDto>.Failure("Invalid replied message", 400);
+                }
+                message.ReplyToMessageId = repliedTo.Id;
+            }
 
             chatRoom.Messages.Add(message);
 

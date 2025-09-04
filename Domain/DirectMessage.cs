@@ -20,4 +20,8 @@ public class DirectMessage
     public User Sender { get; set; } = null!;
     public required string DirectChatId { get; set; }
     public DirectChat DirectChat { get; set; } = null!;
+
+    // Reply relationship (self-reference)
+    public string? ReplyToDirectMessageId { get; set; }
+    public DirectMessage? ReplyToDirectMessage { get; set; }
 }
