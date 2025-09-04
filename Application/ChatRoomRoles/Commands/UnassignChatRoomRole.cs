@@ -13,7 +13,7 @@ public class UnassignChatRoomRole
         public required UnassignChatRoomRoleDto UnassignChatRoomRoleDto { get; set; }
     }
 
-    public class Handler(IChatRoomRoleService chatRoomRoleService) 
+    public class Handler(IChatRoomRoleService chatRoomRoleService)
         : IRequestHandler<Command, Result<UnassignedChatRoomRoleDto>>
     {
         public async Task<Result<UnassignedChatRoomRoleDto>> Handle(Command request, CancellationToken cancellationToken)

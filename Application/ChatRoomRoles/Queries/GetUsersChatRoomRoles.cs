@@ -13,7 +13,7 @@ public class GetUsersChatRoomRoles
     }
 
     public class Handler(
-        IChatRoomRoleService chatRoomRoleService) 
+        IChatRoomRoleService chatRoomRoleService)
         : IRequestHandler<Query, Result<Dictionary<string, List<ChatRoomRoleDto>>>>
     {
         public async Task<Result<Dictionary<string, List<ChatRoomRoleDto>>>>
@@ -22,7 +22,7 @@ public class GetUsersChatRoomRoles
             try
             {
                 var roles = await chatRoomRoleService.GetUsersRolesAsync(request.ChatRoomId);
-                
+
                 return Result<Dictionary<string, List<ChatRoomRoleDto>>>.Success(roles);
             }
             catch (ChatRoomNotFoundException ex)

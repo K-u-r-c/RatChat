@@ -13,7 +13,7 @@ public class GetUserPermissions
         public required string UserId { get; set; }
     }
 
-    public class Handler(IRolePermissionService rolePermissionService) 
+    public class Handler(IRolePermissionService rolePermissionService)
         : IRequestHandler<Query, Result<UserPermissionsDto>>
     {
         public async Task<Result<UserPermissionsDto>> Handle(Query request, CancellationToken cancellationToken)

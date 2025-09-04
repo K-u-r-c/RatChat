@@ -14,7 +14,7 @@ public class CreateChatRoomRole
 
     public class Handler(
         IChatRoomRoleService chatRoomRoleService,
-        IRolePermissionService rolePermissionService) 
+        IRolePermissionService rolePermissionService)
         : IRequestHandler<Command, Result<ChatRoomRoleDto>>
     {
         public async Task<Result<ChatRoomRoleDto>> Handle(Command request, CancellationToken cancellationToken)

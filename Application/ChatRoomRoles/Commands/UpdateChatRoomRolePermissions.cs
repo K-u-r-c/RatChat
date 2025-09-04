@@ -13,7 +13,7 @@ public class ChangeRolePermissions
         public required List<UpdateRolePermissionDto> ChangeRolePermissionDtos { get; set; }
     }
 
-    public class Handler(IRolePermissionService rolePermissionService) 
+    public class Handler(IRolePermissionService rolePermissionService)
         : IRequestHandler<Command, Result<Unit>>
     {
         public async Task<Result<Unit>> Handle(Command request, CancellationToken cancellationToken)

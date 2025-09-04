@@ -22,7 +22,7 @@ public class ChatRoomRolesHub(IMediator mediator) : Hub
         }
     }
 
-     public async Task<List<ChatRoomRoleDto>> GetRoles(string chatRoomId)
+    public async Task<List<ChatRoomRoleDto>> GetRoles(string chatRoomId)
     {
         var result = await mediator.Send(
             new GetChatRoomRoles.Query { ChatRoomId = chatRoomId });
