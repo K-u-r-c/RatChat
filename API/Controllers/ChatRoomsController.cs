@@ -1,3 +1,4 @@
+using API.SignalR;
 using Application.ChatRooms.Commands;
 using Application.ChatRooms.DTOs;
 using Application.ChatRooms.Queries;
@@ -7,11 +8,14 @@ using Infrastructure.Security;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 
 namespace API.Controllers;
 
-public class ChatRoomsController : BaseApiController
+public class ChatRoomsController(IHubContext<MessageHub> hubContext) : BaseApiController
 {
+    private readonly IHubContext<MessageHub> _hubContext = hubContext;
+
     [HttpGet]
     public async Task<ActionResult<PagedList<ChatRoomDto, DateTime?>>> GetChatRooms(
         [FromQuery] ChatRoomParams chatRoomParams
@@ -113,5 +117,43 @@ public class ChatRoomsController : BaseApiController
     {
         command.Id = id;
         return HandleResult(await Mediator.Send(command));
+    }
+
+    [HttpPost("{id}/ban/{user_id}")]
+    public async Task<ActionResult<Unit>> BanChatRoomUser(string id, string user_id)
+    {
+        var result = await Mediator.Send(
+            new BanUser.Command
+            {
+                ChatRoomBanDto = new ChatRoomBanDto
+                {
+                    UserId = user_id,
+                    ChatRoomId = id,
+                    DateBanned = DateTime.UtcNow
+                }
+            }
+        );
+
+        if (result.IsSuccess)
+        {
+            await _hubContext.Clients.Group(id).SendAsync("UserBanned", user_id);
+        }
+
+        return HandleResult(result);
+    }
+
+    [HttpPost("{id}/unban/{user_id}")]
+    public async Task<ActionResult<Unit>> UnbanChatRoomUser(string id, string user_id)
+    {
+        return HandleResult(await Mediator.Send(
+            new UnbanUser.Command
+            {
+                ChatRoomBanDto = new ChatRoomBanDto
+                {
+                    UserId = user_id,
+                    ChatRoomId = id
+                }
+            }
+        ));
     }
 }
