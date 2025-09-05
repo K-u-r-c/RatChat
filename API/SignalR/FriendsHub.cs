@@ -1,7 +1,7 @@
 using Application.Interfaces;
 using Microsoft.AspNetCore.SignalR;
 
-namespace Infrastructure.SignalR;
+namespace API.SignalR;
 
 public class FriendsHub(IUserAccessor userAccessor) : Hub
 {
@@ -19,3 +19,4 @@ public class FriendsHub(IUserAccessor userAccessor) : Hub
         await base.OnDisconnectedAsync(exception);
     }
 }
+

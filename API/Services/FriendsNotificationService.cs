@@ -1,9 +1,9 @@
 using Application.Friends.DTOs;
 using Application.Interfaces;
-using Infrastructure.SignalR;
+using API.SignalR;
 using Microsoft.AspNetCore.SignalR;
 
-namespace Infrastructure.Services;
+namespace API.Services;
 
 public class FriendsNotificationService(IHubContext<FriendsHub> hubContext) : IFriendsNotificationService
 {
@@ -45,3 +45,4 @@ public class FriendsNotificationService(IHubContext<FriendsHub> hubContext) : IF
             .SendAsync("FriendRemoved", removedByUserId);
     }
 }
+

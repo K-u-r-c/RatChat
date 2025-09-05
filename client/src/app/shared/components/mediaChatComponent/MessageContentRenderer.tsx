@@ -5,6 +5,8 @@ import {
   formatMessageWithEmojis,
 } from "../../../../lib/util/emojiUtils";
 import type { BaseMessage } from "../../../../lib/types";
+import React, { Fragment } from "react";
+import Linkify from "linkify-react";
 
 interface MessageContentRendererProps {
   message: BaseMessage;
@@ -17,6 +19,53 @@ export default function MessageContentRenderer({
   onImageClick,
   onFileDownload,
 }: MessageContentRendererProps) {
+  const linkifyOptions = {
+    target: "_blank",
+    rel: "noopener noreferrer",
+    className: undefined,
+    attributes: () => ({
+      rel: "noopener noreferrer",
+      target: "_blank",
+    }),
+  };
+
+  const linkify = (text: string) => {
+    if (!text) return text;
+    const urlRegex = /((https?:\/\/|www\.)[^\s<]+)/gi;
+    const nodes: (string | React.ReactNode)[] = [];
+    let lastIndex = 0;
+
+    const str = text;
+    str.replace(urlRegex, (match, _g1, _g2, offset) => {
+      const idx = offset as number;
+      if (lastIndex < idx) {
+        nodes.push(str.slice(lastIndex, idx));
+      }
+      const href = match;
+      if (/^https?:\/\//i.test(href)) {
+        nodes.push(
+          <a
+            key={`lnk-${idx}`}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {match}
+          </a>
+        );
+      } else {
+        nodes.push(match);
+      }
+      lastIndex = idx + match.length;
+      return match;
+    });
+    if (lastIndex < str.length) {
+      nodes.push(str.slice(lastIndex));
+    }
+    return nodes.length
+      ? nodes.map((n, i) => <Fragment key={i}>{n}</Fragment>)
+      : str;
+  };
   const getFileIcon = (fileName: string) => {
     const extension = fileName.toLowerCase().split(".").pop() || "";
 
@@ -84,11 +133,12 @@ export default function MessageContentRenderer({
       <Typography
         sx={{
           whiteSpace: "pre-wrap",
+          wordBreak: "break-word",
           fontSize: formatted.isLargeEmoji ? "2rem" : "inherit",
           lineHeight: formatted.isLargeEmoji ? 1.2 : "inherit",
         }}
       >
-        {formatted.text}
+        <Linkify options={linkifyOptions}>{formatted.text}</Linkify>
       </Typography>
     );
   }
@@ -96,8 +146,12 @@ export default function MessageContentRenderer({
   const renderMessageBody = () => {
     if (message.body && message.body !== message.mediaOriginalFileName) {
       return (
-        <Typography sx={{ whiteSpace: "pre-wrap", mb: 1 }}>
-          {convertTextToEmoji(message.body)}
+        <Typography
+          sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word", mb: 1 }}
+        >
+          <Linkify options={linkifyOptions}>
+            {convertTextToEmoji(message.body)}
+          </Linkify>
         </Typography>
       );
     }
@@ -182,8 +236,8 @@ export default function MessageContentRenderer({
 
     default:
       return (
-        <Typography sx={{ whiteSpace: "pre-wrap" }}>
-          {convertTextToEmoji(message.body)}
+        <Typography sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+          {linkify(convertTextToEmoji(message.body))}
         </Typography>
       );
   }

@@ -20,6 +20,7 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
     public required DbSet<ChatRoomMemberRole> ChatRoomMemberRoles { get; set; }
     public required DbSet<ChatRoomPermission> ChatRoomPermissions { get; set; }
     public required DbSet<ChatRoomRolePermission> ChatRoomRolePermissions { get; set; }
+    public required DbSet<ChatRoomInvite> ChatRoomInvites { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -218,6 +219,30 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
                 .WithMany()
                 .HasForeignKey(m => m.ChatRoomId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<ChatRoomInvite>(x =>
+        {
+            x.HasKey(ci => ci.Id);
+
+            x.HasOne(ci => ci.ChatRoom)
+                .WithMany(cr => cr.Invites)
+                .HasForeignKey(ci => ci.ChatRoomId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            x.HasOne(ci => ci.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(ci => ci.CreatedByUserId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            x.HasOne(ci => ci.AllowedUser)
+                .WithMany()
+                .HasForeignKey(ci => ci.AllowedUserId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            x.Property(ci => ci.Secret).IsRequired().HasMaxLength(200);
+
+            x.HasIndex(ci => new { ci.ChatRoomId, ci.CreatedAt });
         });
 
         builder.Entity<EmojiPreference>(x =>

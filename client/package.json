@@ -21,6 +21,8 @@
     "@tanstack/react-query-devtools": "^5.77.2",
     "date-fns": "^4.1.0",
     "emoji-picker-react": "^4.12.3",
+    "linkify-react": "^4.3.2",
+    "linkifyjs": "^4.3.2",
     "mobx-react-lite": "^4.1.0",
     "react": "^19.1.0",
     "react-cropper": "^2.3.3",

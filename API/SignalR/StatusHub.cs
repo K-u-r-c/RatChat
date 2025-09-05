@@ -4,7 +4,7 @@ using Application.Status.DTOs;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
 
-namespace Infrastructure.SignalR;
+namespace API.SignalR;
 
 public class StatusHub(IUserAccessor userAccessor, IUserStatusService userStatusService, IMediator mediator)
     : Hub
@@ -36,3 +36,4 @@ public class StatusHub(IUserAccessor userAccessor, IUserStatusService userStatus
         await mediator.Send(new UpdateStatus.Command { UpdateStatusDto = updateStatusDto });
     }
 }
+

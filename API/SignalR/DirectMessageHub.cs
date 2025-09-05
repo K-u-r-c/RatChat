@@ -97,3 +97,4 @@ public class DirectMessageHub(IMediator mediator) : Hub
         await Clients.Caller.SendAsync("LoadDirectMessages", result.Value);
     }
 }
+
