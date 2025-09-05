@@ -11,7 +11,6 @@ interface ChatInputProps {
   defaultEmoji: string;
   isSubmitting: boolean;
   isUploading: boolean;
-  hasFileAttached: boolean;
   hasPermission: boolean;
   placeholder?: string;
 }
@@ -24,7 +23,6 @@ export default function ChatInput({
   defaultEmoji,
   isSubmitting,
   isUploading,
-  hasFileAttached,
   hasPermission = true,
   placeholder = "Enter your message (Enter to submit, Ctrl+V to paste images, SHIFT + Enter for new line)",
 }: ChatInputProps) {
@@ -90,7 +88,7 @@ export default function ChatInput({
         color="primary"
         sx={{ mb: 0.5 }}
         title="Attach file"
-        disabled={hasFileAttached}
+        disabled={!hasPermission || isSubmitting || isUploading}
       >
         <AttachFile />
       </IconButton>

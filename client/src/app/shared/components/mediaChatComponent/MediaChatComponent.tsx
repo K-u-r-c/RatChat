@@ -12,6 +12,7 @@ import ChatHeader from "./ChatHeader";
 import DragOverlay from "./DragOverlay";
 import ChatMessageList from "./ChatMessageList";
 import { FilePreview } from "./FilePreview";
+import MultiFilePreview from "./MultiFilePreview";
 import ChatInput from "./ChatInput";
 import ImageViewerDialog from "./ImageViewerDialog";
 import { useEmojiPreferences } from "../../../../lib/hooks/useEmojiPreferences";
@@ -103,8 +104,8 @@ const MediaChatComponent = observer(function MediaChatComponent({
         return;
       }
 
-      if (fileUpload.selectedFile) {
-        await fileUpload.uploadSelectedFile(data.body);
+      if (fileUpload.selectedItems && fileUpload.selectedItems.length > 0) {
+        await fileUpload.uploadSelectedFiles(data.body);
         return;
       }
 
@@ -140,14 +141,15 @@ const MediaChatComponent = observer(function MediaChatComponent({
       event.preventDefault();
       if (fileUpload.pendingPaste.file) {
         fileUpload.clearPendingPaste();
-      } else if (fileUpload.selectedFile) {
-        fileUpload.clearSelectedFile();
+      } else if (fileUpload.selectedItems.length > 0) {
+        fileUpload.clearSelectedFiles();
       }
     }
   };
 
   const hasFileAttached = !!(
-    fileUpload.pendingPaste.file || fileUpload.selectedFile
+    fileUpload.pendingPaste.file ||
+    (fileUpload.selectedItems && fileUpload.selectedItems.length > 0)
   );
 
   const handleReplyClick = (messageId: string) => {
@@ -266,12 +268,13 @@ const MediaChatComponent = observer(function MediaChatComponent({
                 />
               )}
 
-            {fileUpload.selectedFile && fileUpload.mediaPreview && (
-              <FilePreview
-                file={fileUpload.selectedFile}
-                preview={fileUpload.mediaPreview}
-                onRemove={fileUpload.clearSelectedFile}
-                type="selected"
+            {fileUpload.selectedItems && fileUpload.selectedItems.length > 0 && (
+              <MultiFilePreview
+                items={fileUpload.selectedItems}
+                totalSize={fileUpload.totalSelectedSize}
+                maxTotalSize={fileUpload.MAX_TOTAL_SIZE}
+                onRemove={(id) => fileUpload.removeSelectedItem(id)}
+                onClearAll={fileUpload.clearSelectedFiles}
               />
             )}
 
@@ -283,7 +286,6 @@ const MediaChatComponent = observer(function MediaChatComponent({
                 defaultEmoji={defaultEmoji}
                 isSubmitting={false}
                 isUploading={fileUpload.isUploading}
-                hasFileAttached={hasFileAttached}
                 hasPermission={
                   chatRoomId === undefined
                     ? true
@@ -308,6 +310,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
         ref={fileUpload.fileInputRef}
         type="file"
         hidden
+        multiple
         accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.md,.js,.ts,.py,.java,.cs,.cpp,.c,.h,.php,.rb,.go,.rs,.swift,.kt,.scala,.yml,.yaml,.json,.xml,.html,.css,.sql,.sh,.bat,.ps1,.zip,.rar,.7z,.gz,.tar"
         onChange={fileUpload.handleFileChange}
       />
