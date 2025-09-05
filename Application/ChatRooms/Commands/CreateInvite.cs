@@ -1,3 +1,4 @@
+using System.Net;
 using System.Security.Cryptography;
 using Application.Core;
 using Application.DirectChats.Commands;
@@ -85,6 +86,8 @@ public class CreateInvite
                 if (directChatResult.IsSuccess)
                 {
                     // Send message with the invite link
+                    // Sanitize chat room title before including in message
+                    var safeTitle = WebUtility.HtmlEncode(chatRoom.Title);
                     var messageBody = $"You have been invited to join the chat room '{chatRoom.Title}'. Click to join: {url}";
                     var sent = await mediator.Send(new SendDirectMessage.Command
                     {

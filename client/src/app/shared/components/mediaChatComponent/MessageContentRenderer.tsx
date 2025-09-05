@@ -6,6 +6,7 @@ import {
 } from "../../../../lib/util/emojiUtils";
 import type { BaseMessage } from "../../../../lib/types";
 import React, { Fragment } from "react";
+import Linkify from "linkify-react";
 
 interface MessageContentRendererProps {
   message: BaseMessage;
@@ -18,6 +19,16 @@ export default function MessageContentRenderer({
   onImageClick,
   onFileDownload,
 }: MessageContentRendererProps) {
+  const linkifyOptions = {
+    target: "_blank",
+    rel: "noopener noreferrer",
+    className: undefined,
+    attributes: () => ({
+      rel: "noopener noreferrer",
+      target: "_blank",
+    }),
+  };
+
   const linkify = (text: string) => {
     if (!text) return text;
     const urlRegex = /((https?:\/\/|www\.)[^\s<]+)/gi;
@@ -30,22 +41,30 @@ export default function MessageContentRenderer({
       if (lastIndex < idx) {
         nodes.push(str.slice(lastIndex, idx));
       }
-      let href = match;
-      if (!/^https?:\/\//i.test(href)) {
-        href = `http://${href}`;
+      const href = match;
+      if (/^https?:\/\//i.test(href)) {
+        nodes.push(
+          <a
+            key={`lnk-${idx}`}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {match}
+          </a>
+        );
+      } else {
+        nodes.push(match);
       }
-      nodes.push(
-        <a key={`lnk-${idx}`} href={href} target="_blank" rel="noopener noreferrer">
-          {match}
-        </a>
-      );
       lastIndex = idx + match.length;
       return match;
     });
     if (lastIndex < str.length) {
       nodes.push(str.slice(lastIndex));
     }
-    return nodes.length ? nodes.map((n, i) => <Fragment key={i}>{n}</Fragment>) : str;
+    return nodes.length
+      ? nodes.map((n, i) => <Fragment key={i}>{n}</Fragment>)
+      : str;
   };
   const getFileIcon = (fileName: string) => {
     const extension = fileName.toLowerCase().split(".").pop() || "";
@@ -119,7 +138,7 @@ export default function MessageContentRenderer({
           lineHeight: formatted.isLargeEmoji ? 1.2 : "inherit",
         }}
       >
-        {linkify(formatted.text)}
+        <Linkify options={linkifyOptions}>{formatted.text}</Linkify>
       </Typography>
     );
   }
@@ -127,8 +146,12 @@ export default function MessageContentRenderer({
   const renderMessageBody = () => {
     if (message.body && message.body !== message.mediaOriginalFileName) {
       return (
-        <Typography sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word", mb: 1 }}>
-          {linkify(convertTextToEmoji(message.body))}
+        <Typography
+          sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word", mb: 1 }}
+        >
+          <Linkify options={linkifyOptions}>
+            {convertTextToEmoji(message.body)}
+          </Linkify>
         </Typography>
       );
     }
