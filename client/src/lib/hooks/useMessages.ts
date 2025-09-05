@@ -47,9 +47,24 @@ export const useMessages = (chatRoomId?: string) => {
         "LoadMessages",
         (pagedResult: PagedList<ChatMessage, Date>) => {
           runInAction(() => {
-            this.messages = pagedResult.items;
-            this.hasOlderMessages = !!pagedResult.nextCursor;
-            this.oldestMessageCursor = pagedResult.nextCursor;
+            if (this.messages.length > 0) {
+              const existingIds = new Set(this.messages.map((m) => m.id));
+              const toAppend = pagedResult.items.filter(
+                (m) => !existingIds.has(m.id)
+              );
+              if (toAppend.length > 0) {
+                this.messages.push(...toAppend);
+              }
+              this.hasOlderMessages =
+                this.hasOlderMessages || !!pagedResult.nextCursor;
+              if (!this.oldestMessageCursor && pagedResult.nextCursor) {
+                this.oldestMessageCursor = pagedResult.nextCursor;
+              }
+            } else {
+              this.messages = pagedResult.items;
+              this.hasOlderMessages = !!pagedResult.nextCursor;
+              this.oldestMessageCursor = pagedResult.nextCursor;
+            }
           });
         }
       );

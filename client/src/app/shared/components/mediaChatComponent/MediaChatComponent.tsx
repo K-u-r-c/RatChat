@@ -55,13 +55,18 @@ const MediaChatComponent = observer(function MediaChatComponent({
     src: null,
   });
   const [showEmojiSettings, setShowEmojiSettings] = useState(false);
-  const [replyToMessageId, setReplyToMessageId] = useState<string | undefined>(undefined);
-  const [replyPreview, setReplyPreview] = useState<{
-    displayName?: string;
-    body?: string;
-    type?: MessageType;
-    mediaOriginalFileName?: string;
-  } | undefined>(undefined);
+  const [replyToMessageId, setReplyToMessageId] = useState<string | undefined>(
+    undefined
+  );
+  const [replyPreview, setReplyPreview] = useState<
+    | {
+        displayName?: string;
+        body?: string;
+        type?: MessageType;
+        mediaOriginalFileName?: string;
+      }
+    | undefined
+  >(undefined);
 
   const chatType = chatRoomId ? "ChatRoom" : "DirectChat";
   const chatId = chatRoomId || directChatId || "";
@@ -162,9 +167,8 @@ const MediaChatComponent = observer(function MediaChatComponent({
     });
   };
 
-  const handleJumpToMessage = (messageId: string) => {
-    const el = document.getElementById(`msg-${messageId}`);
-    if (el) {
+  const handleJumpToMessage = async (messageId: string) => {
+    const highlight = (el: HTMLElement) => {
       el.scrollIntoView({ behavior: "smooth", block: "center" });
       el.animate(
         [
@@ -174,6 +178,28 @@ const MediaChatComponent = observer(function MediaChatComponent({
         ],
         { duration: 1200 }
       );
+    };
+
+    for (let attempts = 0; attempts < 50; attempts++) {
+      const el = document.getElementById(
+        `msg-${messageId}`
+      ) as HTMLElement | null;
+      if (el) {
+        highlight(el);
+        return;
+      }
+
+      if (!messageStore.hasOlderMessages) break;
+
+      if (!messageStore.isLoadingOlder) {
+        const container = scrollHandler.messagesContainerRef.current;
+        if (container) {
+          scrollHandler.previousScrollHeight.current = container.scrollHeight;
+        }
+        messageStore.loadOlderMessages();
+      }
+
+      await new Promise((res) => setTimeout(res, 150));
     }
   };
 
@@ -247,9 +273,20 @@ const MediaChatComponent = observer(function MediaChatComponent({
                       cancel
                     </Box>
                   </Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
                     {replyPreview?.type && replyPreview.type !== "Text"
-                      ? `📎 ${replyPreview?.mediaOriginalFileName || replyPreview?.type}`
+                      ? `📎 ${
+                          replyPreview?.mediaOriginalFileName ||
+                          replyPreview?.type
+                        }`
                       : replyPreview?.body}
                   </Typography>
                 </CardContent>
