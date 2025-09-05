@@ -32,6 +32,7 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
     public required DbSet<EncryptedDirectMessageReaction> EncryptedDirectMessageReactions { get; set; }
     public required DbSet<EncryptedDirectChatNotification> EncryptedDirectChatNotifications { get; set; }
 
+    public required DbSet<ChatRoomBan> ChatRoomBans { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -122,6 +123,21 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
             entity.HasOne(rp => rp.Permission)
                 .WithMany(p => p.RolePermissions)
                 .HasForeignKey(rp => rp.PermissionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<ChatRoomBan>(entity =>
+        {
+            entity.HasKey(b => new { b.UserId, b.ChatRoomId });
+
+            entity.HasOne(b => b.User)
+                .WithMany(u => u.Bans)
+                .HasForeignKey(b => b.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(b => b.ChatRoom)
+                .WithMany(cr => cr.Bans)
+                .HasForeignKey(b => b.ChatRoomId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

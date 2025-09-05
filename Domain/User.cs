@@ -24,4 +24,20 @@ public class User : IdentityUser
 
     public ICollection<ChatRoom> OwnedChatRooms { get; set; } = [];
     public ICollection<ChatRoomMemberRole> AssignedRoles { get; set; } = [];
+    public ICollection<ChatRoomBan> Bans { get; set; } = [];
+
+    // Helper functions
+    private static string GenerateFriendCode()
+    {
+        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        var random = new Random();
+        return new string([
+            .. Enumerable.Repeat(chars, 6).Select(s => s[random.Next(s.Length)])
+        ]);
+    }
+
+    public void RegenerateFriendCode()
+    {
+        FriendCode = GenerateFriendCode();
+    }
 }
