@@ -2,6 +2,7 @@ import { makeAutoObservable } from "mobx";
 
 export class UiStore {
   isLoading = false;
+  private _suppressNextChatRoomForbiddenToast = false;
 
   constructor() {
     makeAutoObservable(this);
@@ -13,5 +14,17 @@ export class UiStore {
 
   isIdle() {
     this.isLoading = false;
+  }
+
+  suppressNextChatRoomForbiddenToast() {
+    this._suppressNextChatRoomForbiddenToast = true;
+  }
+
+  consumeSuppressNextChatRoomForbiddenToast(): boolean {
+    if (this._suppressNextChatRoomForbiddenToast) {
+      this._suppressNextChatRoomForbiddenToast = false;
+      return true;
+    }
+    return false;
   }
 }

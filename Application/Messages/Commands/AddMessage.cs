@@ -50,6 +50,13 @@ public class AddMessage
 
             var user = await userAccessor.GetUserAsync();
 
+            // Ensure the user is a member of the chat room
+            var isMember = await context.ChatRoomMembers
+                .AsNoTracking()
+                .AnyAsync(m => m.ChatRoomId == chatRoom.Id && m.UserId == user.Id, cancellationToken);
+            if (!isMember)
+                return Result<MessageDto>.Failure("User is not a member of this chat room", 403);
+
             if (!Enum.TryParse<MessageType>(request.Type, out var messageType))
                 messageType = MessageType.Text;
 

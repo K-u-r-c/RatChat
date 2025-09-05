@@ -3,6 +3,7 @@
  * Check: Domain/Enums/ChatRoomPermissions.cs
  */
 export const CHATROOM_PERMISSIONS = {
+  ViewChatRoom: "View chat room",
   SendMessages: "Send Messages",
   CreateInviteLinks: "Create invite links",
 } as const;

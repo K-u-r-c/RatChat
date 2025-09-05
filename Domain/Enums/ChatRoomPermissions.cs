@@ -2,6 +2,7 @@ namespace Domain.Enums;
 
 public static class ChatRoomPermissions
 {
+    public const string ViewChatRoom = "View chat room";
     public const string SendMessages = "Send Messages";
     public const string CreateInviteLinks = "Create invite links";
 
@@ -17,6 +18,7 @@ public static class ChatRoomPermissions
     public static readonly Dictionary<string, string> All
         = new()
         {
+            [ViewChatRoom] = "Allows the user to view and access the chat room.",
             [SendMessages] = "Allows the user to send messages in the chat room.",
             [CreateInviteLinks] = "Allows the user to create invite links for the chat room.",
         };

@@ -8,6 +8,7 @@ import { useEffect, useRef } from "react";
 import type { ChatMessage, PagedList } from "../types";
 import { runInAction } from "mobx";
 import { toast } from "react-toastify";
+import { router } from "../../app/router/Routes";
 import { calculatePageSizeForMessages } from "../util/util";
 
 export const useMessages = (chatRoomId?: string) => {
@@ -42,6 +43,15 @@ export const useMessages = (chatRoomId?: string) => {
         .catch((error) =>
           console.log("Error establishing connection: ", error)
         );
+
+      this.hubConnection.onclose((error) => {
+        if (import.meta.env.DEV && error)
+          console.log("Message hub closed:", error);
+        if (error) {
+          toast.error("You are not a member of this chat room");
+          router.navigate("/chat-rooms");
+        }
+      });
 
       this.hubConnection.on(
         "LoadMessages",
