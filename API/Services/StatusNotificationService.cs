@@ -1,11 +1,11 @@
 using Application.Interfaces;
+using API.SignalR;
 using Domain.Enums;
-using Infrastructure.SignalR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Persistance;
 
-namespace Infrastructure.Services;
+namespace API.Services;
 
 public class StatusNotificationService(IHubContext<StatusHub> hubContext, AppDbContext context)
     : IStatusNotificationService
@@ -61,3 +61,4 @@ public class StatusNotificationService(IHubContext<StatusHub> hubContext, AppDbC
         await NotifyFriendsStatusChange(userId, UserStatus.Offline);
     }
 }
+

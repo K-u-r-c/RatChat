@@ -24,22 +24,51 @@ public class JoinChatRoom
             if (string.IsNullOrEmpty(request.Token))
                 return Result<string>.Failure("Join token is required", 400);
 
+            bool isValidToken = false;
+            bool usedInviteFlow = false;
+            Domain.ChatRoomInvite? invite = null;
+
             try
             {
                 var decodedBytes = WebEncoders.Base64UrlDecode(request.Token);
                 var decoded = System.Text.Encoding.UTF8.GetString(decodedBytes);
-                var parts = decoded.Split(':', 3);
-                if (parts.Length != 3 || parts[0] != request.Id)
-                    return Result<string>.Failure("Invalid join token", 401);
+                var parts = decoded.Split(':');
 
-                var expires = DateTime.Parse(parts[2], null, System.Globalization.DateTimeStyles.RoundtripKind);
-                if (expires < DateTime.UtcNow)
-                    return Result<string>.Failure("Join link has expired", 401);
+                // New format: inviteId:secret
+                if (parts.Length == 2)
+                {
+                    usedInviteFlow = true;
+                    var inviteId = parts[0];
+                    var secret = parts[1];
+
+                    invite = await context.ChatRoomInvites
+                        .FirstOrDefaultAsync(i => i.Id == inviteId && i.Secret == secret, cancellationToken);
+
+                    if (invite == null || invite.ChatRoomId != request.Id || invite.Revoked)
+                        return Result<string>.Failure("Invalid join token", 401);
+
+                    if (invite.ExpiresAt.HasValue && invite.ExpiresAt.Value < DateTime.UtcNow)
+                        return Result<string>.Failure("Join link has expired", 401);
+
+                    isValidToken = true;
+                }
+                // Legacy format: chatRoomId:randomToken:expires
+                else if (parts.Length == 3 && parts[0] == request.Id)
+                {
+                    var expires = DateTime.Parse(parts[2], null, System.Globalization.DateTimeStyles.RoundtripKind);
+                    if (expires < DateTime.UtcNow)
+                        return Result<string>.Failure("Join link has expired", 401);
+
+                    isValidToken = true;
+                }
             }
             catch
             {
                 return Result<string>.Failure("Invalid join token", 401);
             }
+
+            if (!isValidToken)
+                return Result<string>.Failure("Invalid join token", 401);
 
             var chatRoom = await context.ChatRooms
                 .Include(x => x.Members)
@@ -57,6 +86,18 @@ public class JoinChatRoom
 
             if (membership != null)
                 return Result<string>.Failure("User is already part of this chat room", 401);
+
+            // Enforce invite constraints if used
+            if (usedInviteFlow && invite != null)
+            {
+                if (!string.IsNullOrEmpty(invite.AllowedUserId) && invite.AllowedUserId != user.Id)
+                    return Result<string>.Failure("This invite is not for you", 403);
+
+                if (invite.MaxUses.HasValue && invite.Uses >= invite.MaxUses.Value)
+                    return Result<string>.Failure("This invite has reached its usage limit", 401);
+
+                invite.Uses += 1;
+            }
 
             chatRoom.Members.Add(new ChatRoomMember
             {

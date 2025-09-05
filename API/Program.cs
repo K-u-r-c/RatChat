@@ -16,7 +16,8 @@ using Infrastructure.Email;
 using Infrastructure.Media;
 using Infrastructure.Security;
 using Infrastructure.Services;
-using Infrastructure.SignalR;
+using API.SignalR;
+using API.Services;
 using Infrastructure.Storage;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -80,6 +81,7 @@ else
 builder.Services.AddScoped<IFriendsNotificationService, FriendsNotificationService>();
 builder.Services.AddScoped<IUserStatusService, UserStatusService>();
 builder.Services.AddScoped<IStatusNotificationService, StatusNotificationService>();
+builder.Services.AddScoped<IDirectMessagesNotificationService, DirectMessagesNotificationService>();
 builder.Services.AddAutoMapper(typeof(MappingProfiles).Assembly);
 builder.Services.AddValidatorsFromAssemblyContaining<CreateChatRoomValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<UpdateProfileValidator>();

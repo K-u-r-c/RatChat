@@ -123,21 +123,32 @@ export const useChatRooms = (id?: string) => {
     },
   });
 
-  const generateInviteLink = useMutation({
-    mutationFn: async (id: string) => {
+  const createInviteLink = useMutation({
+    mutationFn: async (params: {
+      id: string;
+      allowedUserId?: string | null;
+      maxUses?: number | null;
+      expiresInMinutes?: number | null;
+    }) => {
+      const { id, ...body } = params;
       setIsGeneratingInvite(true);
       setInviteLink(null);
-      const response = await agent.post<string>(
-        `/chatRooms/${id}/generateInviteLink`
-      );
+      const response = await agent.post<string>(`/chatRooms/${id}/invites`, body);
       return response.data;
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       setInviteLink(data);
       setIsGeneratingInvite(false);
+      try {
+        await navigator.clipboard.writeText(data);
+        toast.success("Invite link created and copied to clipboard");
+      } catch {
+        // ignore
+      }
     },
     onError: () => {
       setIsGeneratingInvite(false);
+      toast.error("Failed to create invite link");
     },
   });
 
@@ -179,7 +190,7 @@ export const useChatRooms = (id?: string) => {
     updateChatRoom,
     createChatRoom,
     deleteChatRooms,
-    generateInviteLink,
+    createInviteLink,
     inviteLink,
     isGeneratingInvite,
     joinChatRoom,
