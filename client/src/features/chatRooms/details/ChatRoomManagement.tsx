@@ -60,7 +60,7 @@ export default function ChatRoomManagement({ userPermissions }: Props) {
   };
 
   const handleGenerateInvite = async () => {
-    await createInviteLink.mutateAsync({ id: id! }); // default: 10 min expiry, no limit
+    await createInviteLink.mutateAsync({ id: id! }); // default: 10 min expiry, unlimited uses
   };
 
   const handleOpenDialog = () => setDialogOpen(true);
