@@ -18,6 +18,8 @@ public class SendDirectMessage
         public required string DirectChatId { get; set; }
         public string Type { get; set; } = "Text";
 
+        public string? ReplyToMessageId { get; set; }
+
         public string? MediaUrl { get; set; }
         public string? MediaPublicId { get; set; }
         public string? MediaType { get; set; }
@@ -72,8 +74,21 @@ public class SendDirectMessage
                 MediaPublicId = request.MediaPublicId,
                 MediaType = request.MediaType,
                 MediaFileSize = request.MediaFileSize,
-                MediaOriginalFileName = request.MediaOriginalFileName
+                MediaOriginalFileName = request.MediaOriginalFileName,
+                ReplyToDirectMessageId = null
             };
+
+            if (!string.IsNullOrEmpty(request.ReplyToMessageId))
+            {
+                var repliedTo = await context.DirectMessages
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(m => m.Id == request.ReplyToMessageId, cancellationToken);
+                if (repliedTo == null || repliedTo.DirectChatId != directChat.Id)
+                {
+                    return Result<DirectMessageDto>.Failure("Invalid replied message", 400);
+                }
+                message.ReplyToDirectMessageId = repliedTo.Id;
+            }
 
             directChat.Messages.Add(message);
             directChat.LastMessageAt = message.CreatedAt;

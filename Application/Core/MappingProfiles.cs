@@ -79,7 +79,12 @@ public class MappingProfiles : Profile
             .ForMember(d => d.MediaPublicId, o => o.MapFrom(s => s.MediaPublicId))
             .ForMember(d => d.MediaType, o => o.MapFrom(s => s.MediaType))
             .ForMember(d => d.MediaFileSize, o => o.MapFrom(s => s.MediaFileSize))
-            .ForMember(d => d.MediaOriginalFileName, o => o.MapFrom(s => s.MediaOriginalFileName));
+            .ForMember(d => d.MediaOriginalFileName, o => o.MapFrom(s => s.MediaOriginalFileName))
+            .ForMember(d => d.ReplyToMessageId, o => o.MapFrom(s => s.ReplyToMessageId))
+            .ForMember(d => d.ReplyToDisplayName, o => o.MapFrom(s => s.ReplyToMessage != null ? s.ReplyToMessage.User.DisplayName : null))
+            .ForMember(d => d.ReplyToBody, o => o.MapFrom(s => s.ReplyToMessage != null ? s.ReplyToMessage.Body : null))
+            .ForMember(d => d.ReplyToType, o => o.MapFrom(s => s.ReplyToMessage != null ? s.ReplyToMessage.Type.ToString() : null))
+            .ForMember(d => d.ReplyToMediaOriginalFileName, o => o.MapFrom(s => s.ReplyToMessage != null ? s.ReplyToMessage.MediaOriginalFileName : null));
 
         CreateMap<DirectChat, DirectChatDto>()
             .ForMember(d => d.OtherUserId, o => o.MapFrom(s =>
@@ -105,7 +110,12 @@ public class MappingProfiles : Profile
             .ForMember(d => d.MediaPublicId, o => o.MapFrom(s => s.MediaPublicId))
             .ForMember(d => d.MediaType, o => o.MapFrom(s => s.MediaType))
             .ForMember(d => d.MediaFileSize, o => o.MapFrom(s => s.MediaFileSize))
-            .ForMember(d => d.MediaOriginalFileName, o => o.MapFrom(s => s.MediaOriginalFileName));
+            .ForMember(d => d.MediaOriginalFileName, o => o.MapFrom(s => s.MediaOriginalFileName))
+            .ForMember(d => d.ReplyToMessageId, o => o.MapFrom(s => s.ReplyToDirectMessageId))
+            .ForMember(d => d.ReplyToDisplayName, o => o.MapFrom(s => s.ReplyToDirectMessage != null ? s.ReplyToDirectMessage.Sender.DisplayName : null))
+            .ForMember(d => d.ReplyToBody, o => o.MapFrom(s => s.ReplyToDirectMessage != null ? s.ReplyToDirectMessage.Body : null))
+            .ForMember(d => d.ReplyToType, o => o.MapFrom(s => s.ReplyToDirectMessage != null ? s.ReplyToDirectMessage.Type.ToString() : null))
+            .ForMember(d => d.ReplyToMediaOriginalFileName, o => o.MapFrom(s => s.ReplyToDirectMessage != null ? s.ReplyToDirectMessage.MediaOriginalFileName : null));
 
         CreateMap<UserFriend, FriendDto>()
             .ForMember(d => d.Id, o => o.MapFrom(s => s.Friend.Id))

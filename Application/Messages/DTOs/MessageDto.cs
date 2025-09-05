@@ -15,4 +15,11 @@ public class MessageDto
     public string? MediaType { get; set; }
     public long? MediaFileSize { get; set; }
     public string? MediaOriginalFileName { get; set; }
+
+    // Reply metadata
+    public string? ReplyToMessageId { get; set; }
+    public string? ReplyToDisplayName { get; set; }
+    public string? ReplyToBody { get; set; }
+    public string? ReplyToType { get; set; }
+    public string? ReplyToMediaOriginalFileName { get; set; }
 }

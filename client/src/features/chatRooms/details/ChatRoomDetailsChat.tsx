@@ -19,7 +19,8 @@ const ChatRoomDetailsChat = observer(function ChatRoomDetailsChat(
   const handleSendMessage = async (
     body: string,
     type: MessageType = "Text",
-    mediaData?: Partial<MediaUploadResult>
+    mediaData?: Partial<MediaUploadResult>,
+    replyToMessageId?: string
   ) => {
     const messageData = {
       chatRoomId: id!,
@@ -32,6 +33,7 @@ const ChatRoomDetailsChat = observer(function ChatRoomDetailsChat(
         mediaFileSize: mediaData.fileSize,
         mediaOriginalFileName: mediaData.originalFileName,
       }),
+      ...(replyToMessageId && { replyToMessageId }),
     };
 
     if (type === "Text") {

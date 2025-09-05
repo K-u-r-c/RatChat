@@ -49,6 +49,12 @@ export type BaseMessage = {
   mediaType?: string;
   mediaFileSize?: number;
   mediaOriginalFileName?: string;
+  // Reply metadata (optional, present when this message is a reply)
+  replyToMessageId?: string;
+  replyToDisplayName?: string;
+  replyToBody?: string;
+  replyToType?: MessageType;
+  replyToMediaOriginalFileName?: string;
 };
 
 export type BaseMessageStore = {
@@ -92,6 +98,11 @@ export type ChatMessage = {
   mediaType?: string;
   mediaFileSize?: number;
   mediaOriginalFileName?: string;
+  replyToMessageId?: string;
+  replyToDisplayName?: string;
+  replyToBody?: string;
+  replyToType?: MessageType;
+  replyToMediaOriginalFileName?: string;
 };
 
 export type MessageType = "Text" | "Image" | "Video" | "Document" | "Audio";
@@ -180,6 +191,11 @@ export type DirectMessage = {
   mediaType?: string;
   mediaFileSize?: number;
   mediaOriginalFileName?: string;
+  replyToMessageId?: string;
+  replyToDisplayName?: string;
+  replyToBody?: string;
+  replyToType?: MessageType;
+  replyToMediaOriginalFileName?: string;
 };
 
 export type SendDirectMessageRequest = {
@@ -192,6 +208,7 @@ export type SendDirectMessageRequest = {
   mediaType?: string;
   mediaFileSize?: number;
   mediaOriginalFileName?: string;
+  replyToMessageId?: string;
 };
 
 export type SendMessageRequest = {
@@ -204,6 +221,7 @@ export type SendMessageRequest = {
   mediaType?: string;
   mediaFileSize?: number;
   mediaOriginalFileName?: string;
+  replyToMessageId?: string;
 };
 
 export type SendFriendRequestRequest = {
