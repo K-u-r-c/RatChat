@@ -292,7 +292,7 @@ export default function ChatMessageList({
                     }}
                   >
                     {first.replyToType && first.replyToType !== "Text"
-                      ? `Ы"� ${
+                      ? `📎 ${
                           first.replyToMediaOriginalFileName ||
                           first.replyToType
                         }`
