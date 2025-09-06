@@ -88,7 +88,7 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
             entity.HasOne(mr => mr.User)
                 .WithMany(u => u.AssignedRoles)
                 .HasForeignKey(mr => mr.UserId)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasOne(mr => mr.ChatRoom)
                 .WithMany()
