@@ -86,6 +86,7 @@ public class JoinChatRoom
             var chatRoomQuery = context.ChatRooms
                 .Include(x => x.Members)
                 .ThenInclude(x => x.User)
+                .ThenInclude(x => x.Bans)
                 .AsQueryable();
 
             ChatRoom? chatRoom = null;
@@ -129,7 +130,16 @@ public class JoinChatRoom
                 return Result<ChatRoomIdentifierDto>.Failure("User is already part of this chat room", 401);
             }
 
-            if (invite != null)
+            var ban = chatRoom.Bans.FirstOrDefault(
+                b => b.UserId == user.Id && b.ChatRoomId == chatRoom.Id);
+
+            if (ban != null)
+            {
+                return Result<ChatRoomIdentifierDto>.Failure("User is banned from this chat room", 401);
+            }
+
+            // Enforce invite constraints if used
+            if (usedInviteFlow && invite != null)
             {
                 if (!string.IsNullOrEmpty(invite.AllowedUserId) && invite.AllowedUserId != user.Id)
                 {
