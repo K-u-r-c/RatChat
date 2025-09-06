@@ -1,4 +1,6 @@
+using System.Security.Claims;
 using Application.Core;
+using Application.Interfaces;
 using Application.Messages.Commands;
 using Application.Messages.Queries;
 using Application.Messages.SignalR;
@@ -9,7 +11,7 @@ using Microsoft.AspNetCore.SignalR;
 
 namespace API.SignalR;
 
-public class MessageHub(IMediator mediator) : Hub
+public class MessageHub(IMediator mediator, IRolePermissionService rolePermissionService) : Hub
 {
     [Authorize(Policy = ChatRoomPermissions.SendMessages)]
     public async Task SendMessage(AddMessage.Command command)
@@ -28,6 +30,7 @@ public class MessageHub(IMediator mediator) : Hub
         }
     }
 
+    [Authorize(Policy = ChatRoomPermissions.SendMessages)]
     public async Task SendMediaMessage(AddMessage.Command command)
     {
         try
@@ -50,6 +53,7 @@ public class MessageHub(IMediator mediator) : Hub
         }
     }
 
+    [Authorize(Policy = ChatRoomPermissions.ViewChatRoom)]
     public async Task LoadMoreMessages(string chatRoomId, DateTime? cursor, int pageSize = 20)
     {
         try
@@ -75,8 +79,23 @@ public class MessageHub(IMediator mediator) : Hub
     {
         var httpContext = Context.GetHttpContext();
         var chatRoomId = httpContext?.Request.Query["chatRoomId"];
-
         if (string.IsNullOrEmpty(chatRoomId)) throw new HubException("No chat room with this id");
+
+        var userId = Context.User?.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+        {
+            throw new HubException("Unauthenticated user");
+        }
+
+        var hasAccess = await rolePermissionService.HasPermissionAsync(
+            userId!, chatRoomId!, ChatRoomPermissions.ViewChatRoom);
+
+        if (!hasAccess)
+        {
+            await Clients.Caller.SendAsync("ReceiveError", 403, "You are not a member of this chat room");
+            Context.Abort();
+            return;
+        }
 
         await Groups.AddToGroupAsync(Context.ConnectionId, chatRoomId!);
 

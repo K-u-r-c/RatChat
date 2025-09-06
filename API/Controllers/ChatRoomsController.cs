@@ -23,6 +23,7 @@ public class ChatRoomsController : BaseApiController
     }
 
     [HttpGet("{id}")]
+    [Authorize(Policy = ChatRoomPermissions.ViewChatRoom)]
     public async Task<ActionResult<ChatRoomDto>> GetChatRoomDetails(string id)
     {
         return HandleResult(await Mediator.Send(new GetChatRoomDetails.Query { Id = id }));

@@ -143,6 +143,13 @@ public class RolePermissionService(AppDbContext context) : IRolePermissionServic
         if (chatRoom?.OwnerId == userId)
             return true;
 
+        // Access to view a chat room is equivalent to being a member
+        if (permissionName == ChatRoomPermissions.ViewChatRoom)
+        {
+            return await context.ChatRoomMembers
+                .AnyAsync(m => m.ChatRoomId == chatRoomId && m.UserId == userId);
+        }
+
         return await context.ChatRoomMemberRoles
             .Where(mr => mr.UserId == userId && mr.ChatRoomId == chatRoomId)
             .SelectMany(mr => mr.Role.RolePermissions)

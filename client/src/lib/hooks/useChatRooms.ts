@@ -21,6 +21,7 @@ export const useChatRooms = (id?: string) => {
   const navigate = useNavigate();
   const {
     chatRoomsStore: { filter, startDate },
+    uiStore,
   } = useStore();
 
   const [inviteLink, setInviteLink] = useState<string | null>(null);
@@ -133,7 +134,10 @@ export const useChatRooms = (id?: string) => {
       const { id, ...body } = params;
       setIsGeneratingInvite(true);
       setInviteLink(null);
-      const response = await agent.post<string>(`/chatRooms/${id}/invites`, body);
+      const response = await agent.post<string>(
+        `/chatRooms/${id}/invites`,
+        body
+      );
       return response.data;
     },
     onSuccess: async (data) => {
@@ -169,6 +173,9 @@ export const useChatRooms = (id?: string) => {
   const leaveChatRoom = useMutation({
     mutationFn: async (id: string) => {
       await agent.post(`/chatRooms/${id}/leave`);
+    },
+    onMutate: async () => {
+      uiStore.suppressNextChatRoomForbiddenToast();
     },
     onSuccess: async () => {
       navigate("/chat-rooms");
