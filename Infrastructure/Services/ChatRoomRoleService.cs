@@ -284,14 +284,14 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
         };
     }
 
-    public async Task AssignMemberRoleAsync(string userId, string chatRoomId)
+    public async Task AssignMemberRoleAsync(string userId, string chatRoomId, CancellationToken cancellationToken)
     {
         await EnsureUserExistsAsync(userId);
-
         await EnsureChatRoomExistsAsync(chatRoomId);
 
         var memberRole = await context.ChatRoomRoles
-            .FirstAsync(r => r.ChatRoomId == chatRoomId && r.Name == ChatRoomRoles.Member)
+            .FirstAsync(r => r.ChatRoomId == chatRoomId && r.Name == ChatRoomRoles.Member,
+            cancellationToken)
             ?? throw new ChatRoomRoleNotFoundException($"No Member role found for this chatroom {chatRoomId}");
 
         var chatroomMemberRole = new ChatRoomMemberRole
@@ -303,7 +303,7 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
 
         context.ChatRoomMemberRoles.Add(chatroomMemberRole);
 
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<UnassignedChatRoomRoleDto> UnassignRoleAsync(UnassignChatRoomRoleDto unassignRoleDto)
@@ -321,6 +321,23 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
             Id = unassignRoleDto.Id,
             UserId = unassignRoleDto.UserId
         };
+    }
+
+    public async Task UnassignAllUserRolesAsync(string chatRoomId, string userId, CancellationToken cancellationToken)
+    {
+        await EnsureUserExistsAsync(userId);
+        await EnsureChatRoomExistsAsync(chatRoomId);
+
+        var rolesToRemove = await context.ChatRoomMemberRoles
+                .Where(mr =>
+                    mr.UserId == userId &&
+                    mr.ChatRoomId == chatRoomId)
+                .ToListAsync(cancellationToken);
+
+        if (rolesToRemove.Count > 0)
+            context.ChatRoomMemberRoles.RemoveRange(rolesToRemove);
+
+        await context.SaveChangesAsync(cancellationToken);
     }
 
     private async Task EnsureChatRoomExistsAsync(string chatRoomId)
