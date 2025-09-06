@@ -1,12 +1,18 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "react-toastify";
 import { useMedia, MediaCategory } from "./useMedia";
 import type { MediaUploadResult, MessageType } from "../types";
 
+type SelectedItem = {
+  id: string;
+  file: File;
+  kind: "image" | "video" | "audio" | "other";
+  preview?: string | null;
+};
+
 interface FileUploadState {
-  selectedFile: File | null;
-  mediaPreview: string | null;
+  selectedItems: SelectedItem[];
   pendingPaste: {
     file: File | null;
     preview: string | null;
@@ -29,10 +35,11 @@ export function useFileUpload({
   onReset,
 }: UseFileUploadProps) {
   const [state, setState] = useState<FileUploadState>({
-    selectedFile: null,
-    mediaPreview: null,
+    selectedItems: [],
     pendingPaste: { file: null, preview: null },
   });
+
+  const [isBulkUploading, setIsBulkUploading] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { uploadMedia } = useMedia();
@@ -102,16 +109,79 @@ export function useFileUpload({
     return "Document";
   };
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    const file = acceptedFiles[0];
-    if (file) {
-      setState((prev) => ({
-        ...prev,
-        selectedFile: file,
-        mediaPreview: URL.createObjectURL(file),
-      }));
-    }
-  }, []);
+  const MAX_TOTAL_SIZE = 250 * 1024 * 1024; // 250MB
+
+  const totalSelectedSize = useMemo(
+    () => state.selectedItems.reduce((sum, i) => sum + i.file.size, 0),
+    [state.selectedItems]
+  );
+
+  const kindOf = (file: File): SelectedItem["kind"] => {
+    if (file.type.startsWith("image/")) return "image";
+    if (file.type.startsWith("video/")) return "video";
+    if (file.type.startsWith("audio/")) return "audio";
+    return "other";
+  };
+
+  const makeId = (file: File) =>
+    `${file.name}:${file.size}:${file.lastModified}`;
+
+  const addFiles = useCallback(
+    (files: File[]) => {
+      if (!files || files.length === 0) return;
+      let addedCount = 0;
+      let skippedCount = 0;
+
+      setState((prev) => {
+        const currentSize = prev.selectedItems.reduce(
+          (s, it) => s + it.file.size,
+          0
+        );
+        const newItems: SelectedItem[] = [];
+
+        for (const file of files) {
+          const willBe =
+            currentSize +
+            newItems.reduce((s, it) => s + it.file.size, 0) +
+            file.size;
+          if (willBe > MAX_TOTAL_SIZE) {
+            skippedCount++;
+            continue;
+          }
+          const id = makeId(file);
+          if (
+            prev.selectedItems.some((it) => it.id === id) ||
+            newItems.some((it) => it.id === id)
+          ) {
+            continue;
+          }
+          const kind = kindOf(file);
+          const preview =
+            kind === "image" || kind === "video"
+              ? URL.createObjectURL(file)
+              : null;
+          newItems.push({ id, file, kind, preview });
+          addedCount++;
+        }
+
+        if (skippedCount > 0) {
+          toast.warn(
+            `File size limit reached (250MB). Added ${addedCount}, skipped ${skippedCount}.`
+          );
+        }
+
+        return { ...prev, selectedItems: [...prev.selectedItems, ...newItems] };
+      });
+    },
+    [MAX_TOTAL_SIZE]
+  );
+
+  const onDrop = useCallback(
+    (acceptedFiles: File[]) => {
+      addFiles(acceptedFiles);
+    },
+    [addFiles]
+  );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -174,8 +244,9 @@ export function useFileUpload({
         ".ps1",
       ],
     },
-    maxFiles: 1,
-    maxSize: 200 * 1024 * 1024,
+    multiple: true,
+    maxFiles: 100,
+    maxSize: 250 * 1024 * 1024,
     noClick: true,
   });
 
@@ -184,25 +255,31 @@ export function useFileUpload({
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setState((prev) => ({
-        ...prev,
-        selectedFile: file,
-        mediaPreview: URL.createObjectURL(file),
-      }));
+    const files = event.target.files ? Array.from(event.target.files) : [];
+    if (files.length) {
+      addFiles(files);
     }
+    if (event.target) event.target.value = "";
   };
 
-  const clearSelectedFile = () => {
-    if (state.mediaPreview) {
-      URL.revokeObjectURL(state.mediaPreview);
-    }
-    setState((prev) => ({
-      ...prev,
-      selectedFile: null,
-      mediaPreview: null,
-    }));
+  const removeSelectedItem = (id: string) => {
+    setState((prev) => {
+      const target = prev.selectedItems.find((it) => it.id === id);
+      if (target?.preview) URL.revokeObjectURL(target.preview);
+      return {
+        ...prev,
+        selectedItems: prev.selectedItems.filter((it) => it.id !== id),
+      };
+    });
+  };
+
+  const clearSelectedFiles = () => {
+    setState((prev) => {
+      prev.selectedItems.forEach(
+        (it) => it.preview && URL.revokeObjectURL(it.preview)
+      );
+      return { ...prev, selectedItems: [] };
+    });
   };
 
   const clearPendingPaste = () => {
@@ -215,35 +292,65 @@ export function useFileUpload({
     }));
   };
 
-  const uploadSelectedFile = async (messageBody: string) => {
-    const { selectedFile } = state;
-    if (!selectedFile) return;
+  const uploadSelectedFiles = async (messageBody: string) => {
+    if (state.selectedItems.length === 0) return;
 
     try {
-      const category = getMediaCategory(selectedFile);
-      const messageType = getMessageType(selectedFile);
+      setIsBulkUploading(true);
+      const trimmedBody = (messageBody || "").trim();
 
-      const uploadResult = await uploadMedia.mutateAsync({
-        file: selectedFile,
-        category,
-        ...(chatRoomId && { chatRoomId }),
-      });
+      const images = state.selectedItems.filter((i) => i.kind === "image");
+      const videos = state.selectedItems.filter((i) => i.kind === "video");
+      const audios = state.selectedItems.filter((i) => i.kind === "audio");
+      const others = state.selectedItems.filter((i) => i.kind === "other");
 
-      const body = messageBody.trim() || selectedFile.name;
+      const sendOne = async (file: File, includeBody: boolean) => {
+        const category = getMediaCategory(file);
+        const messageType = getMessageType(file);
+        const uploadResult = await uploadMedia.mutateAsync({
+          file,
+          category,
+          ...(chatRoomId && { chatRoomId }),
+        });
 
-      await onUpload(body, messageType, {
-        url: uploadResult.url,
-        publicId: uploadResult.publicId,
-        mediaType: uploadResult.mediaType,
-        fileSize: uploadResult.fileSize,
-        originalFileName: uploadResult.originalFileName,
-      });
+        const body = includeBody && trimmedBody ? trimmedBody : file.name;
 
-      clearSelectedFile();
+        await onUpload(body, messageType, {
+          url: uploadResult.url,
+          publicId: uploadResult.publicId,
+          mediaType: uploadResult.mediaType,
+          fileSize: uploadResult.fileSize,
+          originalFileName: uploadResult.originalFileName,
+        });
+      };
+
+      for (let idx = 0; idx < images.length; idx++) {
+        await sendOne(images[idx].file, idx === 0);
+      }
+
+      for (let idx = 0; idx < videos.length; idx++) {
+        const includeBody = images.length === 0 && idx === 0;
+        await sendOne(videos[idx].file, includeBody);
+      }
+
+      const includeBodyForFirstDoc = images.length === 0 && videos.length === 0;
+      let bodyUsed = includeBodyForFirstDoc;
+      for (let i = 0; i < audios.length; i++) {
+        await sendOne(audios[i].file, !bodyUsed && i === 0);
+        if (!bodyUsed && i === 0) bodyUsed = true;
+      }
+      for (let i = 0; i < others.length; i++) {
+        await sendOne(others[i].file, !bodyUsed && i === 0);
+        if (!bodyUsed && i === 0) bodyUsed = true;
+      }
+
+      clearSelectedFiles();
       onReset();
     } catch (error) {
-      console.error("File upload failed:", error);
-      toast.error("Failed to upload file");
+      console.error("Files upload failed:", error);
+      toast.error("Failed to upload files");
+    } finally {
+      setIsBulkUploading(false);
     }
   };
 
@@ -309,19 +416,21 @@ export function useFileUpload({
   }, []);
 
   return {
-    selectedFile: state.selectedFile,
-    mediaPreview: state.mediaPreview,
+    selectedItems: state.selectedItems,
+    totalSelectedSize,
     pendingPaste: state.pendingPaste,
     isDragActive,
-    isUploading: uploadMedia.isPending,
+    isUploading: uploadMedia.isPending || isBulkUploading,
     dropzoneProps: getRootProps(),
     inputProps: getInputProps(),
     fileInputRef,
     handleFileSelect,
     handleFileChange,
-    clearSelectedFile,
+    removeSelectedItem,
+    clearSelectedFiles,
     clearPendingPaste,
-    uploadSelectedFile,
+    uploadSelectedFiles,
     uploadPendingPaste,
+    MAX_TOTAL_SIZE,
   };
 }
