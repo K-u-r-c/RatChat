@@ -190,6 +190,8 @@ app.MapHub<EncryptedMessageHub>("/encrypted-messages");
 app.MapHub<StatusHub>("/status");
 app.MapHub<ChatRoomRolesHub>("/chatroom-roles");
 app.MapHub<ChatRoomsProfileUpdateHub>("/chatroom-image-update");
+app.MapHub<ChatRoomNotificationsHub>("/chatroom-notifications");
+app.MapFallbackToController("Index", "Fallback");
 
 using var scope = app.Services.CreateScope();
 var services = scope.ServiceProvider;

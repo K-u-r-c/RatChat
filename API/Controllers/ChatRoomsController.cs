@@ -12,9 +12,9 @@ using Microsoft.AspNetCore.SignalR;
 
 namespace API.Controllers;
 
-public class ChatRoomsController(IHubContext<MessageHub> hubContext) : BaseApiController
+public class ChatRoomsController(IHubContext<ChatRoomNotificationsHub> hubContext) : BaseApiController
 {
-    private readonly IHubContext<MessageHub> _hubContext = hubContext;
+    private readonly IHubContext<ChatRoomNotificationsHub> _hubContext = hubContext;
 
     [HttpGet]
     public async Task<ActionResult<PagedList<ChatRoomDto, DateTime?>>> GetChatRooms(
@@ -119,6 +119,25 @@ public class ChatRoomsController(IHubContext<MessageHub> hubContext) : BaseApiCo
         return HandleResult(await Mediator.Send(command));
     }
 
+    [HttpPost("{id}/kick/{user_id}")]
+    public async Task<ActionResult<string>> KickChatRoomUser(string id, string user_id)
+    {
+        var result = await Mediator.Send(
+            new KickUser.Command
+            {
+                ChatRoomId = id,
+                UserId = user_id
+            }
+        );
+
+        if (result.IsSuccess)
+        {
+            await _hubContext.Clients.Group(id).SendAsync("UserKicked", user_id);
+        }
+
+        return HandleResult(result);
+    }
+
     [HttpPost("{id}/ban/{user_id}")]
     public async Task<ActionResult<Unit>> BanChatRoomUser(string id, string user_id)
     {
@@ -156,4 +175,5 @@ public class ChatRoomsController(IHubContext<MessageHub> hubContext) : BaseApiCo
             }
         ));
     }
+
 }
