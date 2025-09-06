@@ -1,11 +1,7 @@
-import { useState, useRef } from "react";
+import { useState, useRef, memo } from "react";
 import { IconButton, Popover, Box } from "@mui/material";
 import { EmojiEmotions } from "@mui/icons-material";
-import EmojiPicker, {
-  type EmojiClickData,
-  EmojiStyle,
-  Theme,
-} from "emoji-picker-react";
+import EmojiPicker, { type EmojiClickData } from "emoji-picker-react";
 
 type Props = {
   onEmojiSelect: (emoji: string) => void;
@@ -15,7 +11,7 @@ type Props = {
   disabled?: boolean;
 };
 
-export default function EmojiPickerComponent({
+function EmojiPickerComponent({
   onEmojiSelect,
   onQuickReact,
   defaultEmoji = "👍",
@@ -103,21 +99,27 @@ export default function EmojiPickerComponent({
           },
         }}
       >
-        <Box sx={{ p: 1 }}>
-          <EmojiPicker
+        {open && (
+          <Box sx={{ p: 1 }}><EmojiPicker
             onEmojiClick={handleEmojiClick}
-            emojiStyle={EmojiStyle.NATIVE}
-            theme={Theme.AUTO}
+            emojiStyle={"native" as any}
+            theme={"auto" as any}
             width={320}
             height={400}
             searchDisabled={false}
             skinTonesDisabled={false}
             previewConfig={{
               showPreview: true,
-            }}
-          />
-        </Box>
+            }} />
+          </Box>
+        )}
       </Popover>
     </Box>
   );
 }
+
+export default memo(EmojiPickerComponent);
+
+
+
+

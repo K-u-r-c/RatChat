@@ -14,6 +14,14 @@ import MessageAvatarWithStatus from "../MessageAvatarWithStatus";
 import MessageContentRenderer from "./MessageContentRenderer";
 import GroupedMediaMessage from "./GroupedMediaMessage";
 import type { BaseMessage, BaseMessageStore } from "../../../../lib/types";
+import EmojiPickerComponent from "../EmojiPicker";
+import MessageReactions from "./MessageReactions";
+import { useAccount } from "../../../../lib/hooks/useAccount";
+import type { HubConnection } from "@microsoft/signalr";
+import type { MessageReaction } from "../../../../lib/types";
+import { runInAction } from "mobx";
+import { toast } from "react-toastify";
+import React, { useRef } from "react";
 
 interface ChatMessageListProps {
   messageStore: BaseMessageStore;
@@ -26,6 +34,9 @@ interface ChatMessageListProps {
   messagesEndRef?: React.RefObject<HTMLDivElement | null>;
   onReplyClick?: (messageId: string) => void;
   onJumpToMessage?: (messageId: string) => void;
+  chatRoomId?: string;
+  defaultEmoji?: string;
+  directChatId?: string;
 }
 
 export default function ChatMessageList({
@@ -37,7 +48,11 @@ export default function ChatMessageList({
   messagesEndRef,
   onReplyClick,
   onJumpToMessage,
+  chatRoomId,
+  defaultEmoji = "👍",
+  directChatId,
 }: ChatMessageListProps) {
+  const { currentUser } = useAccount();
   type RenderItem =
     | { kind: "single"; message: BaseMessage }
     | { kind: "group"; type: "Image" | "Video"; messages: BaseMessage[] };
@@ -85,6 +100,94 @@ export default function ChatMessageList({
 
   const renderItems = buildRenderItems();
 
+  const inFlightRef = useRef(new Set<string>());
+
+  const toggleReactionOptimistic = async (messageId: string, emoji: string) => {
+    if ((!chatRoomId && !directChatId) || !currentUser) return;
+    const key = `${messageId}|${emoji}`;
+    if (inFlightRef.current.has(key)) return;
+    inFlightRef.current.add(key);
+    const idx = messageStore.messages.findIndex((m) => m.id === messageId);
+    if (idx === -1) return;
+    const msg = messageStore.messages[idx] as BaseMessage & {
+      reactions?: MessageReaction[];
+    };
+    const list: MessageReaction[] = msg.reactions ? [...msg.reactions] : [];
+    const existingIndex = list.findIndex(
+      (r) => r.userId === currentUser.id && r.emoji === emoji
+    );
+    const added = existingIndex === -1;
+
+    runInAction(() => {
+      const newList = [...list];
+      if (added) {
+        newList.push({
+          messageId,
+          emoji,
+          userId: currentUser.id,
+          displayName: currentUser.displayName,
+          createdAt: new Date(),
+        });
+      } else {
+        newList.splice(existingIndex, 1);
+      }
+      (messageStore.messages as BaseMessage[])[idx] = {
+        ...msg,
+        reactions: newList,
+      };
+    });
+
+    try {
+      if (chatRoomId) {
+        await (messageStore.hubConnection as HubConnection)?.invoke(
+          "ToggleMessageReaction",
+          chatRoomId,
+          messageId,
+          emoji
+        );
+      } else if (directChatId) {
+        await (messageStore.hubConnection as HubConnection)?.invoke(
+          "ToggleDirectMessageReaction",
+          directChatId,
+          messageId,
+          emoji
+        );
+      }
+    } catch {
+      runInAction(() => {
+        const current = (messageStore.messages as BaseMessage[])[
+          idx
+        ] as BaseMessage & {
+          reactions?: MessageReaction[];
+        };
+        const curList = current.reactions ? [...current.reactions] : [];
+        const i = curList.findIndex(
+          (r) => r.userId === currentUser.id && r.emoji === emoji
+        );
+        if (added) {
+          if (i !== -1) curList.splice(i, 1);
+        } else {
+          if (i === -1) {
+            curList.push({
+              messageId,
+              emoji,
+              userId: currentUser.id,
+              displayName: currentUser.displayName,
+              createdAt: new Date(),
+            });
+          }
+        }
+        (messageStore.messages as BaseMessage[])[idx] = {
+          ...current,
+          reactions: curList,
+        };
+      });
+      toast.error("Failed to react. Please try again.");
+    } finally {
+      inFlightRef.current.delete(key);
+    }
+  };
+
   return (
     <>
       {/* Load older messages indicator */}
@@ -122,7 +225,12 @@ export default function ChatMessageList({
             <Box
               key={message.id}
               id={`msg-${message.id}`}
-              sx={{ display: "flex", mb: 2 }}
+              sx={{
+                display: "flex",
+                mb: 2,
+                position: "relative",
+                "&:hover .actions": { opacity: 1 },
+              }}
             >
               <MessageAvatarWithStatus
                 userId={message.senderId || message.userId || ""}
@@ -157,16 +265,39 @@ export default function ChatMessageList({
                       variant="outlined"
                     />
                   )}
-                  {onReplyClick && (
-                    <IconButton
-                      size="small"
-                      sx={{ ml: "auto" }}
-                      title="Reply"
-                      onClick={() => onReplyClick(message.id)}
-                    >
-                      <ReplyOutlined fontSize="small" />
-                    </IconButton>
-                  )}
+                  {/* Inline actions (shown on hover) */}
+                  <Box
+                    className="actions"
+                    sx={{
+                      display: "flex",
+                      gap: 1,
+                      ml: "auto",
+                      opacity: 0,
+                      transition: "opacity 0.15s",
+                    }}
+                  >
+                    {onReplyClick && (
+                      <IconButton
+                        size="small"
+                        title="Reply"
+                        onClick={() => onReplyClick(message.id)}
+                      >
+                        <ReplyOutlined fontSize="small" />
+                      </IconButton>
+                    )}
+                    {/* React with emoji */}
+                    {(chatRoomId || directChatId) && (
+                      <EmojiPickerComponent
+                        onQuickReact={async (emoji) =>
+                          toggleReactionOptimistic(message.id, emoji)
+                        }
+                        onEmojiSelect={async (emoji) =>
+                          toggleReactionOptimistic(message.id, emoji)
+                        }
+                        defaultEmoji={defaultEmoji}
+                      />
+                    )}
+                  </Box>
                 </Box>
 
                 {/* Replied-to preview */}
@@ -211,6 +342,15 @@ export default function ChatMessageList({
                   onImageClick={onImageClick}
                   onFileDownload={onFileDownload}
                 />
+
+                {/* Reactions */}
+                <MessageReactions
+                  reactions={message.reactions as MessageReaction[]}
+                  currentUserId={currentUser?.id}
+                  onToggle={async (emoji) =>
+                    toggleReactionOptimistic(message.id, emoji)
+                  }
+                />
               </Box>
             </Box>
           );
@@ -223,7 +363,12 @@ export default function ChatMessageList({
           <Box
             key={`group-${first.id}-${idx}`}
             id={`msg-${first.id}`}
-            sx={{ display: "flex", mb: 2 }}
+            sx={{
+              display: "flex",
+              mb: 2,
+              position: "relative",
+              "&:hover .actions": { opacity: 1 },
+            }}
           >
             <MessageAvatarWithStatus
               userId={first.senderId || first.userId || ""}
@@ -254,16 +399,37 @@ export default function ChatMessageList({
                   color="primary"
                   variant="outlined"
                 />
-                {onReplyClick && (
-                  <IconButton
-                    size="small"
-                    sx={{ ml: "auto" }}
-                    title="Reply"
-                    onClick={() => onReplyClick(first.id)}
-                  >
-                    <ReplyOutlined fontSize="small" />
-                  </IconButton>
-                )}
+                <Box
+                  className="actions"
+                  sx={{
+                    display: "flex",
+                    gap: 1,
+                    ml: "auto",
+                    opacity: 0,
+                    transition: "opacity 0.15s",
+                  }}
+                >
+                  {onReplyClick && (
+                    <IconButton
+                      size="small"
+                      title="Reply"
+                      onClick={() => onReplyClick(first.id)}
+                    >
+                      <ReplyOutlined fontSize="small" />
+                    </IconButton>
+                  )}
+                  {(chatRoomId || directChatId) && (
+                    <EmojiPickerComponent
+                      onQuickReact={async (emoji) =>
+                        toggleReactionOptimistic(first.id, emoji)
+                      }
+                      onEmojiSelect={async (emoji) =>
+                        toggleReactionOptimistic(first.id, emoji)
+                      }
+                      defaultEmoji={defaultEmoji}
+                    />
+                  )}
+                </Box>
               </Box>
 
               {first.replyToMessageId && (
@@ -305,6 +471,17 @@ export default function ChatMessageList({
                 type={item.type}
                 messages={item.messages}
                 onImageClick={onImageClick}
+              />
+
+              {/* Reactions under grouped content apply to each message; show for the first only */}
+              <MessageReactions
+                reactions={
+                  (first as BaseMessage).reactions as MessageReaction[]
+                }
+                currentUserId={currentUser?.id}
+                onToggle={async (emoji) =>
+                  toggleReactionOptimistic(first.id, emoji)
+                }
               />
             </Box>
           </Box>

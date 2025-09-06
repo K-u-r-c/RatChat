@@ -75,6 +75,33 @@ public class MessageHub(IMediator mediator, IRolePermissionService rolePermissio
         }
     }
 
+    [Authorize(Policy = ChatRoomPermissions.ViewChatRoom)]
+    public async Task ToggleMessageReaction(string chatRoomId, string messageId, string emoji)
+    {
+        try
+        {
+            var result = await mediator.Send(new ToggleMessageReaction.Command
+            {
+                ChatRoomId = chatRoomId,
+                MessageId = messageId,
+                Emoji = emoji
+            });
+
+            if (result.IsSuccess)
+            {
+                await Clients.Group(chatRoomId).SendAsync("ReceiveReactionUpdate", result.Value);
+            }
+            else
+            {
+                await Clients.Caller.SendAsync("ReceiveError", result.Code, result.Error);
+            }
+        }
+        catch
+        {
+            await Clients.Caller.SendAsync("ReceiveError", 500, "Failed to toggle reaction");
+        }
+    }
+
     public override async Task OnConnectedAsync()
     {
         var httpContext = Context.GetHttpContext();

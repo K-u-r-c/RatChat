@@ -43,6 +43,7 @@ public class GetDirectMessages
 
                 var query = context.DirectMessages
                     .Where(x => x.DirectChatId == request.DirectChatId)
+                    .Include(x => x.Reactions).ThenInclude(r => r.User)
                     .OrderBy(x => x.CreatedAt);
 
                 var messages = new List<DirectMessageDto>();
@@ -88,6 +89,7 @@ public class GetDirectMessages
             {
                 var messages = await context.DirectMessages
                     .Where(x => x.DirectChatId == request.DirectChatId && x.CreatedAt < request.Cursor.Value)
+                    .Include(x => x.Reactions).ThenInclude(r => r.User)
                     .OrderByDescending(x => x.CreatedAt)
                     .Take(request.PageSize + 1)
                     .ProjectTo<DirectMessageDto>(

@@ -247,6 +247,9 @@ const MediaChatComponent = observer(function MediaChatComponent({
               messagesEndRef={scrollHandler.messagesEndRef}
               onReplyClick={handleReplyClick}
               onJumpToMessage={handleJumpToMessage}
+              chatRoomId={chatRoomId}
+              directChatId={directChatId}
+              defaultEmoji={defaultEmoji}
             />
           </Box>
 
@@ -308,15 +311,16 @@ const MediaChatComponent = observer(function MediaChatComponent({
                 />
               )}
 
-            {fileUpload.selectedItems && fileUpload.selectedItems.length > 0 && (
-              <MultiFilePreview
-                items={fileUpload.selectedItems}
-                totalSize={fileUpload.totalSelectedSize}
-                maxTotalSize={fileUpload.MAX_TOTAL_SIZE}
-                onRemove={(id) => fileUpload.removeSelectedItem(id)}
-                onClearAll={fileUpload.clearSelectedFiles}
-              />
-            )}
+            {fileUpload.selectedItems &&
+              fileUpload.selectedItems.length > 0 && (
+                <MultiFilePreview
+                  items={fileUpload.selectedItems}
+                  totalSize={fileUpload.totalSelectedSize}
+                  maxTotalSize={fileUpload.MAX_TOTAL_SIZE}
+                  onRemove={(id) => fileUpload.removeSelectedItem(id)}
+                  onClearAll={fileUpload.clearSelectedFiles}
+                />
+              )}
 
             {/* Input form */}
             <div onKeyDown={handleKeyPress}>

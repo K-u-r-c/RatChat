@@ -22,4 +22,6 @@ public class MessageDto
     public string? ReplyToBody { get; set; }
     public string? ReplyToType { get; set; }
     public string? ReplyToMediaOriginalFileName { get; set; }
+
+    public List<MessageReactionDto> Reactions { get; set; } = [];
 }

@@ -24,4 +24,7 @@ public class Message
     // Reply relationship (self-reference)
     public string? ReplyToMessageId { get; set; }
     public Message? ReplyToMessage { get; set; }
+
+    // Reactions
+    public ICollection<MessageReaction> Reactions { get; set; } = [];
 }

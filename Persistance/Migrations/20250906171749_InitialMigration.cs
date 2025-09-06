@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Persistance.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialMigrationWithMediaFilesSupportForChats : Migration
+    public partial class InitialMigration : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -35,6 +35,8 @@ namespace Persistance.Migrations
                     ImageUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     BannerUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     FriendCode = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    LastSeen = table.Column<DateTime>(type: "datetime2", nullable: false),
                     UserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     NormalizedUserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     Email = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
@@ -56,16 +58,16 @@ namespace Persistance.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "ChatRooms",
+                name: "ChatRoomPermissions",
                 columns: table => new
                 {
                     Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    Title = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Date = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    Name = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_ChatRooms", x => x.Id);
+                    table.PrimaryKey("PK_ChatRoomPermissions", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -175,6 +177,26 @@ namespace Persistance.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "ChatRooms",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Title = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Date = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    OwnerId = table.Column<string>(type: "nvarchar(450)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ChatRooms", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ChatRooms_AspNetUsers_OwnerId",
+                        column: x => x.OwnerId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "DirectChats",
                 columns: table => new
                 {
@@ -199,6 +221,29 @@ namespace Persistance.Migrations
                         column: x => x.User2Id,
                         principalTable: "AspNetUsers",
                         principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "EmojiPreferences",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    ChatType = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    ChatId = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    DefaultEmoji = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_EmojiPreferences", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_EmojiPreferences_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -254,12 +299,48 @@ namespace Persistance.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "ChatRoomInvites",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    ChatRoomId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    CreatedByUserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Secret = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    AllowedUserId = table.Column<string>(type: "nvarchar(450)", nullable: true),
+                    MaxUses = table.Column<int>(type: "int", nullable: true),
+                    Uses = table.Column<int>(type: "int", nullable: false),
+                    ExpiresAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    Revoked = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ChatRoomInvites", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ChatRoomInvites_AspNetUsers_AllowedUserId",
+                        column: x => x.AllowedUserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_ChatRoomInvites_AspNetUsers_CreatedByUserId",
+                        column: x => x.CreatedByUserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_ChatRoomInvites_ChatRooms_ChatRoomId",
+                        column: x => x.ChatRoomId,
+                        principalTable: "ChatRooms",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "ChatRoomMembers",
                 columns: table => new
                 {
                     UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     ChatRoomId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    IsAdmin = table.Column<bool>(type: "bit", nullable: false),
+                    IsOwner = table.Column<bool>(type: "bit", nullable: false),
                     DateJoined = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
@@ -273,6 +354,29 @@ namespace Persistance.Migrations
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_ChatRoomMembers_ChatRooms_ChatRoomId",
+                        column: x => x.ChatRoomId,
+                        principalTable: "ChatRooms",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ChatRoomRoles",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Name = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
+                    Color = table.Column<string>(type: "nvarchar(7)", maxLength: 7, nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    IsDefault = table.Column<bool>(type: "bit", nullable: false),
+                    ChatRoomId = table.Column<string>(type: "nvarchar(450)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ChatRoomRoles", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ChatRoomRoles_ChatRooms_ChatRoomId",
                         column: x => x.ChatRoomId,
                         principalTable: "ChatRooms",
                         principalColumn: "Id",
@@ -326,7 +430,8 @@ namespace Persistance.Migrations
                     MediaFileSize = table.Column<long>(type: "bigint", nullable: true),
                     MediaOriginalFileName = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    ChatRoomId = table.Column<string>(type: "nvarchar(450)", nullable: false)
+                    ChatRoomId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    ReplyToMessageId = table.Column<string>(type: "nvarchar(450)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -343,6 +448,11 @@ namespace Persistance.Migrations
                         principalTable: "ChatRooms",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Messages_Messages_ReplyToMessageId",
+                        column: x => x.ReplyToMessageId,
+                        principalTable: "Messages",
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
@@ -352,7 +462,6 @@ namespace Persistance.Migrations
                     Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     Body = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    IsRead = table.Column<bool>(type: "bit", nullable: false),
                     Type = table.Column<int>(type: "int", nullable: false),
                     MediaUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     MediaPublicId = table.Column<string>(type: "nvarchar(max)", nullable: true),
@@ -360,7 +469,8 @@ namespace Persistance.Migrations
                     MediaFileSize = table.Column<long>(type: "bigint", nullable: true),
                     MediaOriginalFileName = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     SenderId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    DirectChatId = table.Column<string>(type: "nvarchar(450)", nullable: false)
+                    DirectChatId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    ReplyToDirectMessageId = table.Column<string>(type: "nvarchar(450)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -374,6 +484,126 @@ namespace Persistance.Migrations
                         name: "FK_DirectMessages_DirectChats_DirectChatId",
                         column: x => x.DirectChatId,
                         principalTable: "DirectChats",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_DirectMessages_DirectMessages_ReplyToDirectMessageId",
+                        column: x => x.ReplyToDirectMessageId,
+                        principalTable: "DirectMessages",
+                        principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ChatRoomMemberRoles",
+                columns: table => new
+                {
+                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    ChatRoomId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    RoleId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    AssignedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    AssignedById = table.Column<string>(type: "nvarchar(450)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ChatRoomMemberRoles", x => new { x.UserId, x.ChatRoomId, x.RoleId });
+                    table.ForeignKey(
+                        name: "FK_ChatRoomMemberRoles_AspNetUsers_AssignedById",
+                        column: x => x.AssignedById,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_ChatRoomMemberRoles_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_ChatRoomMemberRoles_ChatRoomRoles_RoleId",
+                        column: x => x.RoleId,
+                        principalTable: "ChatRoomRoles",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_ChatRoomMemberRoles_ChatRooms_ChatRoomId",
+                        column: x => x.ChatRoomId,
+                        principalTable: "ChatRooms",
+                        principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ChatRoomRolePermissions",
+                columns: table => new
+                {
+                    RoleId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    PermissionId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    IsAllowed = table.Column<bool>(type: "bit", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ChatRoomRolePermissions", x => new { x.RoleId, x.PermissionId });
+                    table.ForeignKey(
+                        name: "FK_ChatRoomRolePermissions_ChatRoomPermissions_PermissionId",
+                        column: x => x.PermissionId,
+                        principalTable: "ChatRoomPermissions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_ChatRoomRolePermissions_ChatRoomRoles_RoleId",
+                        column: x => x.RoleId,
+                        principalTable: "ChatRoomRoles",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "MessageReactions",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    MessageId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Emoji = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
+                    EmojiKey = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MessageReactions", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_MessageReactions_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_MessageReactions_Messages_MessageId",
+                        column: x => x.MessageId,
+                        principalTable: "Messages",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "DirectMessageReactions",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    DirectMessageId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Emoji = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
+                    EmojiKey = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DirectMessageReactions", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_DirectMessageReactions_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_DirectMessageReactions_DirectMessages_DirectMessageId",
+                        column: x => x.DirectMessageId,
+                        principalTable: "DirectMessages",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -424,9 +654,61 @@ namespace Persistance.Migrations
                 filter: "[NormalizedUserName] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
+                name: "IX_ChatRoomInvites_AllowedUserId",
+                table: "ChatRoomInvites",
+                column: "AllowedUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ChatRoomInvites_ChatRoomId_CreatedAt",
+                table: "ChatRoomInvites",
+                columns: new[] { "ChatRoomId", "CreatedAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ChatRoomInvites_CreatedByUserId",
+                table: "ChatRoomInvites",
+                column: "CreatedByUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ChatRoomMemberRoles_AssignedById",
+                table: "ChatRoomMemberRoles",
+                column: "AssignedById");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ChatRoomMemberRoles_ChatRoomId",
+                table: "ChatRoomMemberRoles",
+                column: "ChatRoomId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ChatRoomMemberRoles_RoleId",
+                table: "ChatRoomMemberRoles",
+                column: "RoleId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ChatRoomMembers_UserId",
                 table: "ChatRoomMembers",
                 column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ChatRoomPermissions_Name",
+                table: "ChatRoomPermissions",
+                column: "Name",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ChatRoomRolePermissions_PermissionId",
+                table: "ChatRoomRolePermissions",
+                column: "PermissionId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ChatRoomRoles_ChatRoomId_Name",
+                table: "ChatRoomRoles",
+                columns: new[] { "ChatRoomId", "Name" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ChatRooms_OwnerId",
+                table: "ChatRooms",
+                column: "OwnerId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_DirectChats_User1Id_User2Id",
@@ -440,14 +722,41 @@ namespace Persistance.Migrations
                 column: "User2Id");
 
             migrationBuilder.CreateIndex(
+                name: "IX_DirectMessageReactions_DirectMessageId_CreatedAt",
+                table: "DirectMessageReactions",
+                columns: new[] { "DirectMessageId", "CreatedAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DirectMessageReactions_DirectMessageId_UserId_EmojiKey",
+                table: "DirectMessageReactions",
+                columns: new[] { "DirectMessageId", "UserId", "EmojiKey" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DirectMessageReactions_UserId",
+                table: "DirectMessageReactions",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_DirectMessages_DirectChatId_CreatedAt",
                 table: "DirectMessages",
                 columns: new[] { "DirectChatId", "CreatedAt" });
 
             migrationBuilder.CreateIndex(
+                name: "IX_DirectMessages_ReplyToDirectMessageId",
+                table: "DirectMessages",
+                column: "ReplyToDirectMessageId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_DirectMessages_SenderId",
                 table: "DirectMessages",
                 column: "SenderId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_EmojiPreferences_UserId_ChatType_ChatId",
+                table: "EmojiPreferences",
+                columns: new[] { "UserId", "ChatType", "ChatId" },
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_FriendRequests_ReceiverId",
@@ -482,9 +791,30 @@ namespace Persistance.Migrations
                 column: "UploadedById");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Messages_ChatRoomId",
+                name: "IX_MessageReactions_MessageId_CreatedAt",
+                table: "MessageReactions",
+                columns: new[] { "MessageId", "CreatedAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MessageReactions_MessageId_UserId_EmojiKey",
+                table: "MessageReactions",
+                columns: new[] { "MessageId", "UserId", "EmojiKey" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MessageReactions_UserId",
+                table: "MessageReactions",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Messages_ChatRoomId_CreatedAt",
                 table: "Messages",
-                column: "ChatRoomId");
+                columns: new[] { "ChatRoomId", "CreatedAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Messages_ReplyToMessageId",
+                table: "Messages",
+                column: "ReplyToMessageId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Messages_UserId",
@@ -516,10 +846,22 @@ namespace Persistance.Migrations
                 name: "AspNetUserTokens");
 
             migrationBuilder.DropTable(
+                name: "ChatRoomInvites");
+
+            migrationBuilder.DropTable(
+                name: "ChatRoomMemberRoles");
+
+            migrationBuilder.DropTable(
                 name: "ChatRoomMembers");
 
             migrationBuilder.DropTable(
-                name: "DirectMessages");
+                name: "ChatRoomRolePermissions");
+
+            migrationBuilder.DropTable(
+                name: "DirectMessageReactions");
+
+            migrationBuilder.DropTable(
+                name: "EmojiPreferences");
 
             migrationBuilder.DropTable(
                 name: "FriendRequests");
@@ -528,13 +870,25 @@ namespace Persistance.Migrations
                 name: "MediaFiles");
 
             migrationBuilder.DropTable(
-                name: "Messages");
+                name: "MessageReactions");
 
             migrationBuilder.DropTable(
                 name: "UserFriends");
 
             migrationBuilder.DropTable(
                 name: "AspNetRoles");
+
+            migrationBuilder.DropTable(
+                name: "ChatRoomPermissions");
+
+            migrationBuilder.DropTable(
+                name: "ChatRoomRoles");
+
+            migrationBuilder.DropTable(
+                name: "DirectMessages");
+
+            migrationBuilder.DropTable(
+                name: "Messages");
 
             migrationBuilder.DropTable(
                 name: "DirectChats");
