@@ -18,7 +18,7 @@ public class JoinChatRoom
         public required string Token { get; set; }
     }
 
-    public class Handler(AppDbContext context, IUserAccessor userAccessor)
+    public class Handler(AppDbContext context, IUserAccessor userAccessor, IChatRoomRoleService chatRoomRoleService)
         : IRequestHandler<Command, Result<ChatRoomIdentifierDto>>
     {
         public async Task<Result<ChatRoomIdentifierDto>> Handle(Command request, CancellationToken cancellationToken)
@@ -161,6 +161,23 @@ public class JoinChatRoom
             if (!saved)
             {
                 return Result<ChatRoomIdentifierDto>.Failure("Problem updating the DB", 400);
+            }
+
+            try
+            {
+                await chatRoomRoleService.AssignMemberRoleAsync(user.Id, chatRoom.Id, cancellationToken);
+            }
+            catch (ChatRoomNotFoundException ex)
+            {
+                return Result<ChatRoomIdentifierDto>.Failure(ex.Message, 500);
+            }
+            catch (UserNotFoundException ex)
+            {
+                return Result<ChatRoomIdentifierDto>.Failure(ex.Message, 500);
+            }
+            catch (ChatRoomRoleNotFoundException ex)
+            {
+                return Result<ChatRoomIdentifierDto>.Failure(ex.Message, 500);
             }
 
             return Result<ChatRoomIdentifierDto>.Success(new ChatRoomIdentifierDto

@@ -1,5 +1,6 @@
 using Application.ChatRooms.DTOs;
 using Application.Core;
+using Application.Interfaces;
 using AutoMapper;
 using Domain;
 using MediatR;
@@ -14,7 +15,7 @@ public class BanUser
         public required ChatRoomBanDto ChatRoomBanDto { get; set; }
     }
 
-    public class Handler(AppDbContext context, IMapper mapper)
+    public class Handler(AppDbContext context, IMapper mapper, IChatRoomRoleService chatRoomRoleService)
         : IRequestHandler<Command, Result<Unit>>
     {
         public async Task<Result<Unit>> Handle(Command request, CancellationToken cancellationToken)
@@ -38,6 +39,22 @@ public class BanUser
                 return Result<Unit>.Failure("User is not a member of the chatroom", 409);
             else if (search_member.IsOwner)
                 return Result<Unit>.Failure("Cannot ban the chatroom owner", 409);
+
+            try
+            {
+                await chatRoomRoleService.UnassignAllUserRolesAsync(
+                    request.ChatRoomBanDto.ChatRoomId,
+                    request.ChatRoomBanDto.UserId,
+                    cancellationToken);
+            }
+            catch (ChatRoomNotFoundException ex)
+            {
+                return Result<Unit>.Failure(ex.Message, 404);
+            }
+            catch (UserNotFoundException ex)
+            {
+                return Result<Unit>.Failure(ex.Message, 404);
+            }
 
             context.ChatRoomMembers.Remove(search_member);
 
