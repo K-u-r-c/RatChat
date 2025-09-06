@@ -1,4 +1,12 @@
-import { Box, Button, CircularProgress, Chip, Typography, IconButton, Paper } from "@mui/material";
+import {
+  Box,
+  Button,
+  CircularProgress,
+  Chip,
+  Typography,
+  IconButton,
+  Paper,
+} from "@mui/material";
 import { ReplyOutlined } from "@mui/icons-material";
 import { Link } from "react-router";
 import { timeAgo } from "../../../../lib/util/util";
@@ -30,7 +38,6 @@ export default function ChatMessageList({
   onReplyClick,
   onJumpToMessage,
 }: ChatMessageListProps) {
-  // Build grouped render items: consecutive Images/Videos by same sender within short window
   type RenderItem =
     | { kind: "single"; message: BaseMessage }
     | { kind: "group"; type: "Image" | "Video"; messages: BaseMessage[] };
@@ -38,7 +45,7 @@ export default function ChatMessageList({
   const buildRenderItems = (): RenderItem[] => {
     const items: RenderItem[] = [];
     const msgs = messageStore.messages;
-    const timeWindowMs = 15 * 1000; // 15 seconds
+    const timeWindowMs = 15 * 1000;
 
     let i = 0;
     while (i < msgs.length) {
@@ -51,7 +58,7 @@ export default function ChatMessageList({
         let j = i + 1;
         while (j < msgs.length) {
           const n = msgs[j];
-          if ((n.type === groupType) && ((n.senderId || n.userId) === sender)) {
+          if (n.type === groupType && (n.senderId || n.userId) === sender) {
             const tj = new Date(n.createdAt).getTime();
             if (Math.abs(tj - t0) <= timeWindowMs) {
               group.push(n);
@@ -107,12 +114,16 @@ export default function ChatMessageList({
         </Box>
       )}
 
-      {/* Messages list (with grouping) */}
+      {/* Messages list */}
       {renderItems.map((item, idx) => {
         if (item.kind === "single") {
           const message = item.message;
           return (
-            <Box key={message.id} id={`msg-${message.id}`} sx={{ display: "flex", mb: 2 }}>
+            <Box
+              key={message.id}
+              id={`msg-${message.id}`}
+              sx={{ display: "flex", mb: 2 }}
+            >
               <MessageAvatarWithStatus
                 userId={message.senderId || message.userId || ""}
                 imageUrl={message.senderImageUrl || message.imageUrl}
@@ -162,15 +173,34 @@ export default function ChatMessageList({
                 {message.replyToMessageId && (
                   <Paper
                     variant="outlined"
-                    sx={{ p: 1, mb: 1, bgcolor: "action.hover", cursor: onJumpToMessage ? "pointer" : "default" }}
-                    onClick={() => onJumpToMessage && onJumpToMessage(message.replyToMessageId!)}
+                    sx={{
+                      p: 1,
+                      mb: 1,
+                      bgcolor: "action.hover",
+                      cursor: onJumpToMessage ? "pointer" : "default",
+                    }}
+                    onClick={() =>
+                      onJumpToMessage &&
+                      onJumpToMessage(message.replyToMessageId!)
+                    }
                   >
                     <Typography variant="caption" sx={{ fontWeight: 700 }}>
                       Replying to {message.replyToDisplayName || "message"}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
                       {message.replyToType && message.replyToType !== "Text"
-                        ? `Ы"� ${message.replyToMediaOriginalFileName || message.replyToType}`
+                        ? `Ы"� ${
+                            message.replyToMediaOriginalFileName ||
+                            message.replyToType
+                          }`
                         : message.replyToBody || ""}
                     </Typography>
                   </Paper>
@@ -187,9 +217,14 @@ export default function ChatMessageList({
         }
 
         const first = item.messages[0];
-        const displayName = first.senderDisplayName || first.displayName || "Unknown";
+        const displayName =
+          first.senderDisplayName || first.displayName || "Unknown";
         return (
-          <Box key={`group-${first.id}-${idx}`} id={`msg-${first.id}`} sx={{ display: "flex", mb: 2 }}>
+          <Box
+            key={`group-${first.id}-${idx}`}
+            id={`msg-${first.id}`}
+            sx={{ display: "flex", mb: 2 }}
+          >
             <MessageAvatarWithStatus
               userId={first.senderId || first.userId || ""}
               imageUrl={first.senderImageUrl || first.imageUrl}
@@ -200,7 +235,11 @@ export default function ChatMessageList({
               <Box display="flex" alignItems="center" gap={3}>
                 <Typography
                   component={showUserProfiles ? Link : "span"}
-                  to={showUserProfiles ? `/profiles/${first.senderId || first.userId}` : undefined}
+                  to={
+                    showUserProfiles
+                      ? `/profiles/${first.senderId || first.userId}`
+                      : undefined
+                  }
                   variant="subtitle1"
                   sx={{ fontWeight: "bold", textDecoration: "none" }}
                 >
@@ -209,7 +248,12 @@ export default function ChatMessageList({
                 <Typography variant="body2" color="textSecondary">
                   {timeAgo(first.createdAt)}
                 </Typography>
-                <Chip size="small" label={item.type} color="primary" variant="outlined" />
+                <Chip
+                  size="small"
+                  label={item.type}
+                  color="primary"
+                  variant="outlined"
+                />
                 {onReplyClick && (
                   <IconButton
                     size="small"
@@ -225,21 +269,43 @@ export default function ChatMessageList({
               {first.replyToMessageId && (
                 <Paper
                   variant="outlined"
-                  sx={{ p: 1, mb: 1, bgcolor: "action.hover", cursor: onJumpToMessage ? "pointer" : "default" }}
-                  onClick={() => onJumpToMessage && onJumpToMessage(first.replyToMessageId!)}
+                  sx={{
+                    p: 1,
+                    mb: 1,
+                    bgcolor: "action.hover",
+                    cursor: onJumpToMessage ? "pointer" : "default",
+                  }}
+                  onClick={() =>
+                    onJumpToMessage && onJumpToMessage(first.replyToMessageId!)
+                  }
                 >
                   <Typography variant="caption" sx={{ fontWeight: 700 }}>
                     Replying to {first.replyToDisplayName || "message"}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
                     {first.replyToType && first.replyToType !== "Text"
-                      ? `Ы"� ${first.replyToMediaOriginalFileName || first.replyToType}`
+                      ? `Ы"� ${
+                          first.replyToMediaOriginalFileName ||
+                          first.replyToType
+                        }`
                       : first.replyToBody || ""}
                   </Typography>
                 </Paper>
               )}
 
-              <GroupedMediaMessage type={item.type} messages={item.messages} onImageClick={onImageClick} />
+              <GroupedMediaMessage
+                type={item.type}
+                messages={item.messages}
+                onImageClick={onImageClick}
+              />
             </Box>
           </Box>
         );
@@ -249,4 +315,3 @@ export default function ChatMessageList({
     </>
   );
 }
-

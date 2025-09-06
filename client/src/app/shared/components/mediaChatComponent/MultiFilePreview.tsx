@@ -1,4 +1,10 @@
-import { Box, Typography, IconButton, Chip, LinearProgress } from "@mui/material";
+import {
+  Box,
+  Typography,
+  IconButton,
+  Chip,
+  LinearProgress,
+} from "@mui/material";
 import { Close } from "@mui/icons-material";
 
 type PreviewItem = {
@@ -38,10 +44,19 @@ export default function MultiFilePreview({
   const percent = Math.min(100, Math.round((totalSize / maxTotalSize) * 100));
 
   return (
-    <Box sx={{ mb: 2, p: 2, border: "1px solid", borderColor: "divider", borderRadius: 2 }}>
+    <Box
+      sx={{
+        mb: 2,
+        p: 2,
+        border: "1px solid",
+        borderColor: "divider",
+        borderRadius: 2,
+      }}
+    >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
         <Typography variant="body2" fontWeight={700}>
-          Selected files: {items.length} ({formatFileSize(totalSize)} / {formatFileSize(maxTotalSize)})
+          Selected files: {items.length} ({formatFileSize(totalSize)} /{" "}
+          {formatFileSize(maxTotalSize)})
         </Typography>
         <Box sx={{ flex: 1 }} />
         <Chip label="Clear all" size="small" onClick={onClearAll} />
@@ -50,22 +65,42 @@ export default function MultiFilePreview({
 
       {images.length > 0 && (
         <Box sx={{ mb: 2 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: "block", mb: 1 }}
+          >
             Images
           </Typography>
-          <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: 1 }}>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))",
+              gap: 1,
+            }}
+          >
             {images.map((i) => (
               <Box key={i.id} sx={{ position: "relative" }}>
                 <img
                   src={i.preview || ""}
                   alt={i.file.name}
-                  style={{ width: "100%", height: 80, objectFit: "cover", borderRadius: 8 }}
+                  style={{
+                    width: "100%",
+                    height: 80,
+                    objectFit: "cover",
+                    borderRadius: 8,
+                  }}
                 />
                 <IconButton
                   size="small"
                   color="error"
                   onClick={() => onRemove(i.id)}
-                  sx={{ position: "absolute", top: 2, right: 2, bgcolor: "background.paper" }}
+                  sx={{
+                    position: "absolute",
+                    top: 2,
+                    right: 2,
+                    bgcolor: "background.paper",
+                  }}
                 >
                   <Close fontSize="small" />
                 </IconButton>
@@ -77,18 +112,38 @@ export default function MultiFilePreview({
 
       {videos.length > 0 && (
         <Box sx={{ mb: 2 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: "block", mb: 1 }}
+          >
             Videos
           </Typography>
-          <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 1 }}>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
+              gap: 1,
+            }}
+          >
             {videos.map((i) => (
               <Box key={i.id} sx={{ position: "relative" }}>
-                <video src={i.preview || ""} muted controls style={{ width: "100%", height: 100, borderRadius: 8 }} />
+                <video
+                  src={i.preview || ""}
+                  muted
+                  controls
+                  style={{ width: "100%", height: 100, borderRadius: 8 }}
+                />
                 <IconButton
                   size="small"
                   color="error"
                   onClick={() => onRemove(i.id)}
-                  sx={{ position: "absolute", top: 2, right: 2, bgcolor: "background.paper" }}
+                  sx={{
+                    position: "absolute",
+                    top: 2,
+                    right: 2,
+                    bgcolor: "background.paper",
+                  }}
                 >
                   <Close fontSize="small" />
                 </IconButton>
@@ -100,7 +155,11 @@ export default function MultiFilePreview({
 
       {others.length > 0 && (
         <Box>
-          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: "block", mb: 1 }}
+          >
             Other files
           </Typography>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
@@ -120,7 +179,12 @@ export default function MultiFilePreview({
                 <Typography variant="body2" sx={{ flex: 1 }}>
                   {i.file.name} ({formatFileSize(i.file.size)})
                 </Typography>
-                <IconButton size="small" color="error" onClick={() => onRemove(i.id)} title="Remove">
+                <IconButton
+                  size="small"
+                  color="error"
+                  onClick={() => onRemove(i.id)}
+                  title="Remove"
+                >
                   <Close fontSize="small" />
                 </IconButton>
               </Box>
@@ -129,10 +193,13 @@ export default function MultiFilePreview({
         </Box>
       )}
 
-      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 2 }}>
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{ display: "block", mt: 2 }}
+      >
         Add a message below and press Enter to send all.
       </Typography>
     </Box>
   );
 }
-

@@ -123,48 +123,65 @@ export function useFileUpload({
     return "other";
   };
 
-  const makeId = (file: File) => `${file.name}:${file.size}:${file.lastModified}`;
+  const makeId = (file: File) =>
+    `${file.name}:${file.size}:${file.lastModified}`;
 
-  const addFiles = useCallback((files: File[]) => {
-    if (!files || files.length === 0) return;
-    let addedCount = 0;
-    let skippedCount = 0;
+  const addFiles = useCallback(
+    (files: File[]) => {
+      if (!files || files.length === 0) return;
+      let addedCount = 0;
+      let skippedCount = 0;
 
-    setState((prev) => {
-      const currentSize = prev.selectedItems.reduce((s, it) => s + it.file.size, 0);
-      const newItems: SelectedItem[] = [];
-
-      for (const file of files) {
-        const willBe = currentSize + newItems.reduce((s, it) => s + it.file.size, 0) + file.size;
-        if (willBe > MAX_TOTAL_SIZE) {
-          skippedCount++;
-          continue;
-        }
-        const id = makeId(file);
-        if (prev.selectedItems.some((it) => it.id === id) || newItems.some((it) => it.id === id)) {
-          // avoid duplicates in this batch
-          continue;
-        }
-        const kind = kindOf(file);
-        const preview = kind === "image" || kind === "video" ? URL.createObjectURL(file) : null;
-        newItems.push({ id, file, kind, preview });
-        addedCount++;
-      }
-
-      // Toasting inside setState callback ensures counts are up to date post-calc
-      if (skippedCount > 0) {
-        toast.warn(
-          `File size limit reached (250MB). Added ${addedCount}, skipped ${skippedCount}.`
+      setState((prev) => {
+        const currentSize = prev.selectedItems.reduce(
+          (s, it) => s + it.file.size,
+          0
         );
-      }
+        const newItems: SelectedItem[] = [];
 
-      return { ...prev, selectedItems: [...prev.selectedItems, ...newItems] };
-    });
-  }, []);
+        for (const file of files) {
+          const willBe =
+            currentSize +
+            newItems.reduce((s, it) => s + it.file.size, 0) +
+            file.size;
+          if (willBe > MAX_TOTAL_SIZE) {
+            skippedCount++;
+            continue;
+          }
+          const id = makeId(file);
+          if (
+            prev.selectedItems.some((it) => it.id === id) ||
+            newItems.some((it) => it.id === id)
+          ) {
+            continue;
+          }
+          const kind = kindOf(file);
+          const preview =
+            kind === "image" || kind === "video"
+              ? URL.createObjectURL(file)
+              : null;
+          newItems.push({ id, file, kind, preview });
+          addedCount++;
+        }
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    addFiles(acceptedFiles);
-  }, [addFiles]);
+        if (skippedCount > 0) {
+          toast.warn(
+            `File size limit reached (250MB). Added ${addedCount}, skipped ${skippedCount}.`
+          );
+        }
+
+        return { ...prev, selectedItems: [...prev.selectedItems, ...newItems] };
+      });
+    },
+    [MAX_TOTAL_SIZE]
+  );
+
+  const onDrop = useCallback(
+    (acceptedFiles: File[]) => {
+      addFiles(acceptedFiles);
+    },
+    [addFiles]
+  );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -229,7 +246,7 @@ export function useFileUpload({
     },
     multiple: true,
     maxFiles: 100,
-    maxSize: 250 * 1024 * 1024, // per file cap; combined cap handled manually
+    maxSize: 250 * 1024 * 1024,
     noClick: true,
   });
 
@@ -242,7 +259,6 @@ export function useFileUpload({
     if (files.length) {
       addFiles(files);
     }
-    // allow the same file to be selected again in the future
     if (event.target) event.target.value = "";
   };
 
@@ -250,13 +266,18 @@ export function useFileUpload({
     setState((prev) => {
       const target = prev.selectedItems.find((it) => it.id === id);
       if (target?.preview) URL.revokeObjectURL(target.preview);
-      return { ...prev, selectedItems: prev.selectedItems.filter((it) => it.id !== id) };
+      return {
+        ...prev,
+        selectedItems: prev.selectedItems.filter((it) => it.id !== id),
+      };
     });
   };
 
   const clearSelectedFiles = () => {
     setState((prev) => {
-      prev.selectedItems.forEach((it) => it.preview && URL.revokeObjectURL(it.preview));
+      prev.selectedItems.forEach(
+        (it) => it.preview && URL.revokeObjectURL(it.preview)
+      );
       return { ...prev, selectedItems: [] };
     });
   };
@@ -278,16 +299,12 @@ export function useFileUpload({
       setIsBulkUploading(true);
       const trimmedBody = (messageBody || "").trim();
 
-      // Partition into groups: images, videos, others
       const images = state.selectedItems.filter((i) => i.kind === "image");
       const videos = state.selectedItems.filter((i) => i.kind === "video");
       const audios = state.selectedItems.filter((i) => i.kind === "audio");
       const others = state.selectedItems.filter((i) => i.kind === "other");
 
-      const sendOne = async (
-        file: File,
-        includeBody: boolean
-      ) => {
+      const sendOne = async (file: File, includeBody: boolean) => {
         const category = getMediaCategory(file);
         const messageType = getMessageType(file);
         const uploadResult = await uploadMedia.mutateAsync({
@@ -307,18 +324,15 @@ export function useFileUpload({
         });
       };
 
-      // Images: include body only on first image
       for (let idx = 0; idx < images.length; idx++) {
         await sendOne(images[idx].file, idx === 0);
       }
 
-      // Videos: include body only on first video (if no images were sent)
       for (let idx = 0; idx < videos.length; idx++) {
         const includeBody = images.length === 0 && idx === 0;
         await sendOne(videos[idx].file, includeBody);
       }
 
-      // Audios and others: send individually, include body only if none included yet
       const includeBodyForFirstDoc = images.length === 0 && videos.length === 0;
       let bodyUsed = includeBodyForFirstDoc;
       for (let i = 0; i < audios.length; i++) {
