@@ -164,7 +164,7 @@ public class ChatRoomsController(IHubContext<ChatRoomNotificationsHub> hubContex
     [HttpPost("{id}/unban/{user_id}")]
     public async Task<ActionResult<Unit>> UnbanChatRoomUser(string id, string user_id)
     {
-        return HandleResult(await Mediator.Send(
+        var result = await Mediator.Send(
             new UnbanUser.Command
             {
                 ChatRoomBanDto = new ChatRoomBanDto
@@ -173,7 +173,14 @@ public class ChatRoomsController(IHubContext<ChatRoomNotificationsHub> hubContex
                     ChatRoomId = id
                 }
             }
-        ));
+        );
+
+        if (result.IsSuccess)
+        {
+            await _hubContext.Clients.Group(id).SendAsync("UserUnbanned", user_id);
+        }
+
+        return HandleResult(result);
     }
 
 }
