@@ -21,6 +21,9 @@ import EmojiSettingsDialog from "../EmojiSettingsDialog";
 import type { useChatRoomRolesRealtime } from "../../../../lib/hooks/useChatRoomRolesRealtime";
 import { CHATROOM_PERMISSIONS } from "../../../../lib/types/chatroomPermissions";
 
+const MAX_JUMP_ATTEMPTS = 1000;
+const RETRY_DELAY_MS = 100;
+
 interface MediaChatComponentProps {
   title: string;
   messageStore: BaseMessageStore;
@@ -180,7 +183,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
       );
     };
 
-    for (let attempts = 0; attempts < 50; attempts++) {
+    for (let attempts = 0; attempts < MAX_JUMP_ATTEMPTS; attempts++) {
       const el = document.getElementById(
         `msg-${messageId}`
       ) as HTMLElement | null;
@@ -199,7 +202,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
         messageStore.loadOlderMessages();
       }
 
-      await new Promise((res) => setTimeout(res, 150));
+      await new Promise((res) => setTimeout(res, RETRY_DELAY_MS));
     }
   };
 
