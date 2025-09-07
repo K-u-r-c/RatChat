@@ -7,12 +7,14 @@ import {
 } from "@microsoft/signalr";
 import { toast } from "react-toastify";
 import { router } from "../../app/router/Routes";
+import { useQueryClient } from "@tanstack/react-query";
 
 export const useChatRoomNotificationsRealtime = (
   chatRoomId?: string,
   userId?: string
 ) => {
   const created = useRef(false);
+  const queryClient = useQueryClient();
 
   const notificationsStore = useLocalObservable(() => ({
     hubConnection: null as HubConnection | null,
@@ -49,6 +51,18 @@ export const useChatRoomNotificationsRealtime = (
           toast.info(
             `User ${kickedUserId} has been kicked from the chat room.`
           );
+
+          queryClient.setQueryData<any>(
+            ["chatRooms", chatRoomId],
+            (prev: any) => {
+              if (!prev) return prev;
+              const members = (prev.members ?? []).filter(
+                (m: any) => m.id !== kickedUserId
+              );
+              return { ...prev, members };
+            }
+          );
+          queryClient.invalidateQueries({ queryKey: ["chatRooms"] });
         }
       });
 
@@ -60,15 +74,27 @@ export const useChatRoomNotificationsRealtime = (
           toast.info(
             `User ${bannedUserId} has been banned from the chat room.`
           );
+
+          queryClient.setQueryData<any>(
+            ["chatRooms", chatRoomId],
+            (prev: any) => {
+              if (!prev) return prev;
+              const members = (prev.members ?? []).filter(
+                (m: any) => m.id !== bannedUserId
+              );
+              return { ...prev, members };
+            }
+          );
+          queryClient.invalidateQueries({ queryKey: ["chatRooms"] });
         }
       });
 
-      this.hubConnection.on("UserUnbanned", (bannedUserId: string) => {
-        if (userId && bannedUserId === userId) {
+      this.hubConnection.on("UserUnbanned", (unbannedUserId: string) => {
+        if (userId && unbannedUserId === userId) {
           toast.info("You have been unbanned from this chat room.");
         } else {
           toast.info(
-            `User ${bannedUserId} has been unbanned from the chat room.`
+            `User ${unbannedUserId} has been unbanned from the chat room.`
           );
         }
       });
