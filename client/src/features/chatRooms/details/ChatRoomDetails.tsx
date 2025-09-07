@@ -18,6 +18,7 @@ import { observer } from "mobx-react-lite";
 import { useAccount } from "../../../lib/hooks/useAccount";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ChatRoomMemberPopover from "./ChatRoomMemberPopover";
+import { useChatRoomNotificationsRealtime } from "../../../lib/hooks/useChatRoomNotificationsRealtime";
 
 const ChatRoomDetails = observer(function ChatRoomDetails() {
   const { slug } = useParams();
@@ -120,6 +121,7 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
     document.body.style.cursor = "col-resize";
     (document.body.style as CSSStyleDeclaration).userSelect = "none";
   };
+  useChatRoomNotificationsRealtime(id, currentUser?.id);
 
   if (isLoadingChatRoom) return <Typography>Loading...</Typography>;
   if (!chatRoom) return <Typography>Activity not found</Typography>;
