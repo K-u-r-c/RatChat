@@ -1,11 +1,10 @@
 import { useState, useRef, memo } from "react";
-import { IconButton, Popover, Box, type SxProps } from "@mui/material";
+import { IconButton, Popover, Box } from "@mui/material";
 import { AddReaction, EmojiEmotions } from "@mui/icons-material";
 import EmojiPicker, {
   type EmojiClickData,
   EmojiStyle,
   Theme,
-  SuggestionMode,
 } from "emoji-picker-react";
 
 type Props = {
@@ -38,12 +37,12 @@ function EmojiPickerComponent({
 
   const handleEmojiClick = (emojiData: EmojiClickData) => {
     onEmojiSelect(emojiData.emoji);
-    handleClose();
+    setTimeout(() => handleClose(), 0);
   };
 
   const handleReactionClick = (emojiData: EmojiClickData) => {
-    onEmojiSelect(emojiData.emoji);
     handleClose();
+    setTimeout(() => onEmojiSelect(emojiData.emoji), 0);
   };
 
   const handleQuickReact = () => {
@@ -94,56 +93,35 @@ function EmojiPickerComponent({
         anchorEl={anchorEl}
         onClose={handleClose}
         anchorOrigin={{
-          vertical: "top",
+          vertical: "bottom",
           horizontal: "right",
         }}
         transformOrigin={{
-          vertical: "bottom",
+          vertical: "top",
           horizontal: "right",
         }}
         slotProps={{
           paper: {
             elevation: variant === "reaction" ? 0 : undefined,
-            sx: (variant === "reaction"
-              ? {
-                  mt: 0,
-                  p: 0,
-                  backgroundColor: "transparent",
-                  boxShadow: "none",
-                  borderRadius: 0,
-                }
-              : {
-                  mt: -1,
-                  borderRadius: 2,
-                  boxShadow: 3,
-                }) as SxProps,
+            sx: {
+              backgroundColor: "transparent",
+            },
           },
         }}
       >
-        {open && (
-          <Box sx={{ p: variant === "reaction" ? 0 : 1 }}>
-            <EmojiPicker
-              onEmojiClick={handleEmojiClick}
-              emojiStyle={EmojiStyle.NATIVE}
-              theme={"auto" as Theme.AUTO}
-              width={variant === "reaction" ? 300 : 320}
-              height={variant === "reaction" ? 300 : 400}
-              searchDisabled={variant === "reaction"}
-              skinTonesDisabled={variant === "reaction"}
-              previewConfig={{
-                showPreview: variant !== "reaction",
-              }}
-              suggestedEmojisMode={
-                variant === "reaction"
-                  ? SuggestionMode.RECENT
-                  : SuggestionMode.FREQUENT
-              }
-              lazyLoadEmojis={true}
-              reactionsDefaultOpen={variant === "reaction"}
-              onReactionClick={handleReactionClick}
-            />
-          </Box>
-        )}
+        <Box sx={{ p: variant === "reaction" ? 0 : 1 }}>
+          <EmojiPicker
+            onEmojiClick={handleEmojiClick}
+            emojiStyle={EmojiStyle.APPLE}
+            theme={Theme.AUTO}
+            height={400}
+            previewConfig={{
+              showPreview: variant !== "reaction",
+            }}
+            reactionsDefaultOpen={variant === "reaction"}
+            onReactionClick={handleReactionClick}
+          />
+        </Box>
       </Popover>
     </Box>
   );

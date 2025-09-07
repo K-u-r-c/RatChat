@@ -9,7 +9,8 @@ public class User : IdentityUser
     public string? Bio { get; set; }
     public string? ImageUrl { get; set; }
     public string? BannerUrl { get; set; }
-    public string FriendCode { get; set; } = GenerateFriendCode();
+    // Globally unique, non-reused numeric tag (e.g., DisplayName#2137)
+    public int Tag { get; set; }
     public UserStatus Status { get; set; } = UserStatus.Online;
     public DateTime LastSeen { get; set; } = DateTime.UtcNow;
 
@@ -22,19 +23,4 @@ public class User : IdentityUser
 
     public ICollection<ChatRoom> OwnedChatRooms { get; set; } = [];
     public ICollection<ChatRoomMemberRole> AssignedRoles { get; set; } = [];
-
-    // Helper functions
-    private static string GenerateFriendCode()
-    {
-        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        var random = new Random();
-        return new string([
-            .. Enumerable.Repeat(chars, 6).Select(s => s[random.Next(s.Length)])
-        ]);
-    }
-
-    public void RegenerateFriendCode()
-    {
-        FriendCode = GenerateFriendCode();
-    }
 }

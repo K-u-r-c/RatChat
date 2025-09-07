@@ -245,9 +245,14 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
             x.HasIndex(mr => new { mr.MessageId, mr.CreatedAt });
         });
 
-        builder.Entity<User>()
-            .HasIndex(u => u.FriendCode)
-            .IsUnique();
+        builder.Entity<User>(x =>
+        {
+            x.Property(u => u.Tag)
+                .ValueGeneratedOnAdd()
+                .HasDefaultValueSql("NEXT VALUE FOR dbo.UserTagSequence");
+
+            x.HasIndex(u => u.Tag).IsUnique();
+        });
 
         builder.Entity<MediaFile>(x =>
         {

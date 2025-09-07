@@ -70,14 +70,9 @@ export default function ProfilePage() {
       return;
     }
 
-    const friendCode = prompt(
-      `Please enter ${profile.displayName}'s friend code:`
-    );
-    if (!friendCode) return;
-
     try {
       await sendFriendRequest.mutateAsync({
-        friendCode: friendCode.toUpperCase(),
+        receiverId: profile.id,
         message: `Hi ${profile.displayName}! I'd like to add you as a friend.`,
       });
       toast.success("Friend request sent!");

@@ -38,15 +38,16 @@ export default function AvatarWithStatus({
   const avatar = (
     <Box
       sx={{
-        position: "relative",
         display: "inline-block",
         ...containerSx,
+        position: "relative",
       }}
     >
       <Avatar
         src={src}
         alt={alt}
         sx={{
+          position: "relative",
           ...avatarSize,
           ...sx,
         }}
@@ -67,6 +68,7 @@ export default function AvatarWithStatus({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            pointerEvents: "none",
           }}
         >
           <StatusIndicator status={status} size={statusSize} />

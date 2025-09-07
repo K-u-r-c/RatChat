@@ -26,13 +26,13 @@ public class SendFriendRequest
         public async Task<Result<Unit>> Handle(Command request, CancellationToken cancellationToken)
         {
             var currentUser = await userAccessor.GetUserAsync();
-            var friendCode = request.SendFriendRequestDto.FriendCode.ToUpper();
+            var receiverId = request.SendFriendRequestDto.ReceiverId;
 
             var targetUser = await context.Users
-                .FirstOrDefaultAsync(u => u.FriendCode == friendCode, cancellationToken);
+                .FirstOrDefaultAsync(u => u.Id == receiverId, cancellationToken);
 
             if (targetUser == null)
-                return Result<Unit>.Failure("User with this friend code not found", 404);
+                return Result<Unit>.Failure("User not found", 404);
 
             if (targetUser.Id == currentUser.Id)
                 return Result<Unit>.Failure("You cannot send a friend request to yourself", 400);

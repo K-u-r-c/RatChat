@@ -2,7 +2,8 @@ import { useParams } from "react-router";
 import { observer } from "mobx-react-lite";
 import { useDirectMessages } from "../../lib/hooks/useDirectMessages";
 import { useDirectChats } from "../../lib/hooks/useDirectChats";
-import { Typography, Box, Avatar, Alert } from "@mui/material";
+import { Typography, Box, Alert } from "@mui/material";
+import AvatarWithStatus from "../../app/shared/components/AvatarWithStatus";
 import MediaChatComponent from "../../app/shared/components/mediaChatComponent/MediaChatComponent";
 import type { MessageType, MediaUploadResult } from "../../lib/types";
 
@@ -66,13 +67,16 @@ const DirectChatDetails = observer(function DirectChatDetails() {
           mb: 3,
         }}
       >
-        <Avatar
+        <AvatarWithStatus
           src={currentChat.otherUserImageUrl}
           alt={currentChat.otherUserDisplayName}
-          sx={{ width: 48, height: 48 }}
+          size={48}
+          status={
+            currentChat.status || (currentChat.isOnline ? "Online" : "Offline")
+          }
         >
           {currentChat.otherUserDisplayName[0]}
-        </Avatar>
+        </AvatarWithStatus>
         <Box>
           <Typography variant="h5" fontWeight="bold">
             {currentChat.otherUserDisplayName}
@@ -96,7 +100,7 @@ const DirectChatDetails = observer(function DirectChatDetails() {
         onSendMessage={
           currentChat.canSendMessages ? handleSendMessage : async () => {}
         }
-        showUserProfiles={false}
+        showUserProfiles={true}
         chatRoomId={undefined}
         directChatId={id}
         userPermissions={undefined}
