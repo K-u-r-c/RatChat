@@ -120,6 +120,7 @@ public class ChatRoomsController(IHubContext<ChatRoomNotificationsHub> hubContex
     }
 
     [HttpPost("{id}/kick/{user_id}")]
+    [Authorize(Policy = ChatRoomPermissions.KickFromChatRoom)]
     public async Task<ActionResult<string>> KickChatRoomUser(string id, string user_id)
     {
         var result = await Mediator.Send(
@@ -139,6 +140,7 @@ public class ChatRoomsController(IHubContext<ChatRoomNotificationsHub> hubContex
     }
 
     [HttpPost("{id}/ban/{user_id}")]
+    [Authorize(Policy = ChatRoomPermissions.BanFromChatRoom)]
     public async Task<ActionResult<Unit>> BanChatRoomUser(string id, string user_id)
     {
         var result = await Mediator.Send(
@@ -162,6 +164,7 @@ public class ChatRoomsController(IHubContext<ChatRoomNotificationsHub> hubContex
     }
 
     [HttpPost("{id}/unban/{user_id}")]
+    [Authorize(Policy = ChatRoomPermissions.UnbanFromChatRoom)]
     public async Task<ActionResult<Unit>> UnbanChatRoomUser(string id, string user_id)
     {
         var result = await Mediator.Send(
