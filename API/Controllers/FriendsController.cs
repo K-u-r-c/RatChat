@@ -21,15 +21,12 @@ public class FriendsController : BaseApiController
         return HandleResult(await Mediator.Send(new GetFriendRequests.Query()));
     }
 
-    [HttpGet("search/{friendCode}")]
-    public async Task<ActionResult<FriendSearchDto>> SearchUserByFriendCode(string friendCode)
+    [HttpGet("search")]
+    public async Task<ActionResult<List<FriendSearchDto>>> SearchUsers([FromQuery] string q)
     {
         return HandleResult(
             await Mediator.Send(
-                new SearchUserByFriendCode.Query
-                {
-                    FriendCode = friendCode
-                }
+                new SearchUsers.Query { Text = q }
             )
         );
     }

@@ -32,11 +32,11 @@ export const useFriends = () => {
     },
   });
 
-  const searchUserByFriendCode = useMutation({
-    mutationFn: async (friendCode: string) => {
-      const response = await agent.get<FriendSearch>(
-        `/friends/search/${friendCode}`
-      );
+  const searchUsers = useMutation({
+    mutationFn: async (query: string) => {
+      const response = await agent.get<FriendSearch[]>(`/friends/search`, {
+        params: { q: query },
+      });
       return response.data;
     },
   });
@@ -57,7 +57,7 @@ export const useFriends = () => {
             senderId: currentUser?.id || "",
             senderDisplayName: currentUser?.displayName || "",
             senderImageUrl: currentUser?.imageUrl,
-            receiverId: "",
+            receiverId: requestData.receiverId,
             receiverDisplayName: "",
             receiverImageUrl: undefined,
             status: "Pending" as const,
@@ -161,10 +161,29 @@ export const useFriends = () => {
     isLoadingFriends,
     friendRequests,
     isLoadingRequests,
-    searchUserByFriendCode,
+    searchUsers,
     sendFriendRequest,
     respondToFriendRequest,
     cancelFriendRequest,
     removeFriend,
   };
+};
+
+export const useFriendSearch = (query: string) => {
+  const enabled = Boolean(query && query.trim());
+  const q = query.trim();
+  return useQuery({
+    queryKey: ["friend-search", q],
+    enabled,
+    placeholderData: [],
+    staleTime: 1000 * 15,
+    gcTime: 1000 * 60 * 5,
+    queryFn: async ({ signal }) => {
+      const response = await agent.get<FriendSearch[]>(`/friends/search`, {
+        params: { q },
+        signal,
+      });
+      return response.data;
+    },
+  });
 };

@@ -15,7 +15,7 @@ export type User = {
   displayName: string;
   imageUrl?: string;
   bannerUrl?: string;
-  friendCode: string;
+  tag: number;
   hasPassword: boolean;
   status: string;
   customStatusMessage?: string;
@@ -158,7 +158,7 @@ export type FriendRequestsResponse = {
 export type FriendSearch = {
   id: string;
   displayName: string;
-  friendCode: string;
+  tag: number;
   imageUrl?: string;
   isAlreadyFriend: boolean;
   hasPendingRequest: boolean;
@@ -236,7 +236,7 @@ export type SendMessageRequest = {
 };
 
 export type SendFriendRequestRequest = {
-  friendCode: string;
+  receiverId: string;
   message?: string;
 };
 

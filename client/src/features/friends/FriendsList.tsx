@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Box,
   Card,
@@ -9,17 +9,24 @@ import {
   Button,
   Chip,
   Paper,
+  TextField,
+  List,
+  ListItem,
+  ListItemAvatar,
+  Avatar,
+  ListItemText,
+  Collapse,
+  ButtonGroup,
 } from "@mui/material";
-import { PersonAdd } from "@mui/icons-material";
+import { PersonAdd, Settings } from "@mui/icons-material";
 import { useNavigate } from "react-router";
-import { useFriends } from "../../lib/hooks/useFriends";
-import { useAccount } from "../../lib/hooks/useAccount";
+import { useFriends, useFriendSearch } from "../../lib/hooks/useFriends";
+import { useQueryClient } from "@tanstack/react-query";
 import { useDirectChats } from "../../lib/hooks/useDirectChats";
 import { toast } from "react-toastify";
 import { FriendsTab } from "./FriendsTab";
 import { FriendRequestsTab } from "./FriendRequestsTab";
-import { AddFriendDialog } from "./AddFriendDialog";
-import { FriendCodeDialog } from "./FriendCodeDialog";
+import type { FriendSearch } from "../../lib/types";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -45,50 +52,56 @@ function TabPanel(props: TabPanelProps) {
 export default function FriendsList() {
   const navigate = useNavigate();
   const [tabValue, setTabValue] = useState(0);
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  const [showFriendCodeDialog, setShowFriendCodeDialog] = useState(false);
-
-  const { currentUser, regenerateFriendCode } = useAccount();
   const { directChats } = useDirectChats();
   const {
     friends,
     isLoadingFriends,
     friendRequests,
     isLoadingRequests,
-    searchUserByFriendCode,
     sendFriendRequest,
     respondToFriendRequest,
     cancelFriendRequest,
     removeFriend,
   } = useFriends();
+  const queryClient = useQueryClient();
 
-  const handleAddFriend = async (friendCode: string, message?: string) => {
-    try {
-      const result = await searchUserByFriendCode.mutateAsync(friendCode);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<FriendSearch[]>([]);
+  const [showMessage, setShowMessage] = useState<Record<string, boolean>>({});
+  const [messages, setMessages] = useState<Record<string, string>>({});
+  const debounceRef = useRef<number | null>(null);
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  useEffect(() => {
+    if (debounceRef.current) window.clearTimeout(debounceRef.current);
+    debounceRef.current = window.setTimeout(
+      () => setDebouncedQuery(query),
+      300
+    );
+    return () => {
+      if (debounceRef.current) window.clearTimeout(debounceRef.current);
+    };
+  }, [query]);
 
-      if (result.isAlreadyFriend) {
-        toast.info("You are already friends with this user");
-        return;
-      }
+  const { data: searched = [], isFetching } = useFriendSearch(debouncedQuery);
 
-      if (result.hasPendingRequest) {
-        toast.info("There is already a pending friend request with this user");
-        return;
-      }
-
-      await sendFriendRequest.mutateAsync({
-        friendCode,
-        message,
-      });
-
-      setShowAddDialog(false);
-      toast.success("Friend request sent!");
-    } catch (error) {
-      if (import.meta.env.DEV) {
-        console.error("Error searching for friend:", error);
-      }
+  useEffect(() => {
+    const q = debouncedQuery.trim();
+    if (!q) {
+      setResults([]);
+      return;
     }
-  };
+    if (!Array.isArray(searched)) return;
+
+    setResults((prev) => {
+      if (
+        prev.length === searched.length &&
+        prev.every((p, i) => p.id === (searched[i] && searched[i].id))
+      ) {
+        return prev;
+      }
+      return searched as FriendSearch[];
+    });
+  }, [debouncedQuery, searched]);
 
   const handleStartChat = async (friendId: string) => {
     const existingChat = directChats?.find(
@@ -151,34 +164,144 @@ export default function FriendsList() {
     }
   };
 
-  const copyFriendCode = () => {
-    if (currentUser?.friendCode) {
-      navigator.clipboard.writeText(currentUser.friendCode);
-      toast.success("Friend code copied to clipboard!");
-    }
-  };
-
   return (
     <Box sx={{ maxWidth: 800, mx: "auto", p: 2 }}>
-      <Paper sx={{ mb: 3, p: 3 }}>
+      <Paper sx={{ mb: 2, p: 3 }}>
         <Typography variant="h4" gutterBottom>
           Friends
         </Typography>
 
-        <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
-          <Button
-            variant="contained"
-            startIcon={<PersonAdd />}
-            onClick={() => setShowAddDialog(true)}
-          >
-            Add Friend
-          </Button>
-          <Button
-            variant="outlined"
-            onClick={() => setShowFriendCodeDialog(true)}
-          >
-            My Friend Code
-          </Button>
+        <Box sx={{ position: "relative" }}>
+          <TextField
+            fullWidth
+            label="Search users"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Enter name, email, or tag"
+          />
+          {query.trim() && (
+            <Paper
+              elevation={6}
+              sx={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                top: "calc(100% + 8px)",
+                zIndex: 10,
+                maxHeight: 320,
+                overflowY: "auto",
+              }}
+            >
+              <Box sx={{ px: 2, pt: 1 }}>
+                {isFetching && (
+                  <Typography color="text.secondary">Searching...</Typography>
+                )}
+                {!isFetching && results.length === 0 && (
+                  <Typography color="text.secondary">
+                    No matches found
+                  </Typography>
+                )}
+              </Box>
+              <List>
+                {results.map((r) => (
+                  <Box key={r.id}>
+                    <ListItem
+                      onClick={() => navigate(`/profiles/${r.id}`)}
+                      sx={{ cursor: "pointer" }}
+                      secondaryAction={
+                        <ButtonGroup variant="contained" size="small">
+                          <Button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              const msg =
+                                (messages[r.id] || "").trim() || undefined;
+                              try {
+                                await sendFriendRequest.mutateAsync({
+                                  receiverId: r.id,
+                                  message: msg,
+                                });
+                                queryClient.setQueryData(
+                                  ["friend-search", debouncedQuery.trim()],
+                                  (old: FriendSearch[] | undefined) =>
+                                    old?.map((x) =>
+                                      x.id === r.id
+                                        ? { ...x, hasPendingRequest: true }
+                                        : x
+                                    )
+                                );
+                              } catch {
+                                /* empty */
+                              }
+                            }}
+                            disabled={
+                              r.isAlreadyFriend ||
+                              r.hasPendingRequest ||
+                              sendFriendRequest.isPending
+                            }
+                            startIcon={<PersonAdd />}
+                          >
+                            {r.isAlreadyFriend
+                              ? "Friends"
+                              : r.hasPendingRequest
+                              ? "Pending"
+                              : "Add"}
+                          </Button>
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowMessage((prev) => ({
+                                ...prev,
+                                [r.id]: !prev[r.id],
+                              }));
+                            }}
+                            startIcon={<Settings />}
+                            sx={{ minWidth: 0, px: 1 }}
+                          />
+                        </ButtonGroup>
+                      }
+                    >
+                      <ListItemAvatar>
+                        <Avatar src={r.imageUrl} />
+                      </ListItemAvatar>
+                      <ListItemText
+                        primary={
+                          <Box display="flex" alignItems="center" gap={1}>
+                            <Typography fontWeight={600}>
+                              {r.displayName}
+                            </Typography>
+                            <Typography color="text.secondary">
+                              #{r.tag}
+                            </Typography>
+                          </Box>
+                        }
+                      />
+                    </ListItem>
+                    <Collapse
+                      in={!!showMessage[r.id]}
+                      timeout="auto"
+                      unmountOnExit
+                    >
+                      <Box px={9} pb={2}>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label="Optional message"
+                          value={messages[r.id] || ""}
+                          onChange={(e) =>
+                            setMessages((prev) => ({
+                              ...prev,
+                              [r.id]: e.target.value,
+                            }))
+                          }
+                          placeholder="Say hello..."
+                        />
+                      </Box>
+                    </Collapse>
+                  </Box>
+                ))}
+              </List>
+            </Paper>
+          )}
         </Box>
       </Paper>
 
@@ -229,22 +352,7 @@ export default function FriendsList() {
           </TabPanel>
         </CardContent>
       </Card>
-
-      <AddFriendDialog
-        open={showAddDialog}
-        onClose={() => setShowAddDialog(false)}
-        onSubmit={handleAddFriend}
-        isLoading={sendFriendRequest.isPending}
-      />
-
-      <FriendCodeDialog
-        open={showFriendCodeDialog}
-        onClose={() => setShowFriendCodeDialog(false)}
-        friendCode={currentUser?.friendCode}
-        onCopyCode={copyFriendCode}
-        onRegenerateCode={() => regenerateFriendCode.mutate()}
-        isRegenerating={regenerateFriendCode.isPending}
-      />
     </Box>
   );
 }
+
