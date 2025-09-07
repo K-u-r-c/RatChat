@@ -5,7 +5,7 @@ import {
   HubConnectionState,
 } from "@microsoft/signalr";
 import { useEffect, useRef } from "react";
-import type { ChatMessage, PagedList } from "../types";
+import type { ChatMessage, PagedList, MessageReaction } from "../types";
 import { runInAction } from "mobx";
 import { toast } from "react-toastify";
 import { router } from "../../app/router/Routes";
@@ -96,6 +96,59 @@ export const useMessages = (chatRoomId?: string) => {
           this.messages.push(message);
         });
       });
+
+      this.hubConnection.on(
+        "ReceiveReactionUpdate",
+        (update: {
+          action: "added" | "removed";
+          chatRoomId: string;
+          messageId: string;
+          emoji: string;
+          userId: string;
+          displayName: string;
+          createdAt?: string | Date;
+        }) => {
+          runInAction(() => {
+            const idx = this.messages.findIndex(
+              (m) => m.id === update.messageId
+            );
+            if (idx === -1) return;
+            const msg = this.messages[idx] as ChatMessage & {
+              reactions?: MessageReaction[];
+            };
+            const list: MessageReaction[] = msg.reactions
+              ? [...msg.reactions]
+              : [];
+            if (update.action === "added") {
+              if (
+                !list.some(
+                  (r) => r.userId === update.userId && r.emoji === update.emoji
+                )
+              ) {
+                list.push({
+                  messageId: update.messageId,
+                  emoji: update.emoji,
+                  userId: update.userId,
+                  displayName: update.displayName,
+                  createdAt: update.createdAt
+                    ? new Date(update.createdAt)
+                    : new Date(),
+                });
+              }
+            } else {
+              const i = list.findIndex(
+                (r) => r.userId === update.userId && r.emoji === update.emoji
+              );
+              if (i !== -1) list.splice(i, 1);
+            }
+            (
+              this.messages as (ChatMessage & {
+                reactions?: MessageReaction[];
+              })[]
+            )[idx] = { ...msg, reactions: list };
+          });
+        }
+      );
 
       this.hubConnection.on(
         "ReceiveError",

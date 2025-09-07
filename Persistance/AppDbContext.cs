@@ -15,7 +15,9 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
     public required DbSet<FriendRequest> FriendRequests { get; set; }
     public required DbSet<DirectChat> DirectChats { get; set; }
     public required DbSet<DirectMessage> DirectMessages { get; set; }
+    public required DbSet<DirectMessageReaction> DirectMessageReactions { get; set; }
     public required DbSet<EmojiPreference> EmojiPreferences { get; set; }
+    public required DbSet<MessageReaction> MessageReactions { get; set; }
     public required DbSet<ChatRoomRole> ChatRoomRoles { get; set; }
     public required DbSet<ChatRoomMemberRole> ChatRoomMemberRoles { get; set; }
     public required DbSet<ChatRoomPermission> ChatRoomPermissions { get; set; }
@@ -182,6 +184,27 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
             x.HasIndex(dm => new { dm.DirectChatId, dm.CreatedAt });
         });
 
+        builder.Entity<DirectMessageReaction>(x =>
+        {
+            x.HasKey(r => r.Id);
+
+            x.Property(r => r.Emoji).IsRequired().HasMaxLength(64);
+            x.Property(r => r.EmojiKey).IsRequired().HasMaxLength(128);
+
+            x.HasOne(r => r.DirectMessage)
+                .WithMany(m => m.Reactions)
+                .HasForeignKey(r => r.DirectMessageId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            x.HasOne(r => r.User)
+                .WithMany()
+                .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            x.HasIndex(r => new { r.DirectMessageId, r.UserId, r.EmojiKey }).IsUnique();
+            x.HasIndex(r => new { r.DirectMessageId, r.CreatedAt });
+        });
+
         // Reply relationship for chat room messages
         builder.Entity<Message>(x =>
         {
@@ -191,6 +214,35 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
                 .OnDelete(DeleteBehavior.NoAction);
 
             x.HasIndex(m => new { m.ChatRoomId, m.CreatedAt });
+        });
+
+        // Message reactions
+        builder.Entity<MessageReaction>(x =>
+        {
+            x.HasKey(mr => mr.Id);
+
+            x.Property(mr => mr.Emoji)
+                .IsRequired()
+                .HasMaxLength(64);
+
+            x.Property(mr => mr.EmojiKey)
+                .IsRequired()
+                .HasMaxLength(128);
+
+            x.HasOne(mr => mr.Message)
+                .WithMany(m => m.Reactions)
+                .HasForeignKey(mr => mr.MessageId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            x.HasOne(mr => mr.User)
+                .WithMany()
+                .HasForeignKey(mr => mr.UserId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            x.HasIndex(mr => new { mr.MessageId, mr.UserId, mr.EmojiKey })
+                .IsUnique();
+
+            x.HasIndex(mr => new { mr.MessageId, mr.CreatedAt });
         });
 
         builder.Entity<User>()

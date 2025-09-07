@@ -78,6 +78,7 @@ export default function ChatInput({
         }}
       />
       <EmojiPickerComponent
+        variant="standard"
         onEmojiSelect={handleEmojiSelect}
         onQuickReact={handleQuickReact}
         defaultEmoji={defaultEmoji}

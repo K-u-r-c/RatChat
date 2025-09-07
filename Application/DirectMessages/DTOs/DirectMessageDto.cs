@@ -23,4 +23,7 @@ public class DirectMessageDto
     public string? ReplyToBody { get; set; }
     public string? ReplyToType { get; set; }
     public string? ReplyToMediaOriginalFileName { get; set; }
+
+    // Reactions (for direct messages)
+    public List<Application.Messages.DTOs.MessageReactionDto> Reactions { get; set; } = [];
 }

@@ -84,7 +84,8 @@ public class MappingProfiles : Profile
             .ForMember(d => d.ReplyToDisplayName, o => o.MapFrom(s => s.ReplyToMessage != null ? s.ReplyToMessage.User.DisplayName : null))
             .ForMember(d => d.ReplyToBody, o => o.MapFrom(s => s.ReplyToMessage != null ? s.ReplyToMessage.Body : null))
             .ForMember(d => d.ReplyToType, o => o.MapFrom(s => s.ReplyToMessage != null ? s.ReplyToMessage.Type.ToString() : null))
-            .ForMember(d => d.ReplyToMediaOriginalFileName, o => o.MapFrom(s => s.ReplyToMessage != null ? s.ReplyToMessage.MediaOriginalFileName : null));
+            .ForMember(d => d.ReplyToMediaOriginalFileName, o => o.MapFrom(s => s.ReplyToMessage != null ? s.ReplyToMessage.MediaOriginalFileName : null))
+            .ForMember(d => d.Reactions, o => o.MapFrom(s => s.Reactions));
 
         CreateMap<DirectChat, DirectChatDto>()
             .ForMember(d => d.OtherUserId, o => o.MapFrom(s =>
@@ -115,7 +116,8 @@ public class MappingProfiles : Profile
             .ForMember(d => d.ReplyToDisplayName, o => o.MapFrom(s => s.ReplyToDirectMessage != null ? s.ReplyToDirectMessage.Sender.DisplayName : null))
             .ForMember(d => d.ReplyToBody, o => o.MapFrom(s => s.ReplyToDirectMessage != null ? s.ReplyToDirectMessage.Body : null))
             .ForMember(d => d.ReplyToType, o => o.MapFrom(s => s.ReplyToDirectMessage != null ? s.ReplyToDirectMessage.Type.ToString() : null))
-            .ForMember(d => d.ReplyToMediaOriginalFileName, o => o.MapFrom(s => s.ReplyToDirectMessage != null ? s.ReplyToDirectMessage.MediaOriginalFileName : null));
+            .ForMember(d => d.ReplyToMediaOriginalFileName, o => o.MapFrom(s => s.ReplyToDirectMessage != null ? s.ReplyToDirectMessage.MediaOriginalFileName : null))
+            .ForMember(d => d.Reactions, o => o.MapFrom(s => s.Reactions));
 
         CreateMap<UserFriend, FriendDto>()
             .ForMember(d => d.Id, o => o.MapFrom(s => s.Friend.Id))
@@ -139,5 +141,16 @@ public class MappingProfiles : Profile
             .ForMember(d => d.Status, o => o.MapFrom(s => s.Status.ToString()));
 
         CreateMap<EmojiPreference, EmojiPreferenceDto>();
+
+        CreateMap<MessageReaction, MessageReactionDto>()
+            .ForMember(d => d.MessageId, o => o.MapFrom(s => s.MessageId))
+            .ForMember(d => d.Emoji, o => o.MapFrom(s => s.Emoji))
+            .ForMember(d => d.UserId, o => o.MapFrom(s => s.UserId))
+            .ForMember(d => d.DisplayName, o => o.MapFrom(s => s.User.DisplayName))
+            .ForMember(d => d.CreatedAt, o => o.MapFrom(s => s.CreatedAt));
+
+        CreateMap<DirectMessageReaction, MessageReactionDto>()
+            .ForMember(d => d.MessageId, o => o.MapFrom(s => s.DirectMessageId))
+            .ForMember(d => d.DisplayName, o => o.MapFrom(s => s.User.DisplayName ?? ""));
     }
 }

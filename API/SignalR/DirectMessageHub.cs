@@ -28,6 +28,32 @@ public class DirectMessageHub(IMediator mediator) : Hub
         }
     }
 
+    public async Task ToggleDirectMessageReaction(string directChatId, string directMessageId, string emoji)
+    {
+        try
+        {
+            var result = await mediator.Send(new ToggleDirectMessageReaction.Command
+            {
+                DirectChatId = directChatId,
+                DirectMessageId = directMessageId,
+                Emoji = emoji
+            });
+
+            if (result.IsSuccess)
+            {
+                await Clients.OthersInGroup(directChatId).SendAsync("ReceiveDirectReactionUpdate", result.Value);
+            }
+            else
+            {
+                await Clients.Caller.SendAsync("ReceiveError", result.Code, result.Error);
+            }
+        }
+        catch
+        {
+            await Clients.Caller.SendAsync("ReceiveError", 500, "Failed to toggle reaction");
+        }
+    }
+
     public async Task SendDirectMediaMessage(SendDirectMessage.Command command)
     {
         try

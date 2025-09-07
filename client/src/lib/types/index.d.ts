@@ -55,6 +55,7 @@ export type BaseMessage = {
   replyToBody?: string;
   replyToType?: MessageType;
   replyToMediaOriginalFileName?: string;
+  reactions?: MessageReaction[];
 };
 
 export type BaseMessageStore = {
@@ -103,6 +104,7 @@ export type ChatMessage = {
   replyToBody?: string;
   replyToType?: MessageType;
   replyToMediaOriginalFileName?: string;
+  reactions?: MessageReaction[];
 };
 
 export type MessageType = "Text" | "Image" | "Video" | "Document" | "Audio";
@@ -196,6 +198,15 @@ export type DirectMessage = {
   replyToBody?: string;
   replyToType?: MessageType;
   replyToMediaOriginalFileName?: string;
+  reactions?: MessageReaction[];
+};
+
+export type MessageReaction = {
+  messageId: string;
+  emoji: string;
+  userId: string;
+  displayName: string;
+  createdAt: Date;
 };
 
 export type SendDirectMessageRequest = {

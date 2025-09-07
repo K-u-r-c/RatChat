@@ -24,4 +24,6 @@ public class DirectMessage
     // Reply relationship (self-reference)
     public string? ReplyToDirectMessageId { get; set; }
     public DirectMessage? ReplyToDirectMessage { get; set; }
+
+    public ICollection<DirectMessageReaction> Reactions { get; set; } = [];
 }
