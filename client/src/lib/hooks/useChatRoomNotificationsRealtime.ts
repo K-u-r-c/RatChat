@@ -82,7 +82,15 @@ export const useChatRoomNotificationsRealtime = (
               const members = (prev.members ?? []).filter(
                 (m: any) => m.id !== bannedUserId
               );
-              return { ...prev, members };
+              const bans = [
+                ...(prev.bans ?? []),
+                {
+                  userId: bannedUserId,
+                  chatRoomId,
+                  dateBanned: new Date().toISOString(),
+                },
+              ];
+              return { ...prev, members, bans };
             }
           );
           queryClient.invalidateQueries({ queryKey: ["chatRooms"] });
@@ -96,6 +104,20 @@ export const useChatRoomNotificationsRealtime = (
           toast.info(
             `User ${unbannedUserId} has been unbanned from the chat room.`
           );
+
+          if (chatRoomId) {
+            queryClient.setQueryData<any>(
+              ["chatRooms", chatRoomId],
+              (prev: any) => {
+                if (!prev) return prev;
+                const bans = (prev.bans ?? []).filter(
+                  (b: any) => b.userId !== unbannedUserId
+                );
+                return { ...prev, bans };
+              }
+            );
+            queryClient.invalidateQueries({ queryKey: ["chatRooms"] });
+          }
         }
       });
     },

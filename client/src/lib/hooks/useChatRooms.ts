@@ -145,15 +145,12 @@ export const useChatRooms = (identifier?: string) => {
       } = params;
 
       if (allowedUserId) {
-        const response = await agent.post<string>(
-          `/chatRooms/${id}/invites`,
-          {
-            allowedUserId,
-            maxUses,
-            expiresInMinutes,
-            sendToFriend,
-          }
-        );
+        const response = await agent.post<string>(`/chatRooms/${id}/invites`, {
+          allowedUserId,
+          maxUses,
+          expiresInMinutes,
+          sendToFriend,
+        });
 
         return { link: response.data, sentToFriend: sendToFriend };
       }
