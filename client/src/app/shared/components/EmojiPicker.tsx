@@ -97,7 +97,7 @@ function EmojiPickerComponent({
           horizontal: "right",
         }}
         transformOrigin={{
-          vertical: "top",
+          vertical: "bottom",
           horizontal: "right",
         }}
         slotProps={{
