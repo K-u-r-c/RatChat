@@ -1,7 +1,12 @@
 import { useState, useRef, memo } from "react";
-import { IconButton, Popover, Box } from "@mui/material";
-import { EmojiEmotions } from "@mui/icons-material";
-import EmojiPicker, { type EmojiClickData } from "emoji-picker-react";
+import { IconButton, Popover, Box, type SxProps } from "@mui/material";
+import { AddReaction, EmojiEmotions } from "@mui/icons-material";
+import EmojiPicker, {
+  type EmojiClickData,
+  EmojiStyle,
+  Theme,
+  SuggestionMode,
+} from "emoji-picker-react";
 
 type Props = {
   onEmojiSelect: (emoji: string) => void;
@@ -9,6 +14,7 @@ type Props = {
   defaultEmoji?: string;
   showQuickReact?: boolean;
   disabled?: boolean;
+  variant?: "standard" | "reaction";
 };
 
 function EmojiPickerComponent({
@@ -17,6 +23,7 @@ function EmojiPickerComponent({
   defaultEmoji = "👍",
   showQuickReact = true,
   disabled = false,
+  variant = "standard",
 }: Props) {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -30,6 +37,11 @@ function EmojiPickerComponent({
   };
 
   const handleEmojiClick = (emojiData: EmojiClickData) => {
+    onEmojiSelect(emojiData.emoji);
+    handleClose();
+  };
+
+  const handleReactionClick = (emojiData: EmojiClickData) => {
     onEmojiSelect(emojiData.emoji);
     handleClose();
   };
@@ -66,7 +78,7 @@ function EmojiPickerComponent({
         onClick={handleClick}
         disabled={disabled}
         size="small"
-        title="Add emoji"
+        title={variant === "reaction" ? "React" : "Add emoji"}
         sx={{
           color: "primary.main",
           "&:hover": {
@@ -74,7 +86,7 @@ function EmojiPickerComponent({
           },
         }}
       >
-        <EmojiEmotions />
+        {variant === "reaction" ? <AddReaction /> : <EmojiEmotions />}
       </IconButton>
 
       <Popover
@@ -91,26 +103,45 @@ function EmojiPickerComponent({
         }}
         slotProps={{
           paper: {
-            sx: {
-              mt: -1,
-              borderRadius: 2,
-              boxShadow: 3,
-            },
+            elevation: variant === "reaction" ? 0 : undefined,
+            sx: (variant === "reaction"
+              ? {
+                  mt: 0,
+                  p: 0,
+                  backgroundColor: "transparent",
+                  boxShadow: "none",
+                  borderRadius: 0,
+                }
+              : {
+                  mt: -1,
+                  borderRadius: 2,
+                  boxShadow: 3,
+                }) as SxProps,
           },
         }}
       >
         {open && (
-          <Box sx={{ p: 1 }}><EmojiPicker
-            onEmojiClick={handleEmojiClick}
-            emojiStyle={"native" as any}
-            theme={"auto" as any}
-            width={320}
-            height={400}
-            searchDisabled={false}
-            skinTonesDisabled={false}
-            previewConfig={{
-              showPreview: true,
-            }} />
+          <Box sx={{ p: variant === "reaction" ? 0 : 1 }}>
+            <EmojiPicker
+              onEmojiClick={handleEmojiClick}
+              emojiStyle={EmojiStyle.NATIVE}
+              theme={"auto" as Theme.AUTO}
+              width={variant === "reaction" ? 300 : 320}
+              height={variant === "reaction" ? 300 : 400}
+              searchDisabled={variant === "reaction"}
+              skinTonesDisabled={variant === "reaction"}
+              previewConfig={{
+                showPreview: variant !== "reaction",
+              }}
+              suggestedEmojisMode={
+                variant === "reaction"
+                  ? SuggestionMode.RECENT
+                  : SuggestionMode.FREQUENT
+              }
+              lazyLoadEmojis={true}
+              reactionsDefaultOpen={variant === "reaction"}
+              onReactionClick={handleReactionClick}
+            />
           </Box>
         )}
       </Popover>
@@ -119,7 +150,3 @@ function EmojiPickerComponent({
 }
 
 export default memo(EmojiPickerComponent);
-
-
-
-

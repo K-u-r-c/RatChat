@@ -5,7 +5,7 @@ import {
   HubConnectionState,
 } from "@microsoft/signalr";
 import { useEffect, useRef } from "react";
-import type { DirectMessage, PagedList } from "../types";
+import type { DirectMessage, MessageReaction, PagedList } from "../types";
 import { runInAction } from "mobx";
 import { toast } from "react-toastify";
 import { calculatePageSizeForMessages } from "../util/util";
@@ -108,7 +108,7 @@ export const useDirectMessages = (directChatId?: string) => {
             );
             if (idx === -1) return;
             const msg = this.messages[idx] as DirectMessage & {
-              reactions?: import("../types").MessageReaction[];
+              reactions?: MessageReaction[];
             };
             const list = msg.reactions ? [...msg.reactions] : [];
             if (update.action === "added") {

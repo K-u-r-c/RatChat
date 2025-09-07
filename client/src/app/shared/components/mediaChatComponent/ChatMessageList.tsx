@@ -288,6 +288,7 @@ export default function ChatMessageList({
                     {/* React with emoji */}
                     {(chatRoomId || directChatId) && (
                       <EmojiPickerComponent
+                        variant="reaction"
                         onQuickReact={async (emoji) =>
                           toggleReactionOptimistic(message.id, emoji)
                         }
@@ -420,6 +421,7 @@ export default function ChatMessageList({
                   )}
                   {(chatRoomId || directChatId) && (
                     <EmojiPickerComponent
+                      variant="reaction"
                       onQuickReact={async (emoji) =>
                         toggleReactionOptimistic(first.id, emoji)
                       }
