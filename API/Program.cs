@@ -16,7 +16,6 @@ using Infrastructure.Email;
 using Infrastructure.Media;
 using Infrastructure.Security;
 using Infrastructure.Services;
-using API.SignalR;
 using API.Services;
 using Infrastructure.Storage;
 using Microsoft.AspNetCore.Authorization;
