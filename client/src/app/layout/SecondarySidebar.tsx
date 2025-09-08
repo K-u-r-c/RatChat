@@ -59,11 +59,7 @@ export default function SecondarySidebar() {
             <DirectSearchInput
               value={query}
               onChange={setQuery}
-              placeholder={
-                isFriendsRoute
-                  ? "Search friends' conversations"
-                  : "Search conversations"
-              }
+              placeholder={"Search conversations"}
             />
           </Box>
 
