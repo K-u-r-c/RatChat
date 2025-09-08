@@ -1,4 +1,4 @@
-import { Box, TextField, IconButton, CircularProgress } from "@mui/material";
+import { TextField, IconButton, CircularProgress, Paper } from "@mui/material";
 import { AttachFile } from "@mui/icons-material";
 import { useForm, type FieldValues } from "react-hook-form";
 import EmojiPickerComponent from "../EmojiPicker";
@@ -58,7 +58,10 @@ export default function ChatInput({
   };
 
   return (
-    <Box sx={{ display: "flex", gap: 1, alignItems: "flex-end" }}>
+    <Paper
+      className="rc-panel"
+      sx={{ p: 1, mt: 1, display: "flex", gap: 1, alignItems: "flex-end" }}
+    >
       <TextField
         {...register("body")}
         variant="outlined"
@@ -74,6 +77,21 @@ export default function ChatInput({
               isSubmitting || isUploading ? (
                 <CircularProgress size={24} />
               ) : null,
+          },
+        }}
+        sx={{
+          bgcolor: "#1f2125",
+          borderRadius: 1,
+          "& .MuiOutlinedInput-notchedOutline": { borderColor: "transparent" },
+          "&:hover .MuiOutlinedInput-notchedOutline": {
+            borderColor: "transparent",
+          },
+          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+            borderColor: "transparent",
+          },
+          "& .MuiInputBase-input, & .MuiInputBase-inputMultiline": {
+            color: "#fff",
+            "&::placeholder": { color: "rgba(255,255,255,0.6)" },
           },
         }}
       />
@@ -93,6 +111,6 @@ export default function ChatInput({
       >
         <AttachFile />
       </IconButton>
-    </Box>
+    </Paper>
   );
 }

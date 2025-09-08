@@ -50,14 +50,17 @@ export default function DirectChatsList() {
 
   return (
     <Box sx={{ maxWidth: 800, mx: "auto", p: 2 }}>
-      <Paper sx={{ mb: 3, p: 3 }}>
+      <Paper
+        className="rc-panel"
+        sx={{ mb: 3, p: 3, bgcolor: "rgba(19,19,22,0.85)" }}
+      >
         <Typography variant="h4" gutterBottom>
           Direct Messages
         </Typography>
       </Paper>
 
-      <Card>
-        <CardContent sx={{ p: 0 }}>
+      <Card className="rc-panel">
+        <CardContent sx={{ p: 0, bgcolor: "rgba(19,19,22,0.65)" }}>
           {chatsArray.length === 0 ? (
             <Box sx={{ p: 3, textAlign: "center" }}>
               <Typography color="text.secondary">
@@ -74,9 +77,8 @@ export default function DirectChatsList() {
                   sx={{
                     textDecoration: "none",
                     color: "inherit",
-                    "&:hover": {
-                      backgroundColor: "action.hover",
-                    },
+                    transition: "background-color 120ms ease",
+                    "&:hover": { backgroundColor: "action.hover" },
                   }}
                   divider
                 >

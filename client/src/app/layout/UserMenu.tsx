@@ -1,6 +1,7 @@
 import { Box, Divider, ListItemIcon, ListItemText } from "@mui/material";
 import Button from "@mui/material/Button";
 import Menu from "@mui/material/Menu";
+import Grow from "@mui/material/Grow";
 import MenuItem from "@mui/material/MenuItem";
 import { useState } from "react";
 import { Link } from "react-router";
@@ -48,9 +49,17 @@ export default function UserMenu() {
         }}
         slotProps={{
           paper: {
-            sx: { minWidth: 220 },
+            sx: {
+              minWidth: 240,
+              bgcolor: "rgba(19,19,22,0.95)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 2,
+              boxShadow: "0 14px 40px rgba(0,0,0,0.7)",
+              backdropFilter: "blur(6px)",
+            },
           },
         }}
+        TransitionComponent={Grow}
       >
         {/* Status Selector at the top */}
         <Box sx={{ px: 2, py: 1 }}>

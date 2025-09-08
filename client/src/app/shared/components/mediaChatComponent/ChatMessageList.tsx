@@ -225,6 +225,7 @@ export default function ChatMessageList({
             <Box
               key={message.id}
               id={`msg-${message.id}`}
+              className="rc-message"
               sx={{
                 display: "flex",
                 mb: 2,
@@ -254,7 +255,7 @@ export default function ChatMessageList({
                   >
                     {message.senderDisplayName || message.displayName}
                   </Typography>
-                  <Typography variant="body2" color="textSecondary">
+                  <Typography variant="body2" color="text.secondary">
                     {timeAgo(message.createdAt)}
                   </Typography>
                   {message.type !== "Text" && (
@@ -364,6 +365,7 @@ export default function ChatMessageList({
           <Box
             key={`group-${first.id}-${idx}`}
             id={`msg-${first.id}`}
+            className="rc-message"
             sx={{
               display: "flex",
               mb: 2,
@@ -391,7 +393,7 @@ export default function ChatMessageList({
                 >
                   {displayName}
                 </Typography>
-                <Typography variant="body2" color="textSecondary">
+                <Typography variant="body2" color="text.secondary">
                   {timeAgo(first.createdAt)}
                 </Typography>
                 <Chip

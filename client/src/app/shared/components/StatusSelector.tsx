@@ -83,7 +83,7 @@ export default function StatusSelector() {
       <Button
         onClick={handleClick}
         sx={{
-          color: "black",
+          color: "white",
           textTransform: "none",
           display: "flex",
           alignItems: "center",

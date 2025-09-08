@@ -224,8 +224,10 @@ const MediaChatComponent = observer(function MediaChatComponent({
       {/* Drag overlay */}
       <DragOverlay isDragActive={fileUpload.isDragActive} />
 
-      <Card>
-        <CardContent sx={{ p: 0 }}>
+      <Card className="rc-panel">
+        <CardContent
+          sx={{ p: 0, bgcolor: "rgba(19,19,22,0.65)", borderRadius: 2 }}
+        >
           {/* Messages container */}
           <Box
             ref={scrollHandler.messagesContainerRef}
@@ -236,6 +238,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
               flexDirection: "column",
               p: 2,
             }}
+            className="rc-scroll"
             onScroll={scrollHandler.handleScroll}
           >
             <ChatMessageList

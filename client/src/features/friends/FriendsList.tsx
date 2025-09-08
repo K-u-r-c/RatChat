@@ -166,7 +166,10 @@ export default function FriendsList() {
 
   return (
     <Box sx={{ maxWidth: 800, mx: "auto", p: 2 }}>
-      <Paper sx={{ mb: 2, p: 3 }}>
+      <Paper
+        className="rc-panel"
+        sx={{ mb: 2, p: 3, bgcolor: "rgba(19,19,22,0.85)" }}
+      >
         <Typography variant="h4" gutterBottom>
           Friends
         </Typography>
@@ -178,6 +181,20 @@ export default function FriendsList() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Enter name, email, or tag"
+            sx={{
+              bgcolor: "#1f2125",
+              borderRadius: 1,
+              "& .MuiOutlinedInput-notchedOutline": {
+                borderColor: "transparent",
+              },
+              "&:hover .MuiOutlinedInput-notchedOutline": {
+                borderColor: "transparent",
+              },
+              "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                borderColor: "transparent",
+              },
+              input: { color: "white" },
+            }}
           />
           {query.trim() && (
             <Paper
@@ -190,6 +207,9 @@ export default function FriendsList() {
                 zIndex: 10,
                 maxHeight: 320,
                 overflowY: "auto",
+                bgcolor: "rgba(19,19,22,0.95)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: 2,
               }}
             >
               <Box sx={{ px: 2, pt: 1 }}>
@@ -355,4 +375,3 @@ export default function FriendsList() {
     </Box>
   );
 }
-
