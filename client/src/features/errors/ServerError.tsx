@@ -18,8 +18,8 @@ export default function NotFound() {
       <Typography gutterBottom variant="h3">
         Oops - we could not find what you are looking for
       </Typography>
-      <Button fullWidth component={Link} to="/activities">
-        Return to the activities page
+      <Button fullWidth component={Link} to="/direct-chats">
+        Return to the app
       </Button>
     </Paper>
   );

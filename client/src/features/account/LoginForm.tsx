@@ -50,7 +50,7 @@ export default function LoginForm() {
   const onSubmit = async (data: LoginSchema) => {
     await loginUser.mutateAsync(data, {
       onSuccess: () => {
-        navigate(location.state?.from || "/chat-rooms");
+        navigate(location.state?.from || "/direct-chats");
       },
       onError: (error) => {
         if (error.message === "NotAllowed") setNotVerified(true);

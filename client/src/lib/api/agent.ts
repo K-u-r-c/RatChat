@@ -63,7 +63,7 @@ agent.interceptors.response.use(
         if (isChatRoomDetailsGet) {
           if (!store.uiStore.consumeSuppressNextChatRoomForbiddenToast()) {
             toast.error("You are not a member of this chat room");
-            router.navigate("/chat-rooms");
+            router.navigate("/direct-chats");
           }
         } else {
           toast.error("Forbidden");

@@ -6,7 +6,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import agent from "../api/agent";
-import { useLocation, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { useAccount } from "./useAccount";
 import type { ChatRoom, PagedList } from "../types";
 import { useStore } from "./useStore";
@@ -17,7 +17,6 @@ import { toast } from "react-toastify";
 export const useChatRooms = (id?: string) => {
   const queryClient = useQueryClient();
   const { currentUser } = useAccount();
-  const location = useLocation();
   const navigate = useNavigate();
   const {
     chatRoomsStore: { filter, startDate },
@@ -52,7 +51,8 @@ export const useChatRooms = (id?: string) => {
     placeholderData: keepPreviousData,
     initialPageParam: null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
-    enabled: !id && location.pathname == "/chat-rooms" && !!currentUser,
+    // List view is no longer used; keep query disabled by default
+    enabled: false,
     select: (data) => ({
       ...data,
       pages: data.pages.map((page) => ({
@@ -116,7 +116,7 @@ export const useChatRooms = (id?: string) => {
       await agent.delete(`/chatRooms/${id}`);
     },
     onSuccess: async () => {
-      navigate("/chat-rooms");
+      navigate("/direct-chats");
       toast.success("Chat room deleted successfully");
     },
     onError: () => {
@@ -178,7 +178,7 @@ export const useChatRooms = (id?: string) => {
       uiStore.suppressNextChatRoomForbiddenToast();
     },
     onSuccess: async () => {
-      navigate("/chat-rooms");
+      navigate("/direct-chats");
       toast.success("You have left the chat room");
     },
     onError: () => {

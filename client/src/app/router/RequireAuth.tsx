@@ -28,7 +28,7 @@ export default function RequireAuth() {
     !currentUser.hasPassword &&
     location.pathname === "/change-password"
   ) {
-    return <Navigate to="/chat-rooms" replace />;
+    return <Navigate to="/direct-chats" replace />;
   }
 
   return <Outlet />;

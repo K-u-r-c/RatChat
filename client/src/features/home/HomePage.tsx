@@ -45,7 +45,7 @@ export default function HomePage() {
 
       <Button
         component={Link}
-        to="/chat-rooms"
+        to="/direct-chats"
         variant="contained"
         sx={{
           height: { xs: 48, sm: 60 },
