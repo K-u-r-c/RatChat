@@ -20,11 +20,7 @@ export default function SecondarySidebar() {
   const location = useLocation();
   const { directChats } = useDirectChats();
   const [query, setQuery] = useState("");
-  const isDirectContext =
-    location.pathname.startsWith("/friends") ||
-    location.pathname.startsWith("/direct-chats") ||
-    location.pathname.startsWith("/not-found") ||
-    location.pathname === "/";
+  const shouldShowDefaultContext = !location.pathname.startsWith("/chat-rooms");
   const isFriendsRoute = location.pathname.startsWith("/friends");
 
   const filteredChats = useMemo(() => {
@@ -53,7 +49,7 @@ export default function SecondarySidebar() {
         borderRight: "1px solid rgba(255,255,255,0.08)",
       }}
     >
-      {isDirectContext ? (
+      {shouldShowDefaultContext ? (
         <>
           <Box sx={{ p: 2 }}>
             <DirectSearchInput
