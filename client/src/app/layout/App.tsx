@@ -1,13 +1,15 @@
-import { Box, Container, CssBaseline } from "@mui/material";
-import NavBar from "./NavBar";
-import { Outlet, ScrollRestoration } from "react-router";
+import { Box, CssBaseline } from "@mui/material";
+import { Outlet, ScrollRestoration, useLocation } from "react-router";
 import { useAccount } from "../../lib/hooks/useAccount";
 import FriendsRealtimeProvider from "../shared/components/FriendsRealtimeProvider";
 import StatusRealtimeProvider from "../shared/components/StatusRealtimeProvider";
 import HomePage from "../../features/home/HomePage";
+import SideNav from "./SideNav";
+import DirectSidebar from "./DirectSidebar";
 
 function App() {
   const { currentUser } = useAccount();
+  const location = useLocation();
 
   return (
     <Box sx={{ bgcolor: "#27262C", minHeight: "100vh" }}>
@@ -22,12 +24,24 @@ function App() {
       {location.pathname === "/" ? (
         <HomePage />
       ) : (
-        <>
-          <NavBar />
-          <Container maxWidth="xl" sx={{ pt: 14 }}>
+        <Box sx={{ display: "flex", minHeight: "100vh" }}>
+          <SideNav />
+          <DirectSidebar />
+
+          <Box
+            component="main"
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              display: "flex",
+              flexDirection: "column",
+              px: { xs: 1.5, md: 3 },
+              py: 2,
+            }}
+          >
             <Outlet />
-          </Container>
-        </>
+          </Box>
+        </Box>
       )}
     </Box>
   );

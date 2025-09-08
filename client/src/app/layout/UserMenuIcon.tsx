@@ -1,15 +1,21 @@
-import { Box, Divider, ListItemIcon, ListItemText } from "@mui/material";
-import Button from "@mui/material/Button";
+import {
+  Box,
+  IconButton,
+  ListItemIcon,
+  ListItemText,
+  Divider,
+  Tooltip,
+} from "@mui/material";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
+import { Password, Person, Logout } from "@mui/icons-material";
 import { useState } from "react";
 import { Link } from "react-router";
-import { Password, Person, Logout } from "@mui/icons-material";
 import { useAccount } from "../../lib/hooks/useAccount";
 import StatusSelector from "../shared/components/StatusSelector";
 import AvatarWithStatus from "../shared/components/AvatarWithStatus";
 
-export default function UserMenu() {
+export default function UserMenuIcon() {
   const { currentUser, logoutUser } = useAccount();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
@@ -21,44 +27,39 @@ export default function UserMenu() {
     setAnchorEl(null);
   };
 
+  if (!currentUser) return null;
+
   return (
     <>
-      <Button
-        onClick={handleClick}
-        color="inherit"
-        size="large"
-        sx={{ fontSize: "1.1rem" }}
-      >
-        <Box display="flex" alignItems="center" gap={2}>
+      <Tooltip title={currentUser.displayName} placement="right">
+        <IconButton
+          onClick={handleClick}
+          color="inherit"
+          size="large"
+          sx={{ width: 52, height: 52, p: 0 }}
+        >
           <AvatarWithStatus
             src={currentUser?.imageUrl}
             alt="Current user image"
             status={currentUser?.status || "Offline"}
+            size={48}
           />
-          {currentUser?.displayName}
-        </Box>
-      </Button>
+        </IconButton>
+      </Tooltip>
       <Menu
-        id="basic-menu"
+        id="user-menu-icon"
         anchorEl={anchorEl}
         open={open}
         onClose={handleClose}
-        MenuListProps={{
-          "aria-labelledby": "basic-button",
-        }}
-        slotProps={{
-          paper: {
-            sx: { minWidth: 220 },
-          },
-        }}
+        MenuListProps={{ "aria-labelledby": "user-menu-icon" }}
+        PaperProps={{ sx: { minWidth: 220 } }}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+        transformOrigin={{ vertical: "bottom", horizontal: "right" }}
       >
-        {/* Status Selector at the top */}
         <Box sx={{ px: 2, py: 1 }}>
           <StatusSelector />
         </Box>
-
         <Divider />
-
         {/* Create chat room moved to sidebar */}
         <MenuItem
           component={Link}
