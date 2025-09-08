@@ -12,17 +12,19 @@ import { Link, useLocation } from "react-router";
 import { useDirectChats } from "../../lib/hooks/useDirectChats";
 import AvatarWithStatus from "../shared/components/AvatarWithStatus";
 import { useMemo, useState } from "react";
-import DirectSearchInput from "./DirectSearchInput";
+import DirectSearchInput from "../../features/directChats/DirectSearchInput";
 
 export const DIRECT_SIDEBAR_WIDTH = 280;
 
-export default function DirectSidebar() {
+export default function SecondarySidebar() {
   const location = useLocation();
   const { directChats } = useDirectChats();
   const [query, setQuery] = useState("");
   const isDirectContext =
+    location.pathname.startsWith("/friends") ||
     location.pathname.startsWith("/direct-chats") ||
-    location.pathname.startsWith("/friends");
+    location.pathname.startsWith("/not-found") ||
+    location.pathname === "/";
   const isFriendsRoute = location.pathname.startsWith("/friends");
 
   const filteredChats = useMemo(() => {

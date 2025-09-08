@@ -55,7 +55,7 @@ export default function SideNav() {
       <Tooltip title="Direct Messages" placement="right">
         <IconButton
           component={NavLink}
-          to="/direct-chats"
+          to="/friends"
           sx={{
             width: 52,
             height: 52,
