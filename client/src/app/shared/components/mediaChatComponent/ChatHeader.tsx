@@ -7,6 +7,7 @@ import {
   MenuItem,
   ListItemIcon,
   ListItemText,
+  Paper,
 } from "@mui/material";
 import { MoreVert, Settings } from "@mui/icons-material";
 import { useState } from "react";
@@ -42,12 +43,13 @@ export default function ChatHeader({
   };
 
   return (
-    <Box
+    <Paper
+      elevation={0}
+      className="rc-panel"
       sx={{
-        textAlign: "center",
-        bgcolor: "primary.main",
-        color: "white",
-        padding: 2,
+        p: 1.5,
+        mb: 1.5,
+        bgcolor: "rgba(19,19,22,0.8)",
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
@@ -87,7 +89,7 @@ export default function ChatHeader({
                 {newMessageCount}
               </Box>
             )}
-            ↓ New messages
+            New messages
           </Button>
         )}
         <IconButton
@@ -103,6 +105,15 @@ export default function ChatHeader({
           anchorEl={menuAnchorEl}
           open={Boolean(menuAnchorEl)}
           onClose={handleMenuClose}
+          slotProps={{
+            paper: {
+              sx: {
+                bgcolor: "rgba(19,19,22,0.95)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: 2,
+              },
+            },
+          }}
         >
           <MenuItem onClick={handleEmojiSettingsClick}>
             <ListItemIcon>
@@ -112,6 +123,6 @@ export default function ChatHeader({
           </MenuItem>
         </Menu>
       </Box>
-    </Box>
+    </Paper>
   );
 }

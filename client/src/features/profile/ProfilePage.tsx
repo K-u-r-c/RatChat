@@ -228,7 +228,12 @@ export default function ProfilePage() {
           open={Boolean(anchorEl)}
           onClose={handleClose}
           PaperProps={{
-            sx: { mt: 1 },
+            sx: {
+              mt: 1,
+              bgcolor: "rgba(19,19,22,0.95)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 2,
+            },
           }}
         >
           <MenuItem onClick={() => handlePhotoModeChange("profile")}>
@@ -248,7 +253,16 @@ export default function ProfilePage() {
 
       {/* Image Upload Widget */}
       {photoMode && (
-        <Paper sx={{ p: 3, mb: 3, borderRadius: 3 }}>
+        <Paper
+          sx={{
+            p: 3,
+            mb: 3,
+            borderRadius: 3,
+            bgcolor: "rgba(19,19,22,0.85)",
+            border: "1px solid rgba(255,255,255,0.08)",
+          }}
+          className="rc-panel"
+        >
           <Typography variant="h6" gutterBottom>
             Upload {photoMode === "profile" ? "Profile Photo" : "Banner"}
           </Typography>

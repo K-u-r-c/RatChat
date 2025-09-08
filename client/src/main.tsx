@@ -11,6 +11,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "react-router";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { ToastContainer } from "react-toastify";
+import { ThemeProvider } from "@mui/material/styles";
+import theme from "./app/theme";
 
 const queryCliient = new QueryClient();
 
@@ -18,13 +20,15 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <StoreContext.Provider value={store}>
       <QueryClientProvider client={queryCliient}>
-        <ReactQueryDevtools initialIsOpen={false} />
-        <ToastContainer
-          position="bottom-right"
-          hideProgressBar
-          theme="colored"
-        />
-        <RouterProvider router={router} />
+        <ThemeProvider theme={theme}>
+          <ReactQueryDevtools initialIsOpen={false} />
+          <ToastContainer
+            position="bottom-right"
+            hideProgressBar
+            theme="colored"
+          />
+          <RouterProvider router={router} />
+        </ThemeProvider>
       </QueryClientProvider>
     </StoreContext.Provider>
   </StrictMode>

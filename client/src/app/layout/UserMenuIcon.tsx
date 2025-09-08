@@ -7,6 +7,7 @@ import {
   Tooltip,
 } from "@mui/material";
 import Menu from "@mui/material/Menu";
+import Grow from "@mui/material/Grow";
 import MenuItem from "@mui/material/MenuItem";
 import { Password, Person, Logout } from "@mui/icons-material";
 import { useState } from "react";
@@ -52,9 +53,19 @@ export default function UserMenuIcon() {
         open={open}
         onClose={handleClose}
         MenuListProps={{ "aria-labelledby": "user-menu-icon" }}
-        PaperProps={{ sx: { minWidth: 220 } }}
+        PaperProps={{
+          sx: {
+            minWidth: 240,
+            bgcolor: "rgba(19,19,22,0.95)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: 2,
+            boxShadow: "0 14px 40px rgba(0,0,0,0.7)",
+            backdropFilter: "blur(6px)",
+          },
+        }}
         anchorOrigin={{ vertical: "top", horizontal: "right" }}
         transformOrigin={{ vertical: "bottom", horizontal: "right" }}
+        TransitionComponent={Grow}
       >
         <Box sx={{ px: 2, py: 1 }}>
           <StatusSelector />
