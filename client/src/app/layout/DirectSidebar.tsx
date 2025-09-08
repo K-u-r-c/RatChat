@@ -11,15 +11,30 @@ import { PeopleAlt } from "@mui/icons-material";
 import { Link, useLocation } from "react-router";
 import { useDirectChats } from "../../lib/hooks/useDirectChats";
 import AvatarWithStatus from "../shared/components/AvatarWithStatus";
+import { useMemo, useState } from "react";
+import DirectSearchInput from "./DirectSearchInput";
 
 export const DIRECT_SIDEBAR_WIDTH = 280;
 
 export default function DirectSidebar() {
   const location = useLocation();
   const { directChats } = useDirectChats();
+  const [query, setQuery] = useState("");
   const isDirectContext =
     location.pathname.startsWith("/direct-chats") ||
     location.pathname.startsWith("/friends");
+  const isFriendsRoute = location.pathname.startsWith("/friends");
+
+  const filteredChats = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const base = (directChats ?? []).filter((c) =>
+      isFriendsRoute ? c.canSendMessages : true
+    );
+    if (!q) return base;
+    return base.filter((c) =>
+      (c.otherUserDisplayName ?? "").toLowerCase().includes(q)
+    );
+  }, [directChats, query, isFriendsRoute]);
 
   return (
     <Box
@@ -39,19 +54,15 @@ export default function DirectSidebar() {
       {isDirectContext ? (
         <>
           <Box sx={{ p: 2 }}>
-            <Box
-              sx={{
-                bgcolor: "#1f2125",
-                borderRadius: 1,
-                px: 2,
-                py: 1.2,
-                color: "text.secondary",
-              }}
-            >
-              <Typography variant="body2">
-                Find or start a conversation
-              </Typography>
-            </Box>
+            <DirectSearchInput
+              value={query}
+              onChange={setQuery}
+              placeholder={
+                isFriendsRoute
+                  ? "Search friends' conversations"
+                  : "Search conversations"
+              }
+            />
           </Box>
 
           <List sx={{ py: 0 }}>
@@ -81,7 +92,7 @@ export default function DirectSidebar() {
 
           <Box sx={{ flex: 1, overflowY: "auto" }}>
             <List sx={{ py: 0 }}>
-              {directChats?.map((chat) => (
+              {filteredChats.map((chat) => (
                 <ListItemButton
                   key={chat.id}
                   component={Link}
