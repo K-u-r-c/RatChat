@@ -49,7 +49,7 @@ export const useMessages = (chatRoomId?: string) => {
           console.log("Message hub closed:", error);
         if (error) {
           toast.error("You are not a member of this chat room");
-          router.navigate("/chat-rooms");
+          router.navigate("/direct-chats");
         }
       });
 

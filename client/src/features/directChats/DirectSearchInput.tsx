@@ -19,12 +19,14 @@ export default function DirectSearchInput({
       placeholder={placeholder ?? "Search conversations"}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      InputProps={{
-        startAdornment: (
-          <InputAdornment position="start">
-            <Search fontSize="small" />
-          </InputAdornment>
-        ),
+      slotProps={{
+        input: {
+          startAdornment: (
+            <InputAdornment position="start">
+              <Search fontSize="small" />
+            </InputAdornment>
+          ),
+        },
       }}
       sx={{
         bgcolor: "#1f2125",
