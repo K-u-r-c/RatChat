@@ -7,10 +7,10 @@ import {
 } from "@mui/material";
 import { Forum, Add, ExpandLess, ExpandMore } from "@mui/icons-material";
 import { NavLink } from "react-router";
-import { NAV_WIDTH } from "../../lib/types/constants";
-import UserMenuIcon from "./UserMenuIcon";
+import { NAV_WIDTH } from "../../../lib/types/constants";
+import UserMenuIcon from "../UserMenuIcon";
 import { useEffect, useRef, useState } from "react";
-import { useChatRooms } from "../../lib/hooks/useChatRooms";
+import { useChatRooms } from "../../../lib/hooks/useChatRooms";
 
 export default function SideNav() {
   const {
@@ -204,7 +204,7 @@ export default function SideNav() {
                       fontWeight: 700,
                       color: "#fff",
                     }}
-                    src={room.adminImageUrl}
+                    src={room.imageUrl}
                     alt={room.title}
                   >
                     {room.title?.charAt(0).toUpperCase()}

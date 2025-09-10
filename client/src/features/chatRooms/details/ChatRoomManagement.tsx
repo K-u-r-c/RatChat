@@ -24,7 +24,6 @@ import { CHATROOM_PERMISSIONS } from "../../../lib/types/chatroomPermissions";
 import { useMemo, useState } from "react";
 import { useFriends } from "../../../lib/hooks/useFriends";
 import SettingsIcon from "@mui/icons-material/Settings";
-import ChatRoomSettings from "../settings/ChatRoomSettings";
 
 type Props = {
   userPermissions: ReturnType<
@@ -34,20 +33,14 @@ type Props = {
 export default function ChatRoomManagement({ userPermissions }: Props) {
   const { id } = useParams();
   const navigate = useNavigate();
-  const {
-    chatRoom,
-    deleteChatRooms,
-    createInviteLink,
-    isGeneratingInvite,
-    leaveChatRoom,
-  } = useChatRooms(id);
+  const { chatRoom, deleteChatRooms, createInviteLink, isGeneratingInvite } =
+    useChatRooms(id);
   const { friends } = useFriends();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [maxUses, setMaxUses] = useState<string>("");
   const [expiresInMinutes, setExpiresInMinutes] = useState<string>("");
   const [tabIndex, setTabIndex] = useState(0);
-  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const canInvite = useMemo(
     () =>
@@ -65,16 +58,6 @@ export default function ChatRoomManagement({ userPermissions }: Props) {
   const handleDelete = async () => {
     if (window.confirm("Are you sure you want to delete this chat room?")) {
       await deleteChatRooms.mutateAsync(id!);
-    }
-  };
-
-  const handleLeave = async () => {
-    const message = chatRoom?.isAdmin
-      ? "Are you sure you want to leave this chat room?\n\nAs the admin, leaving will transfer ownership to the oldest user or delete the room if you are the last member."
-      : "Are you sure you want to leave this chat room?";
-
-    if (window.confirm(message)) {
-      await leaveChatRoom.mutateAsync(id!);
     }
   };
 
@@ -113,9 +96,6 @@ export default function ChatRoomManagement({ userPermissions }: Props) {
         >
           Delete Chat Room
         </Button>
-        <Button variant="outlined" color="warning" onClick={handleLeave}>
-          Leave Chat Room
-        </Button>
         <Button
           variant="outlined"
           color="primary"
@@ -151,14 +131,6 @@ export default function ChatRoomManagement({ userPermissions }: Props) {
         Generate Invite Link
       </Button>
       {/* Open settings dialog */}
-      <Button
-        variant="outlined"
-        color="info"
-        onClick={() => setSettingsOpen(true)}
-        disabled={!chatRoom?.isAdmin}
-      >
-        Chat Room Settings
-      </Button>
       <Dialog
         open={dialogOpen}
         onClose={handleCloseDialog}
@@ -251,13 +223,6 @@ export default function ChatRoomManagement({ userPermissions }: Props) {
           <Button onClick={handleCloseDialog}>Close</Button>
         </DialogActions>
       </Dialog>
-      {chatRoom && (
-        <ChatRoomSettings
-          open={settingsOpen}
-          onClose={() => setSettingsOpen(false)}
-          chatRoomId={chatRoom.id}
-        />
-      )}
     </Box>
   );
 }
