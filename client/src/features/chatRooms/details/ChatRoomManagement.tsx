@@ -1,4 +1,22 @@
-import { Box, Button, Stack, Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton, Tabs, Tab, Typography, List, ListItem, ListItemAvatar, Avatar, ListItemText } from "@mui/material";
+import {
+  Box,
+  Button,
+  Stack,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  IconButton,
+  Tabs,
+  Tab,
+  Typography,
+  List,
+  ListItem,
+  ListItemAvatar,
+  Avatar,
+  ListItemText,
+} from "@mui/material";
 import { useParams, useNavigate } from "react-router";
 import { useChatRooms } from "../../../lib/hooks/useChatRooms";
 import type { useChatRoomRolesRealtime } from "../../../lib/hooks/useChatRoomRolesRealtime";
@@ -6,6 +24,7 @@ import { CHATROOM_PERMISSIONS } from "../../../lib/types/chatroomPermissions";
 import { useMemo, useState } from "react";
 import { useFriends } from "../../../lib/hooks/useFriends";
 import SettingsIcon from "@mui/icons-material/Settings";
+import ChatRoomSettings from "../settings/ChatRoomSettings";
 
 type Props = {
   userPermissions: ReturnType<
@@ -28,15 +47,19 @@ export default function ChatRoomManagement({ userPermissions }: Props) {
   const [maxUses, setMaxUses] = useState<string>("");
   const [expiresInMinutes, setExpiresInMinutes] = useState<string>("");
   const [tabIndex, setTabIndex] = useState(0);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const canInvite = useMemo(
-    () => (chatRoom?.isAdmin || userPermissions[CHATROOM_PERMISSIONS.CreateInviteLinks]) && !isGeneratingInvite,
+    () =>
+      (chatRoom?.isAdmin ||
+        userPermissions[CHATROOM_PERMISSIONS.CreateInviteLinks]) &&
+      !isGeneratingInvite,
     [chatRoom?.isAdmin, userPermissions, isGeneratingInvite]
   );
 
   const availableFriends = useMemo(() => {
-    const memberIds = new Set((chatRoom?.members || []).map(m => m.id));
-    return (friends || []).filter(f => !memberIds.has(f.id));
+    const memberIds = new Set((chatRoom?.members || []).map((m) => m.id));
+    return (friends || []).filter((f) => !memberIds.has(f.id));
   }, [friends, chatRoom?.members]);
 
   const handleDelete = async () => {
@@ -110,14 +133,46 @@ export default function ChatRoomManagement({ userPermissions }: Props) {
         >
           Generate Invite Link
         </Button>
-        <IconButton color="default" aria-label="Invite settings" onClick={handleOpenDialog} disabled={!canInvite}>
+        <IconButton
+          color="default"
+          aria-label="Invite settings"
+          onClick={handleOpenDialog}
+          disabled={!canInvite}
+        >
           <SettingsIcon />
         </IconButton>
       </Stack>
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} fullWidth maxWidth="md">
+      <Button
+        variant="outlined"
+        color="secondary"
+        onClick={handleGenerateInvite}
+        disabled={!canInvite}
+      >
+        Generate Invite Link
+      </Button>
+      {/* Open settings dialog */}
+      <Button
+        variant="outlined"
+        color="info"
+        onClick={() => setSettingsOpen(true)}
+        disabled={!chatRoom?.isAdmin}
+      >
+        Chat Room Settings
+      </Button>
+      <Dialog
+        open={dialogOpen}
+        onClose={handleCloseDialog}
+        fullWidth
+        maxWidth="md"
+      >
         <DialogTitle>Invite Settings</DialogTitle>
         <DialogContent sx={{ pt: 0 }}>
-          <Tabs value={tabIndex} onChange={(_, v) => setTabIndex(v)} aria-label="invite tabs" sx={{ borderBottom: 1, borderColor: 'divider' }}>
+          <Tabs
+            value={tabIndex}
+            onChange={(_, v) => setTabIndex(v)}
+            aria-label="invite tabs"
+            sx={{ borderBottom: 1, borderColor: "divider" }}
+          >
             <Tab label="Custom Invite" />
             <Tab label="Friends Invite" />
           </Tabs>
@@ -125,7 +180,9 @@ export default function ChatRoomManagement({ userPermissions }: Props) {
           {/* Custom Invite Tab */}
           {tabIndex === 0 && (
             <Box sx={{ mt: 2 }}>
-              <Typography variant="subtitle1" gutterBottom>Set accepts limit and expiration time</Typography>
+              <Typography variant="subtitle1" gutterBottom>
+                Set accepts limit and expiration time
+              </Typography>
               <Stack spacing={2}>
                 <TextField
                   label="Max accepts"
@@ -150,12 +207,18 @@ export default function ChatRoomManagement({ userPermissions }: Props) {
           {/* Friends Invite Tab */}
           {tabIndex === 1 && (
             <Box sx={{ mt: 2 }}>
-              {(availableFriends && availableFriends.length > 0) ? (
+              {availableFriends && availableFriends.length > 0 ? (
                 <List>
-                  {availableFriends.map(f => (
-                    <ListItem key={f.id}
+                  {availableFriends.map((f) => (
+                    <ListItem
+                      key={f.id}
                       secondaryAction={
-                        <Button variant="outlined" size="small" onClick={() => handleInviteFriend(f.id)} disabled={isGeneratingInvite}>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={() => handleInviteFriend(f.id)}
+                          disabled={isGeneratingInvite}
+                        >
                           Invite
                         </Button>
                       }
@@ -168,7 +231,9 @@ export default function ChatRoomManagement({ userPermissions }: Props) {
                   ))}
                 </List>
               ) : (
-                <Typography color="text.secondary">No friends to invite.</Typography>
+                <Typography color="text.secondary">
+                  No friends to invite.
+                </Typography>
               )}
             </Box>
           )}
@@ -186,6 +251,13 @@ export default function ChatRoomManagement({ userPermissions }: Props) {
           <Button onClick={handleCloseDialog}>Close</Button>
         </DialogActions>
       </Dialog>
+      {chatRoom && (
+        <ChatRoomSettings
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          chatRoomId={chatRoom.id}
+        />
+      )}
     </Box>
   );
 }

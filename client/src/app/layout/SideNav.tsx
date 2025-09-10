@@ -7,13 +7,19 @@ import {
 } from "@mui/material";
 import { Forum, Add, ExpandLess, ExpandMore } from "@mui/icons-material";
 import { NavLink } from "react-router";
-import { useSidebarChatRooms } from "../../lib/hooks/useSidebarChatRooms";
 import { NAV_WIDTH } from "../../lib/types/constants";
 import UserMenuIcon from "./UserMenuIcon";
 import { useEffect, useRef, useState } from "react";
+import { useChatRooms } from "../../lib/hooks/useChatRooms";
 
 export default function SideNav() {
-  const { chatRooms, isLoading } = useSidebarChatRooms();
+  const {
+    chatRooms,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useChatRooms();
   const listRef = useRef<HTMLDivElement | null>(null);
   const [hasAbove, setHasAbove] = useState(false);
   const [hasBelow, setHasBelow] = useState(false);
@@ -32,6 +38,57 @@ export default function SideNav() {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, [chatRooms]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const ensureFilled = async () => {
+      const el = listRef.current;
+      if (!el) return;
+
+      while (
+        !cancelled &&
+        hasNextPage &&
+        !isFetchingNextPage &&
+        el.clientHeight >= el.scrollHeight
+      ) {
+        try {
+          await fetchNextPage();
+          await new Promise((r) => setTimeout(r, 50));
+        } catch {
+          break;
+        }
+      }
+      updateScrollIndicators();
+    };
+
+    ensureFilled();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [chatRooms, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (listRef.current) {
+        const { scrollTop, clientHeight, scrollHeight } = listRef.current;
+        if (scrollTop + clientHeight >= scrollHeight - 10 && hasNextPage) {
+          fetchNextPage();
+        }
+      }
+    };
+
+    const el = listRef.current;
+    if (el) {
+      el.addEventListener("scroll", handleScroll);
+    }
+
+    return () => {
+      if (el) {
+        el.removeEventListener("scroll", handleScroll);
+      }
+    };
+  }, [fetchNextPage, hasNextPage]);
 
   return (
     <Box

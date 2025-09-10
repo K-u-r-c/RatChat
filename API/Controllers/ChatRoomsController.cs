@@ -52,6 +52,27 @@ public class ChatRoomsController : BaseApiController
         );
     }
 
+    [HttpPut("{id}/image")]
+    [Authorize(Policy = IsAdminStrings.IsChatRoomAdmin)]
+    public async Task<ActionResult<Unit>> UpdateChatRoomImage(string id, SetChatRoomImageDto setChatRoomImageDto)
+    {
+        setChatRoomImageDto.Id = id;
+        return HandleResult(
+            await Mediator.Send(
+                new UpdateChatRoomImage.Command { Dto = setChatRoomImageDto }
+            )
+        );
+    }
+
+    [HttpDelete("{id}/image")]
+    [Authorize(Policy = IsAdminStrings.IsChatRoomAdmin)]
+    public async Task<ActionResult<Unit>> DeleteChatRoomImage(string id)
+    {
+        return HandleResult(
+            await Mediator.Send(new DeleteChatRoomImage.Command { Id = id })
+        );
+    }
+
     [HttpDelete("{id}")]
     [Authorize(Policy = IsAdminStrings.IsChatRoomAdmin)]
     public async Task<ActionResult<Unit>> DeleteChatRoom(string id)

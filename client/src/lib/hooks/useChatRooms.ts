@@ -18,57 +18,55 @@ export const useChatRooms = (id?: string) => {
   const queryClient = useQueryClient();
   const { currentUser } = useAccount();
   const navigate = useNavigate();
-  const {
-    chatRoomsStore: { filter, startDate },
-    uiStore,
-  } = useStore();
+  const { uiStore } = useStore();
 
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [isGeneratingInvite, setIsGeneratingInvite] = useState(false);
 
-  const {
-    data: chatRoomsGroup,
-    isLoading,
-    isFetchingNextPage,
-    fetchNextPage,
-    hasNextPage,
-  } = useInfiniteQuery<PagedList<ChatRoom, string>>({
-    queryKey: ["chatRooms", filter, startDate],
-    queryFn: async ({ pageParam = null }) => {
-      const response = await agent.get<PagedList<ChatRoom, string>>(
-        "/chatRooms",
-        {
-          params: {
-            cursor: pageParam,
-            pageSize: 3,
-            filter,
-            startDate,
-          },
-        }
-      );
-      return response.data;
-    },
-    placeholderData: keepPreviousData,
-    initialPageParam: null,
-    getNextPageParam: (lastPage) => lastPage.nextCursor,
-    // List view is no longer used; keep query disabled by default
-    enabled: false,
-    select: (data) => ({
-      ...data,
-      pages: data.pages.map((page) => ({
-        ...page,
-        items: page.items.map((chatRoom) => {
-          const admin = chatRoom.members.find((x) => x.id === chatRoom.adminId);
-          return {
-            ...chatRoom,
-            isAdmin: currentUser?.id === chatRoom.adminId,
-            isMember: chatRoom.members.some((x) => x.id === currentUser?.id),
-            adminImageUrl: admin?.imageUrl,
-          };
-        }),
-      })),
-    }),
-  });
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useInfiniteQuery<PagedList<ChatRoom, string>>({
+      queryKey: ["chatRooms"],
+      queryFn: async ({ pageParam = null }) => {
+        const response = await agent.get<PagedList<ChatRoom, string>>(
+          "/chatRooms",
+          {
+            params: {
+              cursor: pageParam,
+              pageSize: 20,
+              filter: "all",
+            },
+          }
+        );
+        return response.data;
+      },
+      placeholderData: keepPreviousData,
+      initialPageParam: null,
+      getNextPageParam: (lastPage) => lastPage.nextCursor,
+      enabled: !!currentUser,
+      select: (data) => ({
+        ...data,
+        pages: data.pages.map((page) => ({
+          ...page,
+          items: page.items.map((chatRoom) => {
+            const admin = chatRoom.members.find(
+              (x) => x.id === chatRoom.adminId
+            );
+            return {
+              ...chatRoom,
+              isAdmin: currentUser?.id === chatRoom.adminId,
+              isMember: chatRoom.members.some((x) => x.id === currentUser?.id),
+              adminImageUrl: admin?.imageUrl,
+            } as ChatRoom & {
+              isAdmin: boolean;
+              isMember: boolean;
+              adminImageUrl?: string;
+            };
+          }),
+        })),
+      }),
+    });
+
+  const items = (data?.pages ?? []).flatMap((p) => p.items);
 
   const { data: chatRoom, isLoading: isLoadingChatRoom } = useQuery({
     queryKey: ["chatRooms", id],
@@ -116,7 +114,7 @@ export const useChatRooms = (id?: string) => {
       await agent.delete(`/chatRooms/${id}`);
     },
     onSuccess: async () => {
-      navigate("/direct-chats");
+      navigate("/");
       toast.success("Chat room deleted successfully");
     },
     onError: () => {
@@ -178,7 +176,7 @@ export const useChatRooms = (id?: string) => {
       uiStore.suppressNextChatRoomForbiddenToast();
     },
     onSuccess: async () => {
-      navigate("/direct-chats");
+      navigate("/");
       toast.success("You have left the chat room");
     },
     onError: () => {
@@ -186,12 +184,47 @@ export const useChatRooms = (id?: string) => {
     },
   });
 
+  const setChatRoomImage = useMutation({
+    mutationFn: async (params: { id: string; imageUrl: string }) => {
+      const response = await agent.put<ChatRoom>(
+        `/chatRooms/${params.id}/image`,
+        { imageUrl: params.imageUrl }
+      );
+      return response.data;
+    },
+    onSuccess: async (data) => {
+      await queryClient.invalidateQueries({
+        queryKey: ["chatRooms", data.id],
+      });
+      toast.success("Chat room image updated successfully");
+    },
+    onError: () => {
+      toast.error("Failed to update chat room image");
+    },
+  });
+
+  const deleteChatRoomImage = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await agent.delete<ChatRoom>(`/chatRooms/${id}/image`);
+      return response.data;
+    },
+    onSuccess: async (data) => {
+      await queryClient.invalidateQueries({
+        queryKey: ["chatRooms", data.id],
+      });
+      toast.success("Chat room image deleted successfully");
+    },
+    onError: () => {
+      toast.error("Failed to delete chat room image");
+    },
+  });
+
   return {
-    chatRoomsGroup: chatRoomsGroup,
+    chatRooms: items,
     isLoading,
     isFetchingNextPage,
     fetchNextPage,
-    hasNextPage,
+    hasNextPage: !!hasNextPage,
     chatRoom,
     isLoadingChatRoom,
     updateChatRoom,
@@ -202,5 +235,7 @@ export const useChatRooms = (id?: string) => {
     isGeneratingInvite,
     joinChatRoom,
     leaveChatRoom,
+    setChatRoomImage,
+    deleteChatRoomImage,
   };
 };
