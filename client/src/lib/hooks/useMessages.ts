@@ -213,9 +213,26 @@ export const useMessages = (chatRoomId?: string) => {
       created.current = true;
     }
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        messageStore.stopHubConnection();
+      } else if (document.visibilityState === "visible" && created.current) {
+        if (
+          !messageStore.hubConnection ||
+          messageStore.hubConnection.state !== HubConnectionState.Connected
+        ) {
+          messageStore.createHubConnection(chatRoomId!);
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       messageStore.stopHubConnection();
       messageStore.reset();
+      created.current = false;
     };
   }, [chatRoomId, messageStore]);
 
