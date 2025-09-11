@@ -3,8 +3,9 @@ import { Outlet, ScrollRestoration } from "react-router";
 import { useAccount } from "../../lib/hooks/useAccount";
 import FriendsRealtimeProvider from "../shared/components/FriendsRealtimeProvider";
 import StatusRealtimeProvider from "../shared/components/StatusRealtimeProvider";
-import SideNav from "./SideNav";
-import SecondarySidebar from "./SecondarySidebar";
+import SideNav from "./SideNav/SideNav";
+import SecondarySidebar from "./SideNav/SecondarySidebar";
+import ChatRoomsProfileImageRealtimeProvider from "../shared/components/ChatRoomsProfileImageRealtimeProvider";
 
 function App() {
   const { currentUser } = useAccount();
@@ -17,6 +18,7 @@ function App() {
         <>
           <FriendsRealtimeProvider />
           <StatusRealtimeProvider />
+          <ChatRoomsProfileImageRealtimeProvider />
         </>
       )}
       <Box sx={{ display: "flex", minHeight: "100vh" }}>

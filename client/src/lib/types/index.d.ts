@@ -25,6 +25,7 @@ export type User = {
 export type ChatRoom = {
   id: string;
   title: string;
+  imageUrl?: string;
   date: Date;
   members: Profile[];
   isAdmin: boolean;

@@ -5,15 +5,13 @@ public class ChatRoom
     public string Id { get; set; } = Guid.NewGuid().ToString();
     public required string Title { get; set; }
     public DateTime Date { get; set; } = DateTime.UtcNow;
-
     public required string OwnerId { get; set; }
     public User Owner { get; set; } = null!;
+    public string? ImageUrl { get; set; }
 
     // Navigation properties
     public ICollection<ChatRoomMember> Members { get; set; } = [];
     public ICollection<Message> Messages { get; set; } = [];
-
     public ICollection<ChatRoomRole> Roles { get; set; } = [];
-
     public ICollection<ChatRoomInvite> Invites { get; set; } = [];
 }

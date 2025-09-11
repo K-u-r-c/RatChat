@@ -16,7 +16,6 @@ using Infrastructure.Email;
 using Infrastructure.Media;
 using Infrastructure.Security;
 using Infrastructure.Services;
-using API.SignalR;
 using API.Services;
 using Infrastructure.Storage;
 using Microsoft.AspNetCore.Authorization;
@@ -28,6 +27,7 @@ using Persistance;
 using Resend;
 using Application.ChatRoomRoles.Validators;
 using Domain.Enums;
+using API.SignalR.EventHandlers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -45,6 +45,7 @@ builder.Services.AddSignalR();
 builder.Services.AddMediatR(x =>
 {
     x.RegisterServicesFromAssemblyContaining<GetChatRoomList.Handler>();
+    x.RegisterServicesFromAssemblyContaining<ChatRoomsProfileUpdateHandler>();
     x.AddOpenBehavior(typeof(ValidationBehavior<,>));
 });
 builder.Services.AddHttpClient<ResendClient>();
@@ -145,6 +146,7 @@ app.MapHub<FriendsHub>("/friends");
 app.MapHub<DirectMessageHub>("/direct-messages");
 app.MapHub<StatusHub>("/status");
 app.MapHub<ChatRoomRolesHub>("/chatroom-roles");
+app.MapHub<ChatRoomsProfileUpdateHub>("/chatroom-image-update");
 app.MapFallbackToController("Index", "Fallback");
 
 using var scope = app.Services.CreateScope();

@@ -35,17 +35,18 @@ export const router = createBrowserRouter([
           { path: "profiles/:id", element: <ProfilePage /> },
           { path: "friends", element: <FriendsList /> },
           { path: "direct-chats/:id", element: <DirectChatDetails /> },
+          { path: "not-found", element: <NotFound /> },
+          { path: "server-error", element: <ServerError /> },
         ],
       },
-      { path: "not-found", element: <NotFound /> },
-      { path: "server-error", element: <ServerError /> },
-      { path: "*", element: <Navigate replace to="/not-found" /> },
+      { path: "*", element: <Navigate replace to="/login" /> },
     ],
   },
   {
     path: "/",
     element: <AuthLayout />,
     children: [
+      { path: "", element: <Navigate replace to="/login" /> },
       {
         element: <RequireAuth />,
         children: [

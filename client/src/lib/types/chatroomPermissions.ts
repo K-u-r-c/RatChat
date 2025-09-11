@@ -6,6 +6,7 @@ export const CHATROOM_PERMISSIONS = {
   ViewChatRoom: "View chat room",
   SendMessages: "Send Messages",
   CreateInviteLinks: "Create invite links",
+  ChangeChatRoomImage: "Change chat room image",
 } as const;
 
 export type CHATROOM_PERMISSION =

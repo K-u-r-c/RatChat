@@ -16,7 +16,7 @@ const JoinChatRoomPage = () => {
   }, [id, token, joinChatRoom]);
 
   const handleRedirect = () => {
-    navigate("/direct-chats");
+    navigate("/");
   };
 
   return (

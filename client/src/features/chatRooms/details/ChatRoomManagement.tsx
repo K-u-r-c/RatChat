@@ -1,4 +1,22 @@
-import { Box, Button, Stack, Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton, Tabs, Tab, Typography, List, ListItem, ListItemAvatar, Avatar, ListItemText } from "@mui/material";
+import {
+  Box,
+  Button,
+  Stack,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  IconButton,
+  Tabs,
+  Tab,
+  Typography,
+  List,
+  ListItem,
+  ListItemAvatar,
+  Avatar,
+  ListItemText,
+} from "@mui/material";
 import { useParams, useNavigate } from "react-router";
 import { useChatRooms } from "../../../lib/hooks/useChatRooms";
 import type { useChatRoomRolesRealtime } from "../../../lib/hooks/useChatRoomRolesRealtime";
@@ -15,13 +33,8 @@ type Props = {
 export default function ChatRoomManagement({ userPermissions }: Props) {
   const { id } = useParams();
   const navigate = useNavigate();
-  const {
-    chatRoom,
-    deleteChatRooms,
-    createInviteLink,
-    isGeneratingInvite,
-    leaveChatRoom,
-  } = useChatRooms(id);
+  const { chatRoom, deleteChatRooms, createInviteLink, isGeneratingInvite } =
+    useChatRooms(id);
   const { friends } = useFriends();
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -30,28 +43,21 @@ export default function ChatRoomManagement({ userPermissions }: Props) {
   const [tabIndex, setTabIndex] = useState(0);
 
   const canInvite = useMemo(
-    () => (chatRoom?.isAdmin || userPermissions[CHATROOM_PERMISSIONS.CreateInviteLinks]) && !isGeneratingInvite,
+    () =>
+      (chatRoom?.isAdmin ||
+        userPermissions[CHATROOM_PERMISSIONS.CreateInviteLinks]) &&
+      !isGeneratingInvite,
     [chatRoom?.isAdmin, userPermissions, isGeneratingInvite]
   );
 
   const availableFriends = useMemo(() => {
-    const memberIds = new Set((chatRoom?.members || []).map(m => m.id));
-    return (friends || []).filter(f => !memberIds.has(f.id));
+    const memberIds = new Set((chatRoom?.members || []).map((m) => m.id));
+    return (friends || []).filter((f) => !memberIds.has(f.id));
   }, [friends, chatRoom?.members]);
 
   const handleDelete = async () => {
     if (window.confirm("Are you sure you want to delete this chat room?")) {
       await deleteChatRooms.mutateAsync(id!);
-    }
-  };
-
-  const handleLeave = async () => {
-    const message = chatRoom?.isAdmin
-      ? "Are you sure you want to leave this chat room?\n\nAs the admin, leaving will transfer ownership to the oldest user or delete the room if you are the last member."
-      : "Are you sure you want to leave this chat room?";
-
-    if (window.confirm(message)) {
-      await leaveChatRoom.mutateAsync(id!);
     }
   };
 
@@ -90,9 +96,6 @@ export default function ChatRoomManagement({ userPermissions }: Props) {
         >
           Delete Chat Room
         </Button>
-        <Button variant="outlined" color="warning" onClick={handleLeave}>
-          Leave Chat Room
-        </Button>
         <Button
           variant="outlined"
           color="primary"
@@ -110,14 +113,30 @@ export default function ChatRoomManagement({ userPermissions }: Props) {
         >
           Generate Invite Link
         </Button>
-        <IconButton color="default" aria-label="Invite settings" onClick={handleOpenDialog} disabled={!canInvite}>
+        <IconButton
+          color="default"
+          aria-label="Invite settings"
+          onClick={handleOpenDialog}
+          disabled={!canInvite}
+        >
           <SettingsIcon />
         </IconButton>
       </Stack>
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} fullWidth maxWidth="md">
+      {/* Open settings dialog */}
+      <Dialog
+        open={dialogOpen}
+        onClose={handleCloseDialog}
+        fullWidth
+        maxWidth="md"
+      >
         <DialogTitle>Invite Settings</DialogTitle>
         <DialogContent sx={{ pt: 0 }}>
-          <Tabs value={tabIndex} onChange={(_, v) => setTabIndex(v)} aria-label="invite tabs" sx={{ borderBottom: 1, borderColor: 'divider' }}>
+          <Tabs
+            value={tabIndex}
+            onChange={(_, v) => setTabIndex(v)}
+            aria-label="invite tabs"
+            sx={{ borderBottom: 1, borderColor: "divider" }}
+          >
             <Tab label="Custom Invite" />
             <Tab label="Friends Invite" />
           </Tabs>
@@ -125,7 +144,9 @@ export default function ChatRoomManagement({ userPermissions }: Props) {
           {/* Custom Invite Tab */}
           {tabIndex === 0 && (
             <Box sx={{ mt: 2 }}>
-              <Typography variant="subtitle1" gutterBottom>Set accepts limit and expiration time</Typography>
+              <Typography variant="subtitle1" gutterBottom>
+                Set accepts limit and expiration time
+              </Typography>
               <Stack spacing={2}>
                 <TextField
                   label="Max accepts"
@@ -150,12 +171,18 @@ export default function ChatRoomManagement({ userPermissions }: Props) {
           {/* Friends Invite Tab */}
           {tabIndex === 1 && (
             <Box sx={{ mt: 2 }}>
-              {(availableFriends && availableFriends.length > 0) ? (
+              {availableFriends && availableFriends.length > 0 ? (
                 <List>
-                  {availableFriends.map(f => (
-                    <ListItem key={f.id}
+                  {availableFriends.map((f) => (
+                    <ListItem
+                      key={f.id}
                       secondaryAction={
-                        <Button variant="outlined" size="small" onClick={() => handleInviteFriend(f.id)} disabled={isGeneratingInvite}>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={() => handleInviteFriend(f.id)}
+                          disabled={isGeneratingInvite}
+                        >
                           Invite
                         </Button>
                       }
@@ -168,7 +195,9 @@ export default function ChatRoomManagement({ userPermissions }: Props) {
                   ))}
                 </List>
               ) : (
-                <Typography color="text.secondary">No friends to invite.</Typography>
+                <Typography color="text.secondary">
+                  No friends to invite.
+                </Typography>
               )}
             </Box>
           )}

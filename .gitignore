@@ -483,3 +483,4 @@ $RECYCLE.BIN/
 API/appsettings.json
 .vscode/settings.json
 .secrets
+.continue/rules
