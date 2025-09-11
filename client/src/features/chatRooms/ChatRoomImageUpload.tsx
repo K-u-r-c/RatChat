@@ -123,41 +123,89 @@ export default function ChatRoomImageUpload({ chatRoomId }: Props) {
     deleteChatRoomImage.isPending;
 
   return (
-    <Box>
+    <Box sx={{ width: "100%" }}>
       {!preview && !croppedImage && (
-        <Stack spacing={2}>
-          {existingImage && (
-            <Box>
-              <Typography variant="subtitle2" gutterBottom>
-                Current image
-              </Typography>
-              <Avatar
-                src={existingImage}
-                sx={{ width: 128, height: 128, borderRadius: 2, mb: 1 }}
-                variant="rounded"
-              />
-              {canEdit && (
-                <Stack direction="row" spacing={1}>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={handleDelete}
-                    color="error"
-                    disabled={deleteChatRoomImage.isPending}
-                    startIcon={
-                      deleteChatRoomImage.isPending ? (
-                        <CircularProgress size={16} />
-                      ) : (
-                        <Delete />
-                      )
-                    }
-                  >
-                    Remove
-                  </Button>
-                </Stack>
-              )}
-            </Box>
-          )}
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 3,
+          }}
+        >
+          <Box>
+            {existingImage ? (
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  width: "100%",
+                }}
+              >
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                  }}
+                >
+                  <Avatar
+                    src={existingImage}
+                    sx={{
+                      width: 128,
+                      height: 128,
+                      borderRadius: 12,
+                      border: "1px solid #5865f2ff",
+                      backgroundColor: "#ffffff14",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      mb: 2,
+                    }}
+                    variant="rounded"
+                  />
+                  {canEdit && (
+                    <Stack direction="row" spacing={1}>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={handleDelete}
+                        color="error"
+                        disabled={deleteChatRoomImage.isPending}
+                        startIcon={
+                          deleteChatRoomImage.isPending ? (
+                            <CircularProgress size={16} />
+                          ) : (
+                            <Delete />
+                          )
+                        }
+                      >
+                        Remove
+                      </Button>
+                    </Stack>
+                  )}
+                </Box>
+              </Box>
+            ) : (
+              <Box
+                sx={{
+                  width: 128,
+                  height: 128,
+                  borderRadius: 12,
+                  border: "1px solid #5865f2ff",
+                  backgroundColor: "#ffffff14",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  mb: 2,
+                }}
+              >
+                <Typography variant="caption" color="text.secondary">
+                  No image
+                </Typography>
+              </Box>
+            )}
+          </Box>
 
           <Paper
             {...getRootProps()}
@@ -174,6 +222,7 @@ export default function ChatRoomImageUpload({ chatRoomId }: Props) {
                   : undefined,
               opacity: canEdit ? 1 : 0.6,
               minHeight: 180,
+              width: "100%",
             }}
           >
             <input {...getInputProps()} />
@@ -187,7 +236,7 @@ export default function ChatRoomImageUpload({ chatRoomId }: Props) {
               PNG / JPG / GIF / WEBP up to 5MB • 1:1 aspect
             </Typography>
           </Paper>
-        </Stack>
+        </Box>
       )}
 
       {preview && !croppedImage && (

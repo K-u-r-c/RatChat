@@ -4,7 +4,7 @@ export const theme = createTheme({
   palette: {
     mode: "dark",
     primary: {
-      main: "#5865f2",
+      main: "#5865f2ff",
     },
     background: {
       default: "#27262C",
@@ -33,7 +33,7 @@ export const theme = createTheme({
       styleOverrides: {
         paper: {
           backgroundColor: "rgba(19,19,22,0.95)",
-          border: "1px solid rgba(255,255,255,0.08)",
+          border: "1px solid #ffffff14",
           borderRadius: 12,
         },
       },

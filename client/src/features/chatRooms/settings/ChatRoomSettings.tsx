@@ -30,6 +30,7 @@ export default function ChatRoomSettings({ open, onClose, chatRoomId }: Props) {
           display: "grid",
           gridTemplateColumns: "240px 1fr",
           minHeight: 520,
+          overflow: "scroll",
         }}
       >
         <Box sx={{ borderRight: 1, borderColor: "divider", p: 1 }}>
