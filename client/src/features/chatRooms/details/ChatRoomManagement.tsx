@@ -122,14 +122,6 @@ export default function ChatRoomManagement({ userPermissions }: Props) {
           <SettingsIcon />
         </IconButton>
       </Stack>
-      <Button
-        variant="outlined"
-        color="secondary"
-        onClick={handleGenerateInvite}
-        disabled={!canInvite}
-      >
-        Generate Invite Link
-      </Button>
       {/* Open settings dialog */}
       <Dialog
         open={dialogOpen}

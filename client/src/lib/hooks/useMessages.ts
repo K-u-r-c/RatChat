@@ -218,10 +218,11 @@ export const useMessages = (chatRoomId?: string) => {
         messageStore.stopHubConnection();
       } else if (document.visibilityState === "visible" && created.current) {
         if (
-          !messageStore.hubConnection ||
-          messageStore.hubConnection.state !== HubConnectionState.Connected
+          chatRoomId &&
+          (!messageStore.hubConnection ||
+            messageStore.hubConnection.state !== HubConnectionState.Connected)
         ) {
-          messageStore.createHubConnection(chatRoomId!);
+          messageStore.createHubConnection(chatRoomId);
         }
       }
     };
