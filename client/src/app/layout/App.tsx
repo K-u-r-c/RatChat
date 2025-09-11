@@ -5,6 +5,7 @@ import FriendsRealtimeProvider from "../shared/components/FriendsRealtimeProvide
 import StatusRealtimeProvider from "../shared/components/StatusRealtimeProvider";
 import SideNav from "./SideNav/SideNav";
 import SecondarySidebar from "./SideNav/SecondarySidebar";
+import ChatRoomsProfileImageRealtimeProvider from "../shared/components/ChatRoomsProfileImageRealtimeProvider";
 
 function App() {
   const { currentUser } = useAccount();
@@ -17,6 +18,7 @@ function App() {
         <>
           <FriendsRealtimeProvider />
           <StatusRealtimeProvider />
+          <ChatRoomsProfileImageRealtimeProvider />
         </>
       )}
       <Box sx={{ display: "flex", minHeight: "100vh" }}>

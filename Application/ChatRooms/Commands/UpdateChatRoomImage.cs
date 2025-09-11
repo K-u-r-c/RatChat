@@ -1,8 +1,10 @@
 using Application.ChatRooms.DTOs;
+using Application.ChatRooms.Events;
 using Application.Core;
 using Application.Interfaces;
 using AutoMapper;
 using Domain.Enums;
+using Domain.Events;
 using MediatR;
 using Persistance;
 
@@ -18,7 +20,8 @@ public class UpdateChatRoomImage
     public class Handler(
         AppDbContext context,
         IUserAccessor userAccessor,
-        IRolePermissionService rolePermissionService
+        IRolePermissionService rolePermissionService,
+        IPublisher publisher
     ) : IRequestHandler<Command, Result<Unit>>
     {
         public async Task<Result<Unit>> Handle(Command request, CancellationToken cancellationToken)
@@ -41,9 +44,23 @@ public class UpdateChatRoomImage
             chatRoom.ImageUrl = request.Dto.ImageUrl;
             var result = await context.SaveChangesAsync(cancellationToken) > 0;
 
-            return result
-                ? Result<Unit>.Success(Unit.Value)
-                : Result<Unit>.Failure("Failed to update chat room image", 400);
+            if (result)
+            {
+                var domainEvent = new ChatRoomProfileImageUpdatedEvent
+                {
+                    ChatRoomId = chatRoom.Id,
+                    ImageUrl = chatRoom.ImageUrl
+                };
+
+                await publisher.Publish(
+                    new ChatRoomProfileImageUpdatedNotification(domainEvent),
+                    cancellationToken
+                );
+
+                return Result<Unit>.Success(Unit.Value);
+            }
+
+            return Result<Unit>.Failure("Failed to update chat room image", 400);
         }
     }
 }

@@ -24,8 +24,11 @@ type Props = {
 
 export default function ChatRoomImageUpload({ chatRoomId }: Props) {
   const { currentUser } = useAccount();
-  const { chatRoom, setChatRoomImage, deleteChatRoomImage } =
-    useChatRooms(chatRoomId);
+  const {
+    chatRoom,
+    setChatRoomImage: setChatRoomImageMutation,
+    deleteChatRoomImage: deleteChatRoomImageMutation,
+  } = useChatRooms(chatRoomId);
   const { rolesStore } = useChatRoomRolesRealtime(chatRoomId, currentUser?.id);
   const userPermissions = rolesStore?.userPermissions || {};
   const canEdit =
@@ -97,20 +100,20 @@ export default function ChatRoomImageUpload({ chatRoomId }: Props) {
         chatRoomId,
       });
 
-      await setChatRoomImage.mutateAsync({
+      await setChatRoomImageMutation.mutateAsync({
         id: chatRoomId,
         imageUrl: uploadResult.url,
       });
 
       resetAll();
     } catch (e) {
-      console.error(e);
+      if (import.meta.env.DEV) console.error(e);
     }
   };
 
   const handleDelete = async () => {
     if (!existingImage) return;
-    await deleteChatRoomImage.mutateAsync(chatRoomId);
+    await deleteChatRoomImageMutation.mutateAsync(chatRoomId);
   };
 
   const handleCancel = () => {
@@ -119,8 +122,8 @@ export default function ChatRoomImageUpload({ chatRoomId }: Props) {
 
   const isUploading =
     uploadMedia.isPending ||
-    setChatRoomImage.isPending ||
-    deleteChatRoomImage.isPending;
+    setChatRoomImageMutation.isPending ||
+    deleteChatRoomImageMutation.isPending;
 
   return (
     <Box sx={{ width: "100%" }}>
@@ -171,9 +174,9 @@ export default function ChatRoomImageUpload({ chatRoomId }: Props) {
                         variant="outlined"
                         onClick={handleDelete}
                         color="error"
-                        disabled={deleteChatRoomImage.isPending}
+                        disabled={deleteChatRoomImageMutation.isPending}
                         startIcon={
-                          deleteChatRoomImage.isPending ? (
+                          deleteChatRoomImageMutation.isPending ? (
                             <CircularProgress size={16} />
                           ) : (
                             <Delete />

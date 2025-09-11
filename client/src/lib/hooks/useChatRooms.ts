@@ -188,9 +188,20 @@ export const useChatRooms = (id?: string) => {
     mutationFn: async (params: { id: string; imageUrl: string }) => {
       const response = await agent.put<ChatRoom>(
         `/chatRooms/${params.id}/image`,
-        { imageUrl: params.imageUrl }
+        params
       );
       return response.data;
+    },
+    onMutate: async (data) => {
+      await queryClient.cancelQueries({ queryKey: ["chatRooms", data.id] });
+      const previous = queryClient.getQueryData<ChatRoom>([
+        "chatRooms",
+        data.id,
+      ]);
+      queryClient.setQueryData<ChatRoom>(["chatRooms", data.id], (old) =>
+        old ? { ...old, imageUrl: data.imageUrl } : old
+      );
+      return { previous };
     },
     onSuccess: async (data) => {
       await queryClient.invalidateQueries({
@@ -198,8 +209,12 @@ export const useChatRooms = (id?: string) => {
       });
       toast.success("Chat room image updated successfully");
     },
-    onError: () => {
+    onError: (err, data, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["chatRooms", data.id], context.previous);
+      }
       toast.error("Failed to update chat room image");
+      if (import.meta.env.DEV) console.error(err);
     },
   });
 
@@ -208,14 +223,26 @@ export const useChatRooms = (id?: string) => {
       const response = await agent.delete<ChatRoom>(`/chatRooms/${id}/image`);
       return response.data;
     },
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ["chatRooms", id] });
+      const previous = queryClient.getQueryData<ChatRoom>(["chatRooms", id]);
+      queryClient.setQueryData<ChatRoom>(["chatRooms", id], (old) =>
+        old ? { ...old, imageUrl: undefined } : old
+      );
+      return { previous };
+    },
     onSuccess: async (data) => {
       await queryClient.invalidateQueries({
         queryKey: ["chatRooms", data.id],
       });
       toast.success("Chat room image deleted successfully");
     },
-    onError: () => {
+    onError: (err, id, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["chatRooms", id], context.previous);
+      }
       toast.error("Failed to delete chat room image");
+      if (import.meta.env.DEV) console.error(err);
     },
   });
 
