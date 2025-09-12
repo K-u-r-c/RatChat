@@ -11,7 +11,6 @@ import ResetPasswordForm from "../../features/account/ResetPasswordForm";
 import ChangePasswordForm from "../../features/account/ChangePasswordForm";
 import AuthCallback from "../../features/account/AuthCallback";
 import ChatRoomDetails from "../../features/chatRooms/details/ChatRoomDetails";
-import ChatRoomForm from "../../features/chatRooms/forms/ChatRoomForm";
 import JoinChatRoomPage from "../../features/chatRooms/join/JoinChatRoomPage";
 import ProfilePage from "../../features/profile/ProfilePage";
 import FriendsList from "../../features/friends/FriendsList";
@@ -29,9 +28,7 @@ export const router = createBrowserRouter([
         children: [
           { path: "", element: <EmptyPage /> },
           { path: "chat-rooms/:id", element: <ChatRoomDetails /> },
-          { path: "create-chat-room", element: <ChatRoomForm key="create" /> },
           { path: "chat-rooms/:id/:token/join", element: <JoinChatRoomPage /> },
-          { path: "manage/:id", element: <ChatRoomForm /> },
           { path: "profiles/:id", element: <ProfilePage /> },
           { path: "friends", element: <FriendsList /> },
           { path: "direct-chats/:id", element: <DirectChatDetails /> },

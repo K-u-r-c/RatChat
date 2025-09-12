@@ -46,7 +46,7 @@ export default function ChatRoomSettings({ open, onClose, chatRoomId }: Props) {
             ))}
           </List>
         </Box>
-        <Box sx={{ p: 3 }}>
+        <Box sx={{ p: 3, position: "relative" }}>
           {active === "overview" && (
             <ChatRoomSettingsOverview chatRoomId={chatRoomId} />
           )}

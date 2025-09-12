@@ -11,6 +11,7 @@ import { NAV_WIDTH } from "../../../lib/types/constants";
 import UserMenuIcon from "../UserMenuIcon";
 import { useEffect, useRef, useState } from "react";
 import { useChatRooms } from "../../../lib/hooks/useChatRooms";
+import { useStore } from "../../../lib/hooks/useStore";
 
 export default function SideNav() {
   const {
@@ -20,6 +21,7 @@ export default function SideNav() {
     hasNextPage,
     isFetchingNextPage,
   } = useChatRooms();
+  const { uiStore } = useStore();
   const listRef = useRef<HTMLDivElement | null>(null);
   const [hasAbove, setHasAbove] = useState(false);
   const [hasBelow, setHasBelow] = useState(false);
@@ -216,8 +218,7 @@ export default function SideNav() {
           {/* Add chat room button */}
           <Tooltip title="Create chat room" placement="right">
             <IconButton
-              component={NavLink}
-              to="/create-chat-room"
+              onClick={() => uiStore.openCreateJoinModal()}
               sx={{
                 width: 52,
                 height: 52,

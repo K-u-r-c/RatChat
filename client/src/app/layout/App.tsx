@@ -6,6 +6,7 @@ import StatusRealtimeProvider from "../shared/components/StatusRealtimeProvider"
 import SideNav from "./SideNav/SideNav";
 import SecondarySidebar from "./SideNav/SecondarySidebar";
 import ChatRoomsProfileImageRealtimeProvider from "../shared/components/ChatRoomsProfileImageRealtimeProvider";
+import NewChatRoomModal from "../../features/chatRooms/create/NewChatRoomModal";
 
 function App() {
   const { currentUser } = useAccount();
@@ -39,6 +40,7 @@ function App() {
           <Outlet />
         </Box>
       </Box>
+      <NewChatRoomModal />
     </Box>
   );
 }

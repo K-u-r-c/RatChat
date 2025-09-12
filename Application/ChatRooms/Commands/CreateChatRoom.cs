@@ -23,6 +23,7 @@ public class CreateChatRoom
             var user = await userAccessor.GetUserAsync();
 
             var chatRoom = mapper.Map<ChatRoom>(request.CreateChatRoomDto);
+            chatRoom.OwnerId = user.Id;
 
             context.ChatRooms.Add(chatRoom);
 
