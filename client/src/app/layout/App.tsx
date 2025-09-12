@@ -12,7 +12,7 @@ function App() {
   const { currentUser } = useAccount();
 
   return (
-    <Box sx={{ bgcolor: "#27262C", minHeight: "100vh" }}>
+    <Box sx={{ bgcolor: "background.default", minHeight: "100vh" }}>
       <ScrollRestoration />
       <CssBaseline />
       {currentUser && (

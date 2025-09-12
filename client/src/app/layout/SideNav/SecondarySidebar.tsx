@@ -20,7 +20,7 @@ export default function SecondarySidebar() {
         height: "100vh",
         position: "sticky",
         top: 0,
-        bgcolor: "#2b2d31",
+        bgcolor: "#1e1f24",
         borderRight: "1px solid rgba(255,255,255,0.08)",
       }}
     >

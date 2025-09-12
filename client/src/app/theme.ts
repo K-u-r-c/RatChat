@@ -7,7 +7,7 @@ export const theme = createTheme({
       main: "#5865f2ff",
     },
     background: {
-      default: "#27262C",
+      default: "#24262bff",
       paper: "rgba(19,19,22,0.85)",
     },
     divider: "rgba(255,255,255,0.12)",
@@ -24,8 +24,7 @@ export const theme = createTheme({
     MuiCard: {
       styleOverrides: {
         root: {
-          backgroundColor: "rgba(19,19,22,0.65)",
-          border: "1px solid rgba(255,255,255,0.08)",
+          backgroundColor: "rgba(19,19,22)",
         },
       },
     },
