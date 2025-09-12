@@ -22,14 +22,27 @@ export default function ChatRoomSettingsOverview({ chatRoomId }: Props) {
   });
 
   useEffect(() => {
-    if (chatRoom) methods.reset({ title: chatRoom.title });
+    if (chatRoom) methods.reset({ title: chatRoom.title?.trim() ?? "" });
   }, [chatRoom, methods]);
 
-  const onSubmit = methods.handleSubmit(async (data) => {
+  const watchedTitle = methods.watch("title") ?? "";
+  const isTrimmedDirty =
+    chatRoom != null
+      ? watchedTitle.trim() !== (chatRoom.title ?? "")
+      : methods.formState.isDirty;
+
+  const performSave = async (data: ChatRoomSchema) => {
     if (!chatRoom) return;
-    await updateChatRoom.mutateAsync({ ...chatRoom, title: data.title });
-    methods.reset({ title: data.title });
-  });
+    const trimmed = data.title.trim();
+    if (trimmed === (chatRoom.title ?? "")) {
+      methods.reset({ title: chatRoom.title ?? "" });
+      return;
+    }
+    await updateChatRoom.mutateAsync({ ...chatRoom, title: trimmed });
+    methods.reset({ title: trimmed });
+  };
+
+  const onSubmit = methods.handleSubmit(performSave);
 
   return (
     <Stack
@@ -86,7 +99,7 @@ export default function ChatRoomSettingsOverview({ chatRoomId }: Props) {
       </Box>
 
       <Collapse
-        in={methods.formState.isDirty}
+        in={isTrimmedDirty}
         timeout={200}
         unmountOnExit
         sx={{
@@ -118,7 +131,9 @@ export default function ChatRoomSettingsOverview({ chatRoomId }: Props) {
           </Typography>
           <Button
             type="button"
-            onClick={() => methods.reset({ title: chatRoom?.title ?? "" })}
+            onClick={() =>
+              methods.reset({ title: (chatRoom?.title ?? "").trim() })
+            }
             color="info"
             variant="text"
           >
@@ -127,14 +142,7 @@ export default function ChatRoomSettingsOverview({ chatRoomId }: Props) {
           <Button
             type="submit"
             onClick={() => {
-              methods.handleSubmit(async (data) => {
-                if (!chatRoom) return;
-                await updateChatRoom.mutateAsync({
-                  ...chatRoom,
-                  title: data.title,
-                });
-                methods.reset({ title: data.title });
-              })();
+              methods.handleSubmit(performSave)();
             }}
             color="success"
             variant="contained"
