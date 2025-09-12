@@ -126,7 +126,6 @@ export default function ChatRoomSettingsOverview({ chatRoomId }: Props) {
           </Button>
           <Button
             type="submit"
-            form=""
             onClick={() => {
               methods.handleSubmit(async (data) => {
                 if (!chatRoom) return;
