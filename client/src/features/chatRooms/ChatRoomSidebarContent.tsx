@@ -22,12 +22,20 @@ import {
 import { useParams } from "react-router";
 import { useChatRooms } from "../../lib/hooks/useChatRooms";
 import ChatRoomSettings from "./settings/ChatRoomSettings";
+import InvitePeopleModal from "./invites/InvitePeopleModal";
+import { useAccount } from "../../lib/hooks/useAccount";
+import { useChatRoomRolesRealtime } from "../../lib/hooks/useChatRoomRolesRealtime";
+import { CHATROOM_PERMISSIONS } from "../../lib/types/chatroomPermissions";
 
 export default function ChatRoomSidebarContent() {
   const { id } = useParams();
-  const { chatRoom, isLoadingChatRoom, leaveChatRoom } = useChatRooms(id);
+  const { currentUser } = useAccount();
+  const { chatRoom, isLoadingChatRoom, leaveChatRoom, deleteChatRooms } =
+    useChatRooms(id);
+  const { rolesStore } = useChatRoomRolesRealtime(id, currentUser?.id);
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   const menuOpen = Boolean(menuAnchorEl);
 
@@ -109,7 +117,23 @@ export default function ChatRoomSidebarContent() {
             },
           }}
         >
-          <MenuItem onClick={handleMenuClose}>
+          {(chatRoom.isAdmin ||
+            rolesStore.userPermissions[
+              CHATROOM_PERMISSIONS.CreateInviteLinks
+            ]) && (
+            <MenuItem
+              onClick={() => {
+                setInviteOpen(true);
+                handleMenuClose();
+              }}
+            >
+              <ListItemIcon>
+                <People fontSize="small" />
+              </ListItemIcon>
+              Invite people
+            </MenuItem>
+          )}
+          <MenuItem onClick={handleMenuClose} sx={{ display: "none" }}>
             <ListItemIcon>
               <People fontSize="small" />
             </ListItemIcon>
@@ -126,18 +150,39 @@ export default function ChatRoomSidebarContent() {
             </ListItemIcon>
             Server settings
           </MenuItem>
-          <MenuItem
-            onClick={() => {
-              handleLeave();
-              handleMenuClose();
-            }}
-            sx={{ color: "error.main" }}
-          >
-            <ListItemIcon>
-              <ExitToApp fontSize="small" sx={{ color: "error.main" }} />
-            </ListItemIcon>
-            Leave server
-          </MenuItem>
+          {chatRoom.isAdmin ? (
+            <MenuItem
+              onClick={async () => {
+                if (
+                  window.confirm(
+                    "Are you sure you want to delete this chat room?"
+                  )
+                ) {
+                  await deleteChatRooms.mutateAsync(id!);
+                }
+                handleMenuClose();
+              }}
+              sx={{ color: "error.main" }}
+            >
+              <ListItemIcon>
+                <ExitToApp fontSize="small" sx={{ color: "error.main" }} />
+              </ListItemIcon>
+              Delete server
+            </MenuItem>
+          ) : (
+            <MenuItem
+              onClick={() => {
+                handleLeave();
+                handleMenuClose();
+              }}
+              sx={{ color: "error.main" }}
+            >
+              <ListItemIcon>
+                <ExitToApp fontSize="small" sx={{ color: "error.main" }} />
+              </ListItemIcon>
+              Leave server
+            </MenuItem>
+          )}
         </Menu>
       </Box>
 
@@ -191,6 +236,11 @@ export default function ChatRoomSidebarContent() {
       <ChatRoomSettings
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
+        chatRoomId={chatRoom.id}
+      />
+      <InvitePeopleModal
+        open={inviteOpen}
+        onClose={() => setInviteOpen(false)}
         chatRoomId={chatRoom.id}
       />
     </Box>

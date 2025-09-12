@@ -2,7 +2,6 @@ import { useParams } from "react-router";
 import { useChatRooms } from "../../../lib/hooks/useChatRooms";
 import { Box, Typography } from "@mui/material";
 import ChatRoomDetailsChat from "./ChatRoomDetailsChat";
-import ChatRoomManagement from "./ChatRoomManagement";
 import ChatRoomRolesBar from "./ChatRoomRolesBar";
 import ChatRoomMembersBar from "./ChatRoomMembersBar";
 import { useChatRoomRolesRealtime } from "../../../lib/hooks/useChatRoomRolesRealtime";
@@ -20,7 +19,6 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
 
   return (
     <Box sx={{ flex: 1 }}>
-      <ChatRoomManagement userPermissions={rolesStore.userPermissions} />
       <ChatRoomRolesBar
         roles={rolesStore.roles}
         createRole={rolesStore.createRole}
