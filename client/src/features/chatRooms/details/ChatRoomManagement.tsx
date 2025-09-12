@@ -17,13 +17,14 @@ import {
   Avatar,
   ListItemText,
 } from "@mui/material";
-import { useParams, useNavigate } from "react-router";
+import { useParams } from "react-router";
 import { useChatRooms } from "../../../lib/hooks/useChatRooms";
 import type { useChatRoomRolesRealtime } from "../../../lib/hooks/useChatRoomRolesRealtime";
 import { CHATROOM_PERMISSIONS } from "../../../lib/types/chatroomPermissions";
 import { useMemo, useState } from "react";
 import { useFriends } from "../../../lib/hooks/useFriends";
 import SettingsIcon from "@mui/icons-material/Settings";
+import ChatRoomSettings from "../settings/ChatRoomSettings";
 
 type Props = {
   userPermissions: ReturnType<
@@ -32,7 +33,7 @@ type Props = {
 };
 export default function ChatRoomManagement({ userPermissions }: Props) {
   const { id } = useParams();
-  const navigate = useNavigate();
+
   const { chatRoom, deleteChatRooms, createInviteLink, isGeneratingInvite } =
     useChatRooms(id);
   const { friends } = useFriends();
@@ -61,8 +62,9 @@ export default function ChatRoomManagement({ userPermissions }: Props) {
     }
   };
 
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const handleModify = () => {
-    navigate(`/manage/${id}`);
+    setSettingsOpen(true);
   };
 
   const handleGenerateInvite = async () => {
@@ -215,6 +217,11 @@ export default function ChatRoomManagement({ userPermissions }: Props) {
           <Button onClick={handleCloseDialog}>Close</Button>
         </DialogActions>
       </Dialog>
+      <ChatRoomSettings
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        chatRoomId={id!}
+      />
     </Box>
   );
 }
