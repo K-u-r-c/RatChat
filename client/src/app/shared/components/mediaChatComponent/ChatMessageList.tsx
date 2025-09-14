@@ -221,6 +221,8 @@ export default function ChatMessageList({
       {renderItems.map((item, idx) => {
         if (item.kind === "single") {
           const message = item.message;
+          const isOwn =
+            (message.senderId || message.userId) === currentUser?.id;
           return (
             <Box
               key={message.id}
@@ -228,6 +230,7 @@ export default function ChatMessageList({
               className="rc-message"
               sx={{
                 display: "flex",
+                flexDirection: isOwn ? "row-reverse" : "row",
                 mb: 2,
                 position: "relative",
                 "&:hover .actions": { opacity: 1 },
@@ -241,8 +244,20 @@ export default function ChatMessageList({
                 }
                 showUserProfiles={showUserProfiles}
               />
-              <Box display="flex" flexDirection="column" sx={{ flex: 1 }}>
-                <Box display="flex" alignItems="center" gap={3}>
+              <Box
+                display="flex"
+                flexDirection="column"
+                sx={{ flex: 1, alignItems: isOwn ? "flex-end" : "flex-start" }}
+              >
+                <Box
+                  display="flex"
+                  alignItems="center"
+                  gap={3}
+                  sx={{
+                    width: "100%",
+                    flexDirection: isOwn ? "row-reverse" : "row",
+                  }}
+                >
                   <Typography
                     component={showUserProfiles ? Link : "span"}
                     to={
@@ -272,7 +287,8 @@ export default function ChatMessageList({
                     sx={{
                       display: "flex",
                       gap: 1,
-                      ml: "auto",
+                      ml: isOwn ? 0 : "auto",
+                      mr: isOwn ? "auto" : 0,
                       opacity: 0,
                       transition: "opacity 0.15s",
                     }}
@@ -311,6 +327,7 @@ export default function ChatMessageList({
                       mb: 1,
                       bgcolor: "action.hover",
                       cursor: onJumpToMessage ? "pointer" : "default",
+                      alignSelf: isOwn ? "flex-end" : "flex-start",
                     }}
                     onClick={() =>
                       onJumpToMessage &&
@@ -339,20 +356,36 @@ export default function ChatMessageList({
                   </Paper>
                 )}
 
-                <MessageContentRenderer
-                  message={message}
-                  onImageClick={onImageClick}
-                  onFileDownload={onFileDownload}
-                />
+                {/* Message bubble */}
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 1.25,
+                    maxWidth: "75%",
+                    bgcolor: isOwn ? "primary.main" : "action.hover",
+                    color: isOwn ? "#fff" : "inherit",
+                    borderRadius: 2,
+                    borderTopRightRadius: isOwn ? 2 : 2,
+                    borderTopLeftRadius: 2,
+                  }}
+                >
+                  <MessageContentRenderer
+                    message={message}
+                    onImageClick={onImageClick}
+                    onFileDownload={onFileDownload}
+                  />
+                </Paper>
 
                 {/* Reactions */}
-                <MessageReactions
-                  reactions={message.reactions as MessageReaction[]}
-                  currentUserId={currentUser?.id}
-                  onToggle={async (emoji) =>
-                    toggleReactionOptimistic(message.id, emoji)
-                  }
-                />
+                <Box sx={{ alignSelf: isOwn ? "flex-end" : "flex-start" }}>
+                  <MessageReactions
+                    reactions={message.reactions as MessageReaction[]}
+                    currentUserId={currentUser?.id}
+                    onToggle={async (emoji) =>
+                      toggleReactionOptimistic(message.id, emoji)
+                    }
+                  />
+                </Box>
               </Box>
             </Box>
           );
@@ -361,6 +394,7 @@ export default function ChatMessageList({
         const first = item.messages[0];
         const displayName =
           first.senderDisplayName || first.displayName || "Unknown";
+        const isOwn = (first.senderId || first.userId) === currentUser?.id;
         return (
           <Box
             key={`group-${first.id}-${idx}`}
@@ -368,6 +402,7 @@ export default function ChatMessageList({
             className="rc-message"
             sx={{
               display: "flex",
+              flexDirection: isOwn ? "row-reverse" : "row",
               mb: 2,
               position: "relative",
               "&:hover .actions": { opacity: 1 },
@@ -379,8 +414,20 @@ export default function ChatMessageList({
               displayName={displayName}
               showUserProfiles={showUserProfiles}
             />
-            <Box display="flex" flexDirection="column" sx={{ flex: 1 }}>
-              <Box display="flex" alignItems="center" gap={3}>
+            <Box
+              display="flex"
+              flexDirection="column"
+              sx={{ flex: 1, alignItems: isOwn ? "flex-end" : "flex-start" }}
+            >
+              <Box
+                display="flex"
+                alignItems="center"
+                gap={3}
+                sx={{
+                  width: "100%",
+                  flexDirection: isOwn ? "row-reverse" : "row",
+                }}
+              >
                 <Typography
                   component={showUserProfiles ? Link : "span"}
                   to={
@@ -407,7 +454,8 @@ export default function ChatMessageList({
                   sx={{
                     display: "flex",
                     gap: 1,
-                    ml: "auto",
+                    ml: isOwn ? 0 : "auto",
+                    mr: isOwn ? "auto" : 0,
                     opacity: 0,
                     transition: "opacity 0.15s",
                   }}
@@ -471,22 +519,35 @@ export default function ChatMessageList({
                 </Paper>
               )}
 
-              <GroupedMediaMessage
-                type={item.type}
-                messages={item.messages}
-                onImageClick={onImageClick}
-              />
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 1.25,
+                  bgcolor: isOwn ? "primary.main" : "action.hover",
+                  color: isOwn ? "#fff" : "inherit",
+                  borderRadius: 2,
+                  maxWidth: "75%",
+                }}
+              >
+                <GroupedMediaMessage
+                  type={item.type}
+                  messages={item.messages}
+                  onImageClick={onImageClick}
+                />
+              </Paper>
 
               {/* Reactions under grouped content apply to each message; show for the first only */}
-              <MessageReactions
-                reactions={
-                  (first as BaseMessage).reactions as MessageReaction[]
-                }
-                currentUserId={currentUser?.id}
-                onToggle={async (emoji) =>
-                  toggleReactionOptimistic(first.id, emoji)
-                }
-              />
+              <Box sx={{ alignSelf: isOwn ? "flex-end" : "flex-start" }}>
+                <MessageReactions
+                  reactions={
+                    (first as BaseMessage).reactions as MessageReaction[]
+                  }
+                  currentUserId={currentUser?.id}
+                  onToggle={async (emoji) =>
+                    toggleReactionOptimistic(first.id, emoji)
+                  }
+                />
+              </Box>
             </Box>
           </Box>
         );

@@ -208,14 +208,36 @@ const MediaChatComponent = observer(function MediaChatComponent({
   };
 
   return (
-    <div {...fileUpload.dropzoneProps}>
+    <div
+      {...fileUpload.dropzoneProps}
+      style={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        minHeight: 0,
+      }}
+    >
       <input {...fileUpload.inputProps} />
 
       {/* Drag overlay */}
       <DragOverlay isDragActive={fileUpload.isDragActive} />
 
-      <Box>
-        <Box>
+      <Box
+        sx={{
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          minHeight: 0,
+        }}
+      >
+        <Box
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
           {/* Messages container */}
           <Box
             ref={scrollHandler.messagesContainerRef}
@@ -223,7 +245,8 @@ const MediaChatComponent = observer(function MediaChatComponent({
               display: "flex",
               flexDirection: "column",
               overflowY: "auto",
-              maxHeight: "80vh",
+              flex: 1,
+              minHeight: 0,
             }}
             className="rc-scroll"
             onScroll={scrollHandler.handleScroll}
@@ -243,8 +266,8 @@ const MediaChatComponent = observer(function MediaChatComponent({
             />
           </Box>
 
-          {/* Message input area */}
-          <Box>
+          {/* Message input area (non-scrollable, grows with content) */}
+          <Box sx={{ borderTop: "1px solid", borderColor: "divider" }}>
             {/* Reply context */}
             {replyToMessageId && (
               <Box sx={{ bgcolor: "action.hover" }}>

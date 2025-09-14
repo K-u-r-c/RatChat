@@ -1,11 +1,21 @@
 import { useParams } from "react-router";
+import { useState } from "react";
 import { observer } from "mobx-react-lite";
 import { useDirectMessages } from "../../lib/hooks/useDirectMessages";
 import { useDirectChats } from "../../lib/hooks/useDirectChats";
-import { Typography, Box, Alert } from "@mui/material";
-import AvatarWithStatus from "../../app/shared/components/AvatarWithStatus";
+import {
+  Typography,
+  Box,
+  Alert,
+  IconButton,
+  Drawer,
+  Button,
+} from "@mui/material";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 import MediaChatComponent from "../../app/shared/components/mediaChatComponent/MediaChatComponent";
 import type { MessageType, MediaUploadResult } from "../../lib/types";
+import EmojiSettingsDialog from "../../app/shared/components/EmojiSettingsDialog";
+import AvatarWithStatus from "../../app/shared/components/AvatarWithStatus";
 
 const DirectChatDetails = observer(function DirectChatDetails() {
   const { id } = useParams();
@@ -13,6 +23,8 @@ const DirectChatDetails = observer(function DirectChatDetails() {
   const { directChats } = useDirectChats();
 
   const currentChat = directChats?.find((chat) => chat.id === id);
+  const [rightPanelOpen, setRightPanelOpen] = useState(false);
+  const [emojiDialogOpen, setEmojiDialogOpen] = useState(false);
 
   const handleSendMessage = async (
     body: string,
@@ -54,51 +66,105 @@ const DirectChatDetails = observer(function DirectChatDetails() {
   }
 
   return (
-    <Box sx={{ height: "100vh", display: "flex", flexDirection: "column" }}>
-      {/* Chat Header */}
+    <Box
+      sx={{
+        height: "100vh",
+        display: "flex",
+        flexDirection: "row",
+        overflow: "hidden",
+      }}
+    >
+      {/* Main chat area */}
       <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: 2,
-          borderBottom: "1px solid",
-          borderColor: "divider",
-          p: 1,
-        }}
+        sx={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}
       >
-        <AvatarWithStatus
-          src={currentChat.otherUserImageUrl}
-          alt={currentChat.otherUserDisplayName}
-          status={
-            currentChat.status || (currentChat.isOnline ? "Online" : "Offline")
-          }
+        {/* Header */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            borderBottom: "1px solid",
+            borderColor: "divider",
+            p: 1,
+          }}
         >
-          {currentChat.otherUserDisplayName[0]}
-        </AvatarWithStatus>
-        <Box>
-          <Typography variant="h6" fontWeight="bold">
-            {currentChat.otherUserDisplayName}
-          </Typography>
+          <AvatarWithStatus
+            src={currentChat.otherUserImageUrl}
+            alt={currentChat.otherUserDisplayName}
+            status={
+              currentChat.status ||
+              (currentChat.isOnline ? "Online" : "Offline")
+            }
+          >
+            {currentChat.otherUserDisplayName[0]}
+          </AvatarWithStatus>
+          <Box>
+            <Typography variant="h6" fontWeight="bold">
+              {currentChat.otherUserDisplayName}
+            </Typography>
+          </Box>
+          <IconButton
+            aria-label="More options"
+            onClick={() => setRightPanelOpen((v) => !v)}
+          >
+            <MoreVertIcon />
+          </IconButton>
+        </Box>
+
+        {!currentChat.canSendMessages && (
+          <Alert severity="info" sx={{ m: 1 }}>
+            You can only view this conversation. To send messages, you need to
+            be friends with {currentChat.otherUserDisplayName}.
+          </Alert>
+        )}
+
+        {/* Chat component fills remaining height; only messages scroll */}
+        <Box sx={{ flex: 1, minHeight: 0 }}>
+          <MediaChatComponent
+            title={`Chat with ${currentChat.otherUserDisplayName}`}
+            messageStore={directMessageStore}
+            onSendMessage={
+              currentChat.canSendMessages ? handleSendMessage : async () => {}
+            }
+            showUserProfiles={true}
+            chatRoomId={undefined}
+            directChatId={id}
+            userPermissions={undefined}
+          />
         </Box>
       </Box>
 
-      {!currentChat.canSendMessages && (
-        <Alert severity="info" sx={{ mb: 3 }}>
-          You can only view this conversation. To send messages, you need to be
-          friends with {currentChat.otherUserDisplayName}.
-        </Alert>
-      )}
+      {/* Right side panel */}
+      <Drawer
+        variant="persistent"
+        anchor="right"
+        open={rightPanelOpen}
+        slotProps={{
+          paper: {
+            sx: {
+              width: 300,
+              p: 2,
+              boxSizing: "border-box",
+            },
+          },
+        }}
+      >
+        <Typography variant="h6" sx={{ mb: 2 }}>
+          Conversation Options
+        </Typography>
+        <Button variant="outlined" onClick={() => setEmojiDialogOpen(true)}>
+          Change default emoji
+        </Button>
+      </Drawer>
 
-      <MediaChatComponent
-        title={`Chat with ${currentChat.otherUserDisplayName}`}
-        messageStore={directMessageStore}
-        onSendMessage={
-          currentChat.canSendMessages ? handleSendMessage : async () => {}
-        }
-        showUserProfiles={true}
-        chatRoomId={undefined}
-        directChatId={id}
-        userPermissions={undefined}
+      {/* Emoji settings dialog triggered from right panel */}
+      <EmojiSettingsDialog
+        open={emojiDialogOpen}
+        onClose={() => setEmojiDialogOpen(false)}
+        chatType={"direct"}
+        chatId={id!}
+        chatName={`Chat with ${currentChat.otherUserDisplayName}`}
       />
     </Box>
   );
