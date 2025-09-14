@@ -10,7 +10,7 @@ import {
 import { ReplyOutlined } from "@mui/icons-material";
 import { Link } from "react-router";
 import { timeAgo } from "../../../../lib/util/util";
-import MessageAvatarWithStatus from "../MessageAvatarWithStatus";
+import MessageAvatar from "../MessageAvatar";
 import MessageContentRenderer from "./MessageContentRenderer";
 import GroupedMediaMessage from "./GroupedMediaMessage";
 import type { BaseMessage, BaseMessageStore } from "../../../../lib/types";
@@ -236,7 +236,7 @@ export default function ChatMessageList({
                 "&:hover .actions": { opacity: 1 },
               }}
             >
-              <MessageAvatarWithStatus
+              <MessageAvatar
                 userId={message.senderId || message.userId || ""}
                 imageUrl={message.senderImageUrl || message.imageUrl}
                 displayName={
@@ -306,6 +306,7 @@ export default function ChatMessageList({
                     {(chatRoomId || directChatId) && (
                       <EmojiPickerComponent
                         variant="reaction"
+                        showQuickReact={false} // <-- disables quick react with default emoji
                         onQuickReact={async (emoji) =>
                           toggleReactionOptimistic(message.id, emoji)
                         }
@@ -313,6 +314,16 @@ export default function ChatMessageList({
                           toggleReactionOptimistic(message.id, emoji)
                         }
                         defaultEmoji={defaultEmoji}
+                        anchorOrigin={
+                          isOwn
+                            ? { vertical: "bottom", horizontal: "left" }
+                            : { vertical: "bottom", horizontal: "left" }
+                        }
+                        transformOrigin={
+                          isOwn
+                            ? { vertical: "bottom", horizontal: "right" }
+                            : { vertical: "bottom", horizontal: "left" }
+                        }
                       />
                     )}
                   </Box>
@@ -408,7 +419,7 @@ export default function ChatMessageList({
               "&:hover .actions": { opacity: 1 },
             }}
           >
-            <MessageAvatarWithStatus
+            <MessageAvatar
               userId={first.senderId || first.userId || ""}
               imageUrl={first.senderImageUrl || first.imageUrl}
               displayName={displayName}
@@ -472,6 +483,7 @@ export default function ChatMessageList({
                   {(chatRoomId || directChatId) && (
                     <EmojiPickerComponent
                       variant="reaction"
+                      showQuickReact={false} // <-- disables quick react with default emoji
                       onQuickReact={async (emoji) =>
                         toggleReactionOptimistic(first.id, emoji)
                       }
@@ -479,6 +491,16 @@ export default function ChatMessageList({
                         toggleReactionOptimistic(first.id, emoji)
                       }
                       defaultEmoji={defaultEmoji}
+                      anchorOrigin={
+                        isOwn
+                          ? { vertical: "bottom", horizontal: "right" }
+                          : { vertical: "bottom", horizontal: "left" }
+                      }
+                      transformOrigin={
+                        isOwn
+                          ? { vertical: "bottom", horizontal: "right" }
+                          : { vertical: "bottom", horizontal: "left" }
+                      }
                     />
                   )}
                 </Box>

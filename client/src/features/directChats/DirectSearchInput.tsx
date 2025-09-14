@@ -32,13 +32,13 @@ export default function DirectSearchInput({
         bgcolor: "#1f2125",
         borderRadius: 1,
         "& .MuiOutlinedInput-notchedOutline": {
-          borderColor: "transparent",
+          borderColor: "transparent !important",
         },
         "&:hover .MuiOutlinedInput-notchedOutline": {
-          borderColor: "transparent",
+          borderColor: "transparent !important",
         },
         "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-          borderColor: "transparent",
+          borderColor: "transparent !important",
         },
         input: { color: "white" },
       }}

@@ -3,19 +3,12 @@ import { useState } from "react";
 import { observer } from "mobx-react-lite";
 import { useDirectMessages } from "../../lib/hooks/useDirectMessages";
 import { useDirectChats } from "../../lib/hooks/useDirectChats";
-import {
-  Typography,
-  Box,
-  Alert,
-  IconButton,
-  Drawer,
-  Button,
-} from "@mui/material";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
+import { Typography, Box, Alert, IconButton, Button } from "@mui/material";
 import MediaChatComponent from "../../app/shared/components/mediaChatComponent/MediaChatComponent";
 import type { MessageType, MediaUploadResult } from "../../lib/types";
 import EmojiSettingsDialog from "../../app/shared/components/EmojiSettingsDialog";
 import AvatarWithStatus from "../../app/shared/components/AvatarWithStatus";
+import { MoreHoriz } from "@mui/icons-material";
 
 const DirectChatDetails = observer(function DirectChatDetails() {
   const { id } = useParams();
@@ -76,30 +69,36 @@ const DirectChatDetails = observer(function DirectChatDetails() {
     >
       {/* Main chat area */}
       <Box
-        sx={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}
+        sx={{
+          flex: rightPanelOpen ? "1 1 calc(100% - 300px)" : "1 1 100%",
+          display: "flex",
+          flexDirection: "column",
+          minWidth: 0,
+          transition: "flex-basis 200ms cubic-bezier(.4,0,.2,1)",
+        }}
       >
         {/* Header */}
         <Box
           sx={{
             display: "flex",
             alignItems: "center",
-            justifyContent: "flex-end",
+            justifyContent: "space-between",
             borderBottom: "1px solid",
             borderColor: "divider",
             p: 1,
           }}
         >
-          <AvatarWithStatus
-            src={currentChat.otherUserImageUrl}
-            alt={currentChat.otherUserDisplayName}
-            status={
-              currentChat.status ||
-              (currentChat.isOnline ? "Online" : "Offline")
-            }
-          >
-            {currentChat.otherUserDisplayName[0]}
-          </AvatarWithStatus>
-          <Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <AvatarWithStatus
+              src={currentChat.otherUserImageUrl}
+              alt={currentChat.otherUserDisplayName}
+              status={
+                currentChat.status ||
+                (currentChat.isOnline ? "Online" : "Offline")
+              }
+            >
+              {currentChat.otherUserDisplayName[0]}
+            </AvatarWithStatus>
             <Typography variant="h6" fontWeight="bold">
               {currentChat.otherUserDisplayName}
             </Typography>
@@ -108,7 +107,7 @@ const DirectChatDetails = observer(function DirectChatDetails() {
             aria-label="More options"
             onClick={() => setRightPanelOpen((v) => !v)}
           >
-            <MoreVertIcon />
+            <MoreHoriz />
           </IconButton>
         </Box>
 
@@ -119,7 +118,6 @@ const DirectChatDetails = observer(function DirectChatDetails() {
           </Alert>
         )}
 
-        {/* Chat component fills remaining height; only messages scroll */}
         <Box sx={{ flex: 1, minHeight: 0 }}>
           <MediaChatComponent
             title={`Chat with ${currentChat.otherUserDisplayName}`}
@@ -136,27 +134,28 @@ const DirectChatDetails = observer(function DirectChatDetails() {
       </Box>
 
       {/* Right side panel */}
-      <Drawer
-        variant="persistent"
-        anchor="right"
-        open={rightPanelOpen}
-        slotProps={{
-          paper: {
-            sx: {
-              width: 300,
-              p: 2,
-              boxSizing: "border-box",
-            },
-          },
-        }}
-      >
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Conversation Options
-        </Typography>
-        <Button variant="outlined" onClick={() => setEmojiDialogOpen(true)}>
-          Change default emoji
-        </Button>
-      </Drawer>
+      {rightPanelOpen && (
+        <Box
+          sx={{
+            width: 300,
+            flexShrink: 0,
+            p: 2,
+            boxSizing: "border-box",
+            bgcolor: "background.paper",
+            borderLeft: "1px solid",
+            borderColor: "divider",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            Conversation Options
+          </Typography>
+          <Button variant="outlined" onClick={() => setEmojiDialogOpen(true)}>
+            Change default emoji
+          </Button>
+        </Box>
+      )}
 
       {/* Emoji settings dialog triggered from right panel */}
       <EmojiSettingsDialog
