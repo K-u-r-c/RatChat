@@ -1,4 +1,4 @@
-import { TextField, IconButton, CircularProgress, Paper } from "@mui/material";
+import { TextField, IconButton, CircularProgress, Box } from "@mui/material";
 import { AttachFile } from "@mui/icons-material";
 import { useForm, type FieldValues } from "react-hook-form";
 import EmojiPickerComponent from "../EmojiPicker";
@@ -49,7 +49,7 @@ export default function ChatInput({
     }
   };
 
-  const handleQuickReact = (emoji: string) => {
+  const handleDefaultEmoji = (emoji: string) => {
     setValue("body", emoji);
     handleSubmit(handleFormSubmit)();
     if (onQuickReact) {
@@ -58,59 +58,79 @@ export default function ChatInput({
   };
 
   return (
-    <Paper
-      className="rc-panel"
-      sx={{ p: 1, mt: 1, display: "flex", gap: 1, alignItems: "flex-end" }}
-    >
-      <TextField
-        {...register("body")}
-        variant="outlined"
-        fullWidth
-        multiline
-        rows={2}
-        placeholder={placeholder}
-        onKeyDown={handleKeyDown}
-        disabled={!hasPermission}
-        slotProps={{
-          input: {
-            endAdornment:
-              isSubmitting || isUploading ? (
-                <CircularProgress size={24} />
-              ) : null,
-          },
-        }}
-        sx={{
-          bgcolor: "#1f2125",
-          borderRadius: 1,
-          "& .MuiOutlinedInput-notchedOutline": { borderColor: "transparent" },
-          "&:hover .MuiOutlinedInput-notchedOutline": {
-            borderColor: "transparent",
-          },
-          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-            borderColor: "transparent",
-          },
-          "& .MuiInputBase-input, & .MuiInputBase-inputMultiline": {
-            color: "#fff",
-            "&::placeholder": { color: "rgba(255,255,255,0.6)" },
-          },
-        }}
-      />
-      <EmojiPickerComponent
-        variant="standard"
-        onEmojiSelect={handleEmojiSelect}
-        onQuickReact={handleQuickReact}
-        defaultEmoji={defaultEmoji}
-        disabled={isSubmitting || isUploading}
-      />
+    <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+      {/* Attach file on the left */}
       <IconButton
         onClick={onFileSelect}
         color="primary"
-        sx={{ mb: 0.5 }}
         title="Attach file"
         disabled={!hasPermission || isSubmitting || isUploading}
       >
         <AttachFile />
       </IconButton>
-    </Paper>
+
+      {/* Input with emoji picker*/}
+      <TextField
+        {...register("body")}
+        variant="outlined"
+        fullWidth
+        multiline
+        maxRows={8}
+        placeholder={placeholder}
+        onKeyDown={handleKeyDown}
+        disabled={!hasPermission}
+        slotProps={{
+          input: {
+            endAdornment: (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                {isSubmitting || isUploading ? (
+                  <CircularProgress size={20} />
+                ) : null}
+                <EmojiPickerComponent
+                  variant="standard"
+                  onEmojiSelect={handleEmojiSelect}
+                  showQuickReact={false}
+                  disabled={isSubmitting || isUploading}
+                />
+              </Box>
+            ),
+          },
+        }}
+        sx={{
+          bgcolor: "#2b2d33ff",
+          borderRadius: 9999,
+          "& .MuiOutlinedInput-notchedOutline": {
+            borderColor: "transparent !important",
+          },
+          "&:hover .MuiOutlinedInput-notchedOutline": {
+            borderColor: "transparent !important",
+          },
+          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+            borderColor: "transparent !important",
+          },
+          "& .MuiInputBase-input, & .MuiInputBase-inputMultiline": {
+            color: "#fff",
+            "&::placeholder": { color: "rgba(255,255,255,0.6)" },
+            paddingRight: 0,
+          },
+        }}
+      />
+
+      {/* Default emoji on the right of the input */}
+      <IconButton
+        onClick={() => handleDefaultEmoji(defaultEmoji)}
+        disabled={isSubmitting || isUploading}
+        size="small"
+        title={`Quick react with ${defaultEmoji}`}
+        sx={{
+          fontSize: "1.4rem",
+          width: 36,
+          height: 36,
+          borderRadius: "50%",
+        }}
+      >
+        {defaultEmoji}
+      </IconButton>
+    </Box>
   );
 }

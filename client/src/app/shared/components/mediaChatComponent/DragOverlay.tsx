@@ -22,6 +22,8 @@ export default function DragOverlay({ isDragActive }: DragOverlayProps) {
         alignItems: "center",
         justifyContent: "center",
         color: "white",
+        width: "100%",
+        height: "100%",
       }}
     >
       <Box textAlign="center">

@@ -1,16 +1,3 @@
-:root {
-    --rc-bg-dark: #131316;
-    --rc-panel: rgba(19, 19, 22, 0.85);
-    --rc-border: rgba(255, 255, 255, 0.08);
-    --rc-hover: rgba(255, 255, 255, 0.06);
-    --rc-primary: #5865f2;
-}
-
-/* Smooth default transitions */
-* {
-    transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
-}
-
 /* Server icon subtle hover */
 .rc-server-btn {
     transition: transform 120ms ease, box-shadow 200ms ease;
@@ -32,10 +19,6 @@
         opacity: 1;
         transform: translateY(0);
     }
-}
-
-.rc-message {
-    animation: rc-fade-in-up 160ms ease-out;
 }
 
 /* Custom scrollbar for chat */
@@ -69,12 +52,4 @@
     width: 0;
     height: 0;
     display: none;
-}
-
-/* Panel look matching auth screens */
-.rc-panel {
-    background: var(--rc-panel);
-    border: 1px solid var(--rc-border);
-    box-shadow: 40px 40px 60px rgba(30, 31, 33, 1);
-    border-radius: 12px;
 }

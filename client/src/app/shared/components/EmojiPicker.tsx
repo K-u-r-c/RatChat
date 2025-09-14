@@ -1,6 +1,6 @@
 import { useState, useRef, memo } from "react";
 import { IconButton, Popover, Box } from "@mui/material";
-import { AddReaction, EmojiEmotions } from "@mui/icons-material";
+import { AddReaction } from "@mui/icons-material";
 import EmojiPicker, {
   type EmojiClickData,
   EmojiStyle,
@@ -14,6 +14,15 @@ type Props = {
   showQuickReact?: boolean;
   disabled?: boolean;
   variant?: "standard" | "reaction";
+  randomHoverFaces?: boolean;
+  anchorOrigin?: {
+    vertical: "bottom" | "top";
+    horizontal: "left" | "right" | "center";
+  };
+  transformOrigin?: {
+    vertical: "bottom" | "top";
+    horizontal: "left" | "right" | "center";
+  };
 };
 
 function EmojiPickerComponent({
@@ -23,9 +32,29 @@ function EmojiPickerComponent({
   showQuickReact = true,
   disabled = false,
   variant = "standard",
+  randomHoverFaces = true,
+  anchorOrigin = { vertical: "bottom", horizontal: "right" },
+  transformOrigin = { vertical: "bottom", horizontal: "right" },
 }: Props) {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const [hoverEmoji, setHoverEmoji] = useState<string | null>(null);
+
+  const FACE_EMOJIS = [
+    "🙂",
+    "😊",
+    "😄",
+    "😃",
+    "😁",
+    "🥰",
+    "😍",
+    "🤗",
+    "😉",
+    "😌",
+    "🥲",
+    "😺",
+    "😸",
+  ];
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -72,34 +101,54 @@ function EmojiPickerComponent({
         </IconButton>
       )}
 
-      <IconButton
-        ref={buttonRef}
-        onClick={handleClick}
-        disabled={disabled}
-        size="small"
-        title={variant === "reaction" ? "React" : "Add emoji"}
-        sx={{
-          color: "primary.main",
-          "&:hover": {
-            backgroundColor: "action.hover",
-          },
-        }}
-      >
-        {variant === "reaction" ? <AddReaction /> : <EmojiEmotions />}
-      </IconButton>
+      {variant === "reaction" ? (
+        <IconButton
+          ref={buttonRef}
+          onClick={handleClick}
+          disabled={disabled}
+          size="small"
+          title="React"
+          sx={{
+            color: "primary.main",
+            "&:hover": { backgroundColor: "action.hover" },
+          }}
+        >
+          <AddReaction />
+        </IconButton>
+      ) : (
+        <IconButton
+          ref={buttonRef}
+          onClick={handleClick}
+          disabled={disabled}
+          size="small"
+          title="Add emoji"
+          onMouseEnter={() =>
+            randomHoverFaces
+              ? setHoverEmoji(
+                  FACE_EMOJIS[Math.floor(Math.random() * FACE_EMOJIS.length)]
+                )
+              : undefined
+          }
+          onMouseLeave={() => setHoverEmoji(null)}
+          sx={{
+            width: 32,
+            height: 32,
+            borderRadius: "50%",
+            fontSize: "1.1rem",
+            color: "inherit",
+            "&:hover": { backgroundColor: "action.hover" },
+          }}
+        >
+          {hoverEmoji || "🙂"}
+        </IconButton>
+      )}
 
       <Popover
         open={open}
         anchorEl={anchorEl}
         onClose={handleClose}
-        anchorOrigin={{
-          vertical: "bottom",
-          horizontal: "right",
-        }}
-        transformOrigin={{
-          vertical: "bottom",
-          horizontal: "right",
-        }}
+        anchorOrigin={anchorOrigin}
+        transformOrigin={transformOrigin}
         slotProps={{
           paper: {
             elevation: variant === "reaction" ? 0 : undefined,

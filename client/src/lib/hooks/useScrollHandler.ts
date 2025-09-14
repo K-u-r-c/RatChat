@@ -34,6 +34,15 @@ export function useScrollHandler({ messageStore }: UseScrollHandlerProps) {
     setNewMessageCount(0);
   };
 
+  // Auto-scroll on first load
+  useEffect(() => {
+    if (messageStore.messages.length > 0 && prevMessageCount.current === 0) {
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+      }, 100);
+    }
+  }, [messageStore.messages.length]);
+
   // Handle message count changes
   useEffect(() => {
     const currentMessageCount = messageStore.messages.length;
@@ -53,9 +62,8 @@ export function useScrollHandler({ messageStore }: UseScrollHandlerProps) {
     // Handle new messages
     if (!messageStore.isLoadingOlder && newMessages > 0) {
       if (isAtBottom) {
-        setTimeout(() => {
-          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-        }, 100);
+        messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+        setIsAtBottom(true);
         setNewMessageCount(0);
       } else {
         setNewMessageCount((prev) => prev + newMessages);
@@ -70,15 +78,6 @@ export function useScrollHandler({ messageStore }: UseScrollHandlerProps) {
     messageStore.isLoadingOlder,
     messageStore.messages,
   ]);
-
-  // Auto-scroll on first load
-  useEffect(() => {
-    if (messageStore.messages.length > 0 && prevMessageCount.current === 0) {
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
-      }, 100);
-    }
-  }, [messageStore.messages.length]);
 
   // Handle scroll position after loading older messages
   useEffect(() => {
