@@ -31,14 +31,8 @@ export default function MessageAvatar({
     </Box>
   );
 
-  if (Link) {
-    const WrapperComponent = Link;
-    return (
-      <WrapperComponent to={`/profiles/${userId}`} onClick={undefined}>
-        {avatar}
-      </WrapperComponent>
-    );
-  }
+  // TODO: In the future we want to have a popup with user info on click
+  <Link to={`/profiles/${userId}`}>{avatar}</Link>;
 
   return avatar;
 }

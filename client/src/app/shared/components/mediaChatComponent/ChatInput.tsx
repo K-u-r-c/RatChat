@@ -49,7 +49,7 @@ export default function ChatInput({
     }
   };
 
-  const handleQuickReact = (emoji: string) => {
+  const handleDefaultEmoji = (emoji: string) => {
     setValue("body", emoji);
     handleSubmit(handleFormSubmit)();
     if (onQuickReact) {
@@ -118,7 +118,7 @@ export default function ChatInput({
 
       {/* Default emoji on the right of the input */}
       <IconButton
-        onClick={() => handleQuickReact(defaultEmoji)}
+        onClick={() => handleDefaultEmoji(defaultEmoji)}
         disabled={isSubmitting || isUploading}
         size="small"
         title={`Quick react with ${defaultEmoji}`}
