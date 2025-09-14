@@ -9,7 +9,7 @@ import type {
   BaseMessageStore,
 } from "../../../../lib/types";
 import DragOverlay from "./DragOverlay";
-import ChatMessageList from "./ChatMessageList";
+import ChatMessageList from "./chatMessageList/ChatMessageList";
 import { FilePreview } from "./FilePreview";
 import MultiFilePreview from "./MultiFilePreview";
 import ChatInput from "./ChatInput";
