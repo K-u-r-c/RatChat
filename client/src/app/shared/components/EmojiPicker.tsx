@@ -15,10 +15,13 @@ type Props = {
   disabled?: boolean;
   variant?: "standard" | "reaction";
   randomHoverFaces?: boolean;
-  anchorOrigin?: { vertical: "bottom" | "top"; horizontal: "left" | "right" };
+  anchorOrigin?: {
+    vertical: "bottom" | "top";
+    horizontal: "left" | "right" | "center";
+  };
   transformOrigin?: {
     vertical: "bottom" | "top";
-    horizontal: "left" | "right";
+    horizontal: "left" | "right" | "center";
   };
 };
 

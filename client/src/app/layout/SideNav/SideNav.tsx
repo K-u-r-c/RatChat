@@ -119,7 +119,7 @@ export default function SideNav() {
             width: 52,
             height: 52,
             borderRadius: 2,
-            bgcolor: ({ palette }) => palette.grey[900],
+            bgcolor: "#2f3136",
             color: "#fff",
             "&.active": {
               bgcolor: "primary.main",
@@ -132,9 +132,7 @@ export default function SideNav() {
       </Tooltip>
 
       {/* Separator */}
-      <Box
-        sx={{ width: 36, height: 2, bgcolor: "rgba(255,255,255,0.1)", my: 1 }}
-      />
+      <Box sx={{ width: 36, height: 2, bgcolor: "divider", my: 1 }} />
 
       {/* Chat rooms */}
       <Box sx={{ position: "relative", width: "100%", flex: 1, minHeight: 0 }}>
@@ -155,7 +153,7 @@ export default function SideNav() {
               zIndex: 1,
             }}
           >
-            <ExpandLess sx={{ color: "rgba(255,255,255,0.4)", fontSize: 20 }} />
+            <ExpandLess sx={{ color: "#ffffff66", fontSize: 20 }} />
           </Box>
         )}
 

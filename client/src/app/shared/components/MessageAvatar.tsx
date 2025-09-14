@@ -27,7 +27,7 @@ export default function MessageAvatar({
         sx={{
           position: "relative",
         }}
-      ></Avatar>
+      />
     </Box>
   );
 
