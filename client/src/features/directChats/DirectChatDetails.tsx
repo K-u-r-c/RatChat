@@ -54,23 +54,21 @@ const DirectChatDetails = observer(function DirectChatDetails() {
   }
 
   return (
-    <Box>
+    <Box sx={{ height: "100vh", display: "flex", flexDirection: "column" }}>
       {/* Chat Header */}
       <Box
         sx={{
           display: "flex",
           alignItems: "center",
           gap: 2,
-          p: 2,
           borderBottom: "1px solid",
           borderColor: "divider",
-          mb: 3,
+          p: 1,
         }}
       >
         <AvatarWithStatus
           src={currentChat.otherUserImageUrl}
           alt={currentChat.otherUserDisplayName}
-          size={48}
           status={
             currentChat.status || (currentChat.isOnline ? "Online" : "Offline")
           }
@@ -78,11 +76,8 @@ const DirectChatDetails = observer(function DirectChatDetails() {
           {currentChat.otherUserDisplayName[0]}
         </AvatarWithStatus>
         <Box>
-          <Typography variant="h5" fontWeight="bold">
+          <Typography variant="h6" fontWeight="bold">
             {currentChat.otherUserDisplayName}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {currentChat.isOnline ? "Online" : "Offline"}
           </Typography>
         </Box>
       </Box>

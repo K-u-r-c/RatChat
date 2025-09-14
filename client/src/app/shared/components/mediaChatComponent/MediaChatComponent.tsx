@@ -1,4 +1,4 @@
-import { Card, CardContent, Box, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import { useState, useEffect } from "react";
 import { observer } from "mobx-react-lite";
 import { useInView } from "react-intersection-observer";
@@ -8,7 +8,6 @@ import type {
   MediaUploadResult,
   BaseMessageStore,
 } from "../../../../lib/types";
-import ChatHeader from "./ChatHeader";
 import DragOverlay from "./DragOverlay";
 import ChatMessageList from "./ChatMessageList";
 import { FilePreview } from "./FilePreview";
@@ -122,7 +121,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
         await onSendMessage(trimmedBody, "Text", undefined, replyToMessageId);
       }
     } catch (error) {
-      console.error("Send message error:", error);
+      if (import.meta.env.DEV) console.error("Send message error:", error);
     } finally {
       scrollHandler.scrollToBottom();
       setReplyToMessageId(undefined);
@@ -212,31 +211,19 @@ const MediaChatComponent = observer(function MediaChatComponent({
     <div {...fileUpload.dropzoneProps}>
       <input {...fileUpload.inputProps} />
 
-      {/* Header */}
-      <ChatHeader
-        title={title}
-        isAtBottom={scrollHandler.isAtBottom}
-        newMessageCount={scrollHandler.newMessageCount}
-        onScrollToBottom={scrollHandler.scrollToBottom}
-        onEmojiSettingsOpen={() => setShowEmojiSettings(true)}
-      />
-
       {/* Drag overlay */}
       <DragOverlay isDragActive={fileUpload.isDragActive} />
 
-      <Card className="rc-panel">
-        <CardContent
-          sx={{ p: 0, bgcolor: "rgba(19,19,22,0.65)", borderRadius: 2 }}
-        >
+      <Box>
+        <Box>
           {/* Messages container */}
           <Box
             ref={scrollHandler.messagesContainerRef}
             sx={{
-              height: 600,
-              overflow: "auto",
               display: "flex",
               flexDirection: "column",
-              p: 2,
+              overflowY: "auto",
+              maxHeight: "80vh",
             }}
             className="rc-scroll"
             onScroll={scrollHandler.handleScroll}
@@ -257,11 +244,11 @@ const MediaChatComponent = observer(function MediaChatComponent({
           </Box>
 
           {/* Message input area */}
-          <Box sx={{ p: 2, borderTop: "1px solid", borderColor: "divider" }}>
+          <Box>
             {/* Reply context */}
             {replyToMessageId && (
-              <Card sx={{ mb: 1, bgcolor: "action.hover" }}>
-                <CardContent sx={{ py: 1.5 }}>
+              <Box sx={{ bgcolor: "action.hover" }}>
+                <Box>
                   <Box display="flex" alignItems="center" gap={1}>
                     <Typography variant="caption" sx={{ fontWeight: 700 }}>
                       Replying to {replyPreview?.displayName}
@@ -300,8 +287,8 @@ const MediaChatComponent = observer(function MediaChatComponent({
                         }`
                       : replyPreview?.body}
                   </Typography>
-                </CardContent>
-              </Card>
+                </Box>
+              </Box>
             )}
             {/* File previews */}
             {fileUpload.pendingPaste.file &&
@@ -349,8 +336,8 @@ const MediaChatComponent = observer(function MediaChatComponent({
               />
             </div>
           </Box>
-        </CardContent>
-      </Card>
+        </Box>
+      </Box>
 
       {/* Hidden file input */}
       <input

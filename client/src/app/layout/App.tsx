@@ -30,11 +30,8 @@ function App() {
           component="main"
           sx={{
             flex: 1,
-            minWidth: 0,
             display: "flex",
             flexDirection: "column",
-            px: { xs: 1.5, md: 3 },
-            py: 2,
           }}
         >
           <Outlet />
