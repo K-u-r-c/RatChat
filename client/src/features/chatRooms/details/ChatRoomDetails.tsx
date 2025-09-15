@@ -74,7 +74,7 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
   return (
     <Box
       sx={{
-        height: "100%",
+        height: "100vh",
         display: "flex",
         flexDirection: "row",
         overflow: "hidden",
@@ -129,7 +129,8 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
           borderColor: "divider",
           display: "flex",
           flexDirection: "column",
-          gap: 2,
+          gap: 1,
+          overflow: "hidden",
         }}
       >
         <Typography
@@ -138,90 +139,92 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
         >
           Online — {onlineMembers.length}
         </Typography>
-        <List dense sx={{ maxHeight: 220, overflowY: "auto" }}>
-          {onlineMembers.length === 0 && (
-            <Typography variant="body2" color="text.secondary" sx={{ px: 2 }}>
-              No one is online right now
-            </Typography>
-          )}
-          {onlineMembers.map((m) => (
-            <ListItemButton
-              key={m.id}
-              onClick={(e) => {
-                setSelectedMemberId(m.id);
-                setAnchorEl(e.currentTarget);
-              }}
-            >
-              <ListItemAvatar>
-                <Badge
-                  variant="dot"
-                  overlap="circular"
-                  anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-                  sx={{
-                    "& .MuiBadge-badge": {
-                      bgcolor: statusColor(m.status, m.isOnline),
-                      width: 12,
-                      height: 12,
-                      borderRadius: "50%",
-                      border: "2px solid",
-                      borderColor: "background.paper",
-                    },
-                  }}
-                >
-                  <Avatar src={m.imageUrl}>{m.displayName?.[0]}</Avatar>
-                </Badge>
-              </ListItemAvatar>
-              <ListItemText
-                primary={m.displayName}
-                secondary={statusLabel(m.status, m.isOnline)}
-              />
-            </ListItemButton>
-          ))}
-        </List>
-        <Divider sx={{ my: 1 }} />
+        <Box sx={{ flex: 1, overflowY: "auto" }}>
+          <List dense>
+            {onlineMembers.length === 0 && (
+              <Typography variant="body2" color="text.secondary" sx={{ px: 2 }}>
+                No one is online right now
+              </Typography>
+            )}
+            {onlineMembers.map((m) => (
+              <ListItemButton
+                key={m.id}
+                onClick={(e) => {
+                  setSelectedMemberId(m.id);
+                  setAnchorEl(e.currentTarget);
+                }}
+              >
+                <ListItemAvatar>
+                  <Badge
+                    variant="dot"
+                    overlap="circular"
+                    anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                    sx={{
+                      "& .MuiBadge-badge": {
+                        bgcolor: statusColor(m.status, m.isOnline),
+                        width: 12,
+                        height: 12,
+                        borderRadius: "50%",
+                        border: "2px solid",
+                        borderColor: "background.paper",
+                      },
+                    }}
+                  >
+                    <Avatar src={m.imageUrl}>{m.displayName?.[0]}</Avatar>
+                  </Badge>
+                </ListItemAvatar>
+                <ListItemText
+                  primary={m.displayName}
+                  secondary={statusLabel(m.status, m.isOnline)}
+                />
+              </ListItemButton>
+            ))}
+          </List>
+          <Divider sx={{ my: 1 }} />
 
-        <Typography
-          variant="subtitle2"
-          sx={{ fontWeight: 700, px: 2, mb: 0.5 }}
-        >
-          Offline — {offlineMembers.length}
-        </Typography>
-        <List dense sx={{ maxHeight: 220, overflowY: "auto" }}>
-          {offlineMembers.map((m) => (
-            <ListItemButton
-              key={m.id}
-              onClick={(e) => {
-                setSelectedMemberId(m.id);
-                setAnchorEl(e.currentTarget);
-              }}
-              sx={{ opacity: 0.6 }}
-            >
-              <ListItemAvatar>
-                <Badge
-                  variant="dot"
-                  overlap="circular"
-                  anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-                  sx={{
-                    "& .MuiBadge-badge": {
-                      bgcolor: statusColor(m.status, m.isOnline),
-                      width: 12,
-                      height: 12,
-                      borderRadius: "50%",
-                      border: "2px solid",
-                      borderColor: "background.paper",
-                    },
-                  }}
-                >
-                  <Avatar src={m.imageUrl}>{m.displayName?.[0]}</Avatar>
-                </Badge>
-              </ListItemAvatar>
-              <ListItemText
-                primary={m.displayName}
-                secondary={statusLabel(m.status, m.isOnline)}
-              />
-            </ListItemButton>
-          ))}
-        </List>
+          <Typography
+            variant="subtitle2"
+            sx={{ fontWeight: 700, px: 2, mb: 0.5 }}
+          >
+            Offline — {offlineMembers.length}
+          </Typography>
+          <List dense>
+            {offlineMembers.map((m) => (
+              <ListItemButton
+                key={m.id}
+                onClick={(e) => {
+                  setSelectedMemberId(m.id);
+                  setAnchorEl(e.currentTarget);
+                }}
+                sx={{ opacity: 0.6 }}
+              >
+                <ListItemAvatar>
+                  <Badge
+                    variant="dot"
+                    overlap="circular"
+                    anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                    sx={{
+                      "& .MuiBadge-badge": {
+                        bgcolor: statusColor(m.status, m.isOnline),
+                        width: 12,
+                        height: 12,
+                        borderRadius: "50%",
+                        border: "2px solid",
+                        borderColor: "background.paper",
+                      },
+                    }}
+                  >
+                    <Avatar src={m.imageUrl}>{m.displayName?.[0]}</Avatar>
+                  </Badge>
+                </ListItemAvatar>
+                <ListItemText
+                  primary={m.displayName}
+                  secondary={statusLabel(m.status, m.isOnline)}
+                />
+              </ListItemButton>
+            ))}
+          </List>
+        </Box>
       </Box>
       <ChatRoomMemberPopover
         open={Boolean(anchorEl)}
