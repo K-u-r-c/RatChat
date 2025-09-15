@@ -18,7 +18,7 @@ import type { HubConnection } from "@microsoft/signalr";
 import type { MessageReaction } from "../../../../../lib/types";
 import { runInAction } from "mobx";
 import React, { useRef } from "react";
-import { timeAgo } from "../../../../../lib/util/util";
+import { timeAgo, formatDate } from "../../../../../lib/util/util";
 import DateDivider from "./DateDivider";
 import SingleMessageRow from "./SingleMessageRow";
 import { buildRenderItems, type RenderItem } from "./buildRenderItems";
@@ -228,7 +228,7 @@ export default function ChatMessageList({
             sx={{
               display: "flex",
               flexDirection: isOwn ? "row-reverse" : "row",
-              mb: 1.5,
+              mb: 1.0,
               position: "relative",
               px: 1,
               py: 0.5,
@@ -237,6 +237,7 @@ export default function ChatMessageList({
               "&:hover": { backgroundColor: "rgba(255,255,255,0.04)" },
               "&:hover .actions": { opacity: 1 },
             }}
+            title={formatDate(first.createdAt)}
           >
             {/* Sender avatar for the group */}
             <MessageAvatar
@@ -268,7 +269,11 @@ export default function ChatMessageList({
                 >
                   {displayName}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  title={formatDate(first.createdAt)}
+                >
                   {timeAgo(first.createdAt)}
                 </Typography>
                 <Chip

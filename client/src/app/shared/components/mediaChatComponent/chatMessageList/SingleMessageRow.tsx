@@ -6,6 +6,7 @@ import SideActions from "./SideActions";
 import MessageReactions from "../MessageReactions";
 import type { MessageReaction } from "../../../../../lib/types";
 import MessageAvatar from "../../MessageAvatar";
+import { formatDate } from "../../../../../lib/util/util";
 
 type Props = {
   message: BaseMessage;
@@ -48,15 +49,16 @@ export default function SingleMessageRow({
       sx={{
         display: "flex",
         flexDirection: isOwn ? "row-reverse" : "row",
-        mb: continuation ? 0.5 : 1.5,
+        mb: continuation ? 0.4 : 0.6,
         position: "relative",
         px: 1,
-        py: continuation ? 0.25 : 0.5,
+        py: continuation ? 0.2 : 0.35,
         borderRadius: 1,
         transition: "background-color 0.15s",
         "&:hover": { backgroundColor: "rgba(255,255,255,0.04)" },
         "&:hover .actions": { opacity: 1 },
       }}
+      title={formatDate(message.createdAt)}
     >
       {!continuation ? (
         <MessageAvatar

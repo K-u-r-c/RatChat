@@ -1,5 +1,5 @@
 import { Box, Typography } from "@mui/material";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { observer } from "mobx-react-lite";
 import { useInView } from "react-intersection-observer";
 import { type FieldValues } from "react-hook-form";
@@ -12,7 +12,7 @@ import DragOverlay from "./DragOverlay";
 import ChatMessageList from "./chatMessageList/ChatMessageList";
 import { FilePreview } from "./FilePreview";
 import MultiFilePreview from "./MultiFilePreview";
-import ChatInput from "./ChatInput";
+import ChatInput, { type ChatInputHandle } from "./ChatInput";
 import ImageViewerDialog from "./ImageViewerDialog";
 import { useEmojiPreferences } from "../../../../lib/hooks/useEmojiPreferences";
 import { useScrollHandler } from "../../../../lib/hooks/useScrollHandler";
@@ -84,6 +84,8 @@ const MediaChatComponent = observer(function MediaChatComponent({
       onSendMessage(body, type, mediaData, replyToMessageId),
     onReset: () => {}, // Will be called from handleSubmit
   });
+
+  const inputRef = useRef<ChatInputHandle>(null);
 
   const { ref: loadMoreRef, inView } = useInView({
     threshold: 0.1,
@@ -169,6 +171,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
       type: msg.type,
       mediaOriginalFileName: msg.mediaOriginalFileName,
     });
+    inputRef.current?.focus?.();
   };
 
   const handleJumpToMessage = async (messageId: string) => {
@@ -338,6 +341,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
             {/* Input form */}
             <div onKeyDown={handleKeyPress}>
               <ChatInput
+                ref={inputRef}
                 onSubmit={handleSubmit}
                 onFileSelect={fileUpload.handleFileSelect}
                 defaultEmoji={defaultEmoji}
