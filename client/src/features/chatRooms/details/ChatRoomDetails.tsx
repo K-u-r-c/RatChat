@@ -16,7 +16,7 @@ import ChatRoomDetailsChat from "./ChatRoomDetailsChat";
 import { useChatRoomRolesRealtime } from "../../../lib/hooks/useChatRoomRolesRealtime";
 import { observer } from "mobx-react-lite";
 import { useAccount } from "../../../lib/hooks/useAccount";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import ChatRoomMemberPopover from "./ChatRoomMemberPopover";
 
 const ChatRoomDetails = observer(function ChatRoomDetails() {
@@ -68,6 +68,48 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
     return isOnline ? "success.main" : "text.disabled";
   };
 
+  const DEFAULT_RIGHT_PANEL_WIDTH = 360;
+  const [rightPanelWidth, setRightPanelWidth] = useState<number>(() => {
+    const saved = Number(localStorage.getItem("roomRightPanelWidth"));
+    return Number.isFinite(saved) && saved > 0
+      ? saved
+      : DEFAULT_RIGHT_PANEL_WIDTH;
+  });
+  const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
+
+  const resetRightPanel = () => {
+    setRightPanelWidth(DEFAULT_RIGHT_PANEL_WIDTH);
+    localStorage.setItem(
+      "roomRightPanelWidth",
+      String(DEFAULT_RIGHT_PANEL_WIDTH)
+    );
+  };
+
+  const startResize = (e: React.MouseEvent) => {
+    dragRef.current = { startX: e.clientX, startWidth: rightPanelWidth };
+    const onMove = (ev: MouseEvent) => {
+      if (!dragRef.current) return;
+      const dx = dragRef.current.startX - ev.clientX;
+      const next = Math.min(
+        Math.max(dragRef.current.startWidth + dx, 240),
+        720
+      );
+      setRightPanelWidth(next);
+    };
+    const onUp = () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      dragRef.current = null;
+      localStorage.setItem("roomRightPanelWidth", String(rightPanelWidth));
+      document.body.style.cursor = "";
+      (document.body.style as CSSStyleDeclaration).userSelect = "";
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    document.body.style.cursor = "col-resize";
+    (document.body.style as CSSStyleDeclaration).userSelect = "none";
+  };
+
   if (isLoadingChatRoom) return <Typography>Loading...</Typography>;
   if (!chatRoom) return <Typography>Activity not found</Typography>;
 
@@ -83,7 +125,7 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
       {/* Main chat column */}
       <Box
         sx={{
-          flex: "1 1 auto",
+          flex: `1 1 calc(100% - ${rightPanelWidth}px)`,
           display: "flex",
           flexDirection: "column",
           minWidth: 0,
@@ -117,10 +159,26 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
         </Box>
       </Box>
 
+      {/* Resize handle */}
+      <Box
+        role="separator"
+        aria-orientation="vertical"
+        onMouseDown={startResize}
+        onDoubleClick={resetRightPanel}
+        sx={{
+          width: 4,
+          cursor: "col-resize",
+          flex: "0 0 4px",
+          alignSelf: "stretch",
+          bgcolor: "divider",
+          "&:hover": { bgcolor: "action.hover" },
+        }}
+      />
+
       {/* Right panel */}
       <Box
         sx={{
-          width: 360,
+          width: rightPanelWidth,
           flexShrink: 0,
           p: 2,
           boxSizing: "border-box",
@@ -137,7 +195,7 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
           variant="subtitle2"
           sx={{ fontWeight: 700, px: 2, mb: 0.5 }}
         >
-          Online — {onlineMembers.length}
+          Online - {onlineMembers.length}
         </Typography>
         <Box sx={{ flex: 1, overflowY: "auto" }}>
           <List dense>
@@ -186,7 +244,7 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
             variant="subtitle2"
             sx={{ fontWeight: 700, px: 2, mb: 0.5 }}
           >
-            Offline — {offlineMembers.length}
+            Offline - {offlineMembers.length}
           </Typography>
           <List dense>
             {offlineMembers.map((m) => (

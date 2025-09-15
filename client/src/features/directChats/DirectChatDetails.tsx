@@ -1,5 +1,5 @@
 import { useParams } from "react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { observer } from "mobx-react-lite";
 import { useDirectMessages } from "../../lib/hooks/useDirectMessages";
 import { useDirectChats } from "../../lib/hooks/useDirectChats";
@@ -18,6 +18,50 @@ const DirectChatDetails = observer(function DirectChatDetails() {
   const currentChat = directChats?.find((chat) => chat.id === id);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [emojiDialogOpen, setEmojiDialogOpen] = useState(false);
+
+  const DEFAULT_RIGHT_PANEL_WIDTH = 300;
+  const [rightPanelWidth, setRightPanelWidth] = useState<number>(() => {
+    const saved = Number(localStorage.getItem("directRightPanelWidth"));
+    return Number.isFinite(saved) && saved > 0
+      ? saved
+      : DEFAULT_RIGHT_PANEL_WIDTH;
+  });
+  const dragStateRef = useRef<{ startX: number; startWidth: number } | null>(
+    null
+  );
+
+  const resetRightPanel = () => {
+    setRightPanelWidth(DEFAULT_RIGHT_PANEL_WIDTH);
+    localStorage.setItem(
+      "directRightPanelWidth",
+      String(DEFAULT_RIGHT_PANEL_WIDTH)
+    );
+  };
+
+  const startResize = (e: React.MouseEvent) => {
+    dragStateRef.current = { startX: e.clientX, startWidth: rightPanelWidth };
+    const onMove = (ev: MouseEvent) => {
+      if (!dragStateRef.current) return;
+      const dx = dragStateRef.current.startX - ev.clientX;
+      const next = Math.min(
+        Math.max(dragStateRef.current.startWidth + dx, 220),
+        640
+      );
+      setRightPanelWidth(next);
+    };
+    const onUp = () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      dragStateRef.current = null;
+      localStorage.setItem("directRightPanelWidth", String(rightPanelWidth));
+      document.body.style.cursor = "";
+      (document.body.style as CSSStyleDeclaration).userSelect = "";
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    document.body.style.cursor = "col-resize";
+    (document.body.style as CSSStyleDeclaration).userSelect = "none";
+  };
 
   const handleSendMessage = async (
     body: string,
@@ -70,7 +114,9 @@ const DirectChatDetails = observer(function DirectChatDetails() {
       {/* Main chat area */}
       <Box
         sx={{
-          flex: rightPanelOpen ? "1 1 calc(100% - 300px)" : "1 1 100%",
+          flex: rightPanelOpen
+            ? `1 1 calc(100% - ${rightPanelWidth}px)`
+            : "1 1 100%",
           display: "flex",
           flexDirection: "column",
           minWidth: 0,
@@ -135,26 +181,43 @@ const DirectChatDetails = observer(function DirectChatDetails() {
 
       {/* Right side panel */}
       {rightPanelOpen && (
-        <Box
-          sx={{
-            width: 300,
-            flexShrink: 0,
-            p: 2,
-            boxSizing: "border-box",
-            bgcolor: "background.paper",
-            borderLeft: "1px solid",
-            borderColor: "divider",
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          <Typography variant="h6" sx={{ mb: 2 }}>
-            Conversation Options
-          </Typography>
-          <Button variant="outlined" onClick={() => setEmojiDialogOpen(true)}>
-            Change default emoji
-          </Button>
-        </Box>
+        <>
+          {/* Resize handle */}
+          <Box
+            role="separator"
+            aria-orientation="vertical"
+            onMouseDown={startResize}
+            onDoubleClick={resetRightPanel}
+            sx={{
+              width: 4,
+              cursor: "col-resize",
+              flex: "0 0 4px",
+              alignSelf: "stretch",
+              bgcolor: "divider",
+              "&:hover": { bgcolor: "action.hover" },
+            }}
+          />
+          <Box
+            sx={{
+              width: rightPanelWidth,
+              flexShrink: 0,
+              p: 2,
+              boxSizing: "border-box",
+              bgcolor: "background.paper",
+              borderLeft: "1px solid",
+              borderColor: "divider",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              Conversation Options
+            </Typography>
+            <Button variant="outlined" onClick={() => setEmojiDialogOpen(true)}>
+              Change default emoji
+            </Button>
+          </Box>
+        </>
       )}
 
       {/* Emoji settings dialog triggered from right panel */}
