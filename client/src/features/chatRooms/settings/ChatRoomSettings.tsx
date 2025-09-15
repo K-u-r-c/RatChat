@@ -9,6 +9,7 @@ import {
   ListItemText,
 } from "@mui/material";
 import ChatRoomSettingsOverview from "./ChatRoomSettingsOverview";
+import ChatRoomSettingsRoles from "./ChatRoomSettingsRoles";
 
 type Props = {
   open: boolean;
@@ -16,7 +17,10 @@ type Props = {
   chatRoomId: string;
 };
 
-const tabs = [{ key: "overview", label: "Overview" }];
+const tabs = [
+  { key: "overview", label: "Overview" },
+  { key: "roles", label: "Roles" },
+];
 
 export default function ChatRoomSettings({ open, onClose, chatRoomId }: Props) {
   const [active, setActive] = useState("overview");
@@ -49,6 +53,9 @@ export default function ChatRoomSettings({ open, onClose, chatRoomId }: Props) {
         <Box sx={{ p: 3, position: "relative" }}>
           {active === "overview" && (
             <ChatRoomSettingsOverview chatRoomId={chatRoomId} />
+          )}
+          {active === "roles" && (
+            <ChatRoomSettingsRoles chatRoomId={chatRoomId} />
           )}
         </Box>
       </Box>
