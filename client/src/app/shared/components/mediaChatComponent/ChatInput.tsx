@@ -1,5 +1,5 @@
 import { TextField, IconButton, CircularProgress, Box } from "@mui/material";
-import { AttachFile } from "@mui/icons-material";
+import { AttachFile, Send } from "@mui/icons-material";
 import { useForm, type FieldValues } from "react-hook-form";
 import EmojiPickerComponent from "../EmojiPicker";
 
@@ -13,6 +13,7 @@ interface ChatInputProps {
   isUploading: boolean;
   hasPermission: boolean;
   placeholder?: string;
+  hasAttachment?: boolean;
 }
 
 export default function ChatInput({
@@ -24,10 +25,16 @@ export default function ChatInput({
   isSubmitting,
   isUploading,
   hasPermission = true,
-  placeholder = "Enter your message (Enter to submit, Ctrl+V to paste images, SHIFT + Enter for new line)",
+  placeholder = "Enter your message...",
+  hasAttachment = false,
 }: ChatInputProps) {
   const { register, handleSubmit, reset, setValue, watch } = useForm();
   const currentMessage = watch("body") || "";
+  const canSend =
+    hasPermission &&
+    !isSubmitting &&
+    !isUploading &&
+    ((currentMessage?.trim?.().length ?? 0) > 0 || hasAttachment);
 
   const handleFormSubmit = async (data: FieldValues) => {
     await onSubmit(data);
@@ -92,6 +99,17 @@ export default function ChatInput({
                   showQuickReact={false}
                   disabled={isSubmitting || isUploading}
                 />
+                {canSend && (
+                  <IconButton
+                    aria-label="Send message"
+                    color="primary"
+                    onClick={() => handleSubmit(handleFormSubmit)()}
+                    disabled={!canSend}
+                    size="small"
+                  >
+                    <Send fontSize="small" />
+                  </IconButton>
+                )}
               </Box>
             ),
           },

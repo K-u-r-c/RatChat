@@ -343,6 +343,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
                 defaultEmoji={defaultEmoji}
                 isSubmitting={false}
                 isUploading={fileUpload.isUploading}
+                hasAttachment={hasFileAttached}
                 hasPermission={
                   chatRoomId === undefined
                     ? true
