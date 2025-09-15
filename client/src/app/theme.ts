@@ -12,6 +12,45 @@ export const theme = createTheme({
     },
     divider: "rgba(255,255,255,0.12)",
   },
+  components: {
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          backgroundImage: "none",
+        },
+      },
+    },
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          backgroundColor: "rgba(19,19,22)",
+        },
+      },
+    },
+    MuiMenu: {
+      styleOverrides: {
+        paper: {
+          backgroundColor: "rgba(19,19,22,0.95)",
+          border: "1px solid #ffffff14",
+          borderRadius: 12,
+        },
+      },
+    },
+    MuiPopover: {
+      styleOverrides: {
+        paper: {
+          backgroundColor: "rgba(19,19,22,0.95)",
+        },
+      },
+    },
+    MuiDialog: {
+      styleOverrides: {
+        paper: {
+          backgroundColor: "rgba(19,19,22,1)",
+        },
+      },
+    },
+  },
 });
 
 export default theme;

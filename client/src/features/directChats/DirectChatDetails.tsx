@@ -16,7 +16,7 @@ const DirectChatDetails = observer(function DirectChatDetails() {
   const { directChats } = useDirectChats();
 
   const currentChat = directChats?.find((chat) => chat.id === id);
-  const [rightPanelOpen, setRightPanelOpen] = useState(false);
+  const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [emojiDialogOpen, setEmojiDialogOpen] = useState(false);
 
   const handleSendMessage = async (
