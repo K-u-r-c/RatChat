@@ -355,7 +355,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
                 placeholder={
                   hasFileAttached
                     ? "Add a message with your file (optional)..."
-                    : "Enter your message (Enter to submit, Ctrl+V to paste images, SHIFT + Enter for new line)"
+                    : "Enter your message ..."
                 }
               />
             </div>
