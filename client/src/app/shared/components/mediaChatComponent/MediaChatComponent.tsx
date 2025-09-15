@@ -1,4 +1,5 @@
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, Fab, Tooltip, Badge } from "@mui/material";
+import { KeyboardArrowDown } from "@mui/icons-material";
 import { useState, useEffect } from "react";
 import { observer } from "mobx-react-lite";
 import { useInView } from "react-intersection-observer";
@@ -238,32 +239,72 @@ const MediaChatComponent = observer(function MediaChatComponent({
             flexDirection: "column",
           }}
         >
-          {/* Messages container */}
-          <Box
-            ref={scrollHandler.messagesContainerRef}
-            sx={{
-              display: "flex",
-              flexDirection: "column",
-              overflowY: "auto",
-              flex: 1,
-              minHeight: 0,
-            }}
-            className="rc-scroll"
-            onScroll={scrollHandler.handleScroll}
-          >
-            <ChatMessageList
-              messageStore={messageStore}
-              showUserProfiles={showUserProfiles}
-              onImageClick={handleImageClick}
-              onFileDownload={handleFileDownload}
-              loadMoreRef={loadMoreRef}
-              messagesEndRef={scrollHandler.messagesEndRef}
-              onReplyClick={handleReplyClick}
-              onJumpToMessage={handleJumpToMessage}
-              chatRoomId={chatRoomId}
-              directChatId={directChatId}
-              defaultEmoji={defaultEmoji}
-            />
+          {/* Messages area wrapper */}
+          <Box sx={{ position: "relative", flex: 1, minHeight: 0 }}>
+            {/* Messages container */}
+            <Box
+              ref={scrollHandler.messagesContainerRef}
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                overflowY: "auto",
+                height: "100%",
+                minHeight: 0,
+              }}
+              className="rc-scroll"
+              onScroll={scrollHandler.handleScroll}
+            >
+              <ChatMessageList
+                messageStore={messageStore}
+                showUserProfiles={showUserProfiles}
+                onImageClick={handleImageClick}
+                onFileDownload={handleFileDownload}
+                loadMoreRef={loadMoreRef}
+                messagesEndRef={scrollHandler.messagesEndRef}
+                onReplyClick={handleReplyClick}
+                onJumpToMessage={handleJumpToMessage}
+                chatRoomId={chatRoomId}
+                directChatId={directChatId}
+                defaultEmoji={defaultEmoji}
+              />
+            </Box>
+
+            {/* Jump to newest messages button (bottom center, fixed over list) */}
+            {!scrollHandler.isAtBottom && scrollHandler.newMessageCount > 0 && (
+              <Box
+                sx={{
+                  position: "absolute",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  bottom: 16,
+                  zIndex: 2,
+                }}
+              >
+                <Tooltip title="Jump to present">
+                  <Badge
+                    color="secondary"
+                    badgeContent={scrollHandler.newMessageCount}
+                    overlap="circular"
+                    anchorOrigin={{ vertical: "top", horizontal: "right" }}
+                    sx={{
+                      "& .MuiBadge-badge": {
+                        right: -6,
+                        top: -6,
+                      },
+                    }}
+                  >
+                    <Fab
+                      color="primary"
+                      size="medium"
+                      aria-label="Jump to newest messages"
+                      onClick={scrollHandler.scrollToBottom}
+                    >
+                      <KeyboardArrowDown />
+                    </Fab>
+                  </Badge>
+                </Tooltip>
+              </Box>
+            )}
           </Box>
 
           {/* Message input area (non-scrollable, grows with content) */}
