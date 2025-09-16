@@ -150,9 +150,6 @@ app.UseCors(x => x
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.UseDefaultFiles();
-app.UseStaticFiles();
-
 app.MapControllers();
 app.MapGroup("api").MapIdentityApi<User>();
 app.MapHub<MessageHub>("/messages");
