@@ -181,7 +181,7 @@ export const useStatusRealtime = () => {
     }
 
     const INACTIVITY_TIMEOUT = 5 * 60 * 1000;
-    let inactivityTimer: number;
+    let inactivityTimer: ReturnType<typeof setTimeout>;
 
     const handleInactivity = () => {
       const currentUser = queryClient.getQueryData<User>(["user"]);

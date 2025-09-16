@@ -9,7 +9,6 @@ using Application.Friends.Validators;
 using Application.Interfaces;
 using Application.Profiles.Validators;
 using Application.Status.Validators;
-using Azure.Storage.Blobs;
 using Domain;
 using FluentValidation;
 using Infrastructure.Email;
@@ -57,14 +56,13 @@ builder.Services.AddTransient<IResend, ResendClient>();
 builder.Services.AddTransient<IEmailSender<User>, EmailSender>();
 builder.Services.AddScoped<IUserAccessor, UserAccessor>();
 builder.Services.AddScoped<IMediaValidator, MediaValidator>();
-builder.Services.AddScoped<IFriendsNotificationService, FriendsNotificationService>();
 builder.Services.AddScoped<IRolePermissionService, RolePermissionService>();
 builder.Services.AddScoped<IChatRoomRoleService, ChatRoomRoleService>();
 if (builder.Environment.IsDevelopment())
 {
     // MinIO for development
     var minioConfig = builder.Configuration.GetSection("MinIO");
-    builder.Services.AddSingleton<IMinioClient>(sp =>
+    builder.Services.AddSingleton(sp =>
         new MinioClient()
             .WithEndpoint(minioConfig["Endpoint"])
             .WithCredentials(minioConfig["AccessKey"], minioConfig["SecretKey"])
@@ -74,10 +72,20 @@ if (builder.Environment.IsDevelopment())
 }
 else
 {
-    // Azure Blob Storage for production
+    // Azure Blob Storage for production / LEGACY / WE NOT USE MINIO FOR BOTH
+    // builder.Services.AddSingleton(sp =>
+    //     new BlobServiceClient(builder.Configuration.GetConnectionString("AzureStorage")));
+    // builder.Services.AddScoped<IFileStorage, AzureBlobStorage>();
+
+    // MinIO for production
+    var minioConfig = builder.Configuration.GetSection("MinIO");
     builder.Services.AddSingleton(sp =>
-        new BlobServiceClient(builder.Configuration.GetConnectionString("AzureStorage")));
-    builder.Services.AddScoped<IFileStorage, AzureBlobStorage>();
+        new MinioClient()
+            .WithEndpoint(minioConfig["Endpoint"])
+            .WithCredentials(minioConfig["AccessKey"], minioConfig["SecretKey"])
+            .Build()
+    );
+    builder.Services.AddScoped<IFileStorage, MinioStorage>();
 }
 builder.Services.AddScoped<IFriendsNotificationService, FriendsNotificationService>();
 builder.Services.AddScoped<IUserStatusService, UserStatusService>();
@@ -122,6 +130,12 @@ builder.Services.AddAuthorization(opt =>
 builder.Services.AddTransient<IAuthorizationHandler, IsAdminRequirementHandler>();
 builder.Services.AddTransient<IAuthorizationHandler, HasPermissionRequirementHandler>();
 
+var clientAppOrigins = builder.Configuration["ClientAppUrl"]?
+    .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+var corsOrigins = (clientAppOrigins is { Length: > 0 })
+    ? clientAppOrigins
+    : ["https://localhost:3000"];
+
 var app = builder.Build();
 
 app.UseMiddleware<ExceptionMiddleware>();
@@ -129,7 +143,7 @@ app.UseMiddleware<ExceptionMiddleware>();
 app.UseCors(x => x
     .AllowAnyHeader()
     .AllowAnyMethod()
-    .WithOrigins("https://localhost:3000")
+    .WithOrigins(corsOrigins)
     .AllowCredentials()
 );
 
@@ -147,7 +161,6 @@ app.MapHub<DirectMessageHub>("/direct-messages");
 app.MapHub<StatusHub>("/status");
 app.MapHub<ChatRoomRolesHub>("/chatroom-roles");
 app.MapHub<ChatRoomsProfileUpdateHub>("/chatroom-image-update");
-app.MapFallbackToController("Index", "Fallback");
 
 using var scope = app.Services.CreateScope();
 var services = scope.ServiceProvider;
