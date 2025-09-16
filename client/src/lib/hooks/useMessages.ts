@@ -216,6 +216,7 @@ export const useMessages = (chatRoomId?: string) => {
     return () => {
       messageStore.stopHubConnection();
       messageStore.reset();
+      created.current = false;
     };
   }, [chatRoomId, messageStore]);
 
