@@ -26,7 +26,7 @@ public static class ChatRoomPermissions
             [ViewChatRoom] = "Allows the user to view and access the chat room.",
             [SendMessages] = "Allows the user to send messages in the chat room.",
             [CreateInviteLinks] = "Allows the user to create invite links for the chat room.",
-            [ChangeChatRoomImage] = "Allows the user to change the chat room’s icon/image."
+            [ChangeChatRoomImage] = "Allows the user to change the chat room’s icon/image.",
             [KickFromChatRoom] = "Allows the user to kick others from the chat room",
             [BanFromChatRoom] = "Allows the user to ban others from the chat room",
             [UnbanFromChatRoom] = "Allows the user to unban banned user from the chat room",
