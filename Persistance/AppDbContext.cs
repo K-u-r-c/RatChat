@@ -374,6 +374,10 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
             x.HasIndex(mr => new { mr.MessageId, mr.CreatedAt });
         });
 
+        builder.HasSequence<int>("UserTagSequence", "dbo")
+            .StartsAt(1)
+            .IncrementsBy(1);
+
         builder.Entity<User>(x =>
         {
             x.Property(u => u.Slug)

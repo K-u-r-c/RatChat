@@ -22,6 +22,10 @@ namespace Persistance.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.HasSequence<int>("UserTagSequence", "dbo");
+
+            modelBuilder.HasSequence<int>("UserTagSequence", "dbo");
+
             modelBuilder.Entity("Domain.ChatAppearance", b =>
                 {
                     b.Property<string>("Id")

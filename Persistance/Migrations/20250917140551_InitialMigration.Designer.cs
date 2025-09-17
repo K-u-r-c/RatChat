@@ -12,8 +12,8 @@ using Persistance;
 namespace Persistance.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250906140549_UpdateCascadeOnMemberRoles")]
-    partial class UpdateCascadeOnMemberRoles
+    [Migration("20250917140551_InitialMigration")]
+    partial class InitialMigration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -25,6 +25,8 @@ namespace Persistance.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.HasSequence<int>("UserTagSequence", "dbo");
+
             modelBuilder.Entity("Domain.ChatRoom", b =>
                 {
                     b.Property<string>("Id")
@@ -32,6 +34,9 @@ namespace Persistance.Migrations
 
                     b.Property<DateTime>("Date")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("OwnerId")
                         .IsRequired()
@@ -327,6 +332,44 @@ namespace Persistance.Migrations
                     b.ToTable("DirectMessages");
                 });
 
+            modelBuilder.Entity("Domain.DirectMessageReaction", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DirectMessageId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Emoji")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("EmojiKey")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("DirectMessageId", "CreatedAt");
+
+                    b.HasIndex("DirectMessageId", "UserId", "EmojiKey")
+                        .IsUnique();
+
+                    b.ToTable("DirectMessageReactions");
+                });
+
             modelBuilder.Entity("Domain.EmojiPreference", b =>
                 {
                     b.Property<string>("Id")
@@ -507,6 +550,44 @@ namespace Persistance.Migrations
                     b.ToTable("Messages");
                 });
 
+            modelBuilder.Entity("Domain.MessageReaction", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Emoji")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("EmojiKey")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("MessageId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("MessageId", "CreatedAt");
+
+                    b.HasIndex("MessageId", "UserId", "EmojiKey")
+                        .IsUnique();
+
+                    b.ToTable("MessageReactions");
+                });
+
             modelBuilder.Entity("Domain.User", b =>
                 {
                     b.Property<string>("Id")
@@ -534,10 +615,6 @@ namespace Persistance.Migrations
 
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("bit");
-
-                    b.Property<string>("FriendCode")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("ImageUrl")
                         .HasColumnType("nvarchar(max)");
@@ -574,6 +651,11 @@ namespace Persistance.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
+                    b.Property<int>("Tag")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValueSql("NEXT VALUE FOR dbo.UserTagSequence");
+
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("bit");
 
@@ -583,9 +665,6 @@ namespace Persistance.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("FriendCode")
-                        .IsUnique();
-
                     b.HasIndex("NormalizedEmail")
                         .HasDatabaseName("EmailIndex");
 
@@ -593,6 +672,9 @@ namespace Persistance.Migrations
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex")
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
+
+                    b.HasIndex("Tag")
+                        .IsUnique();
 
                     b.ToTable("AspNetUsers", (string)null);
                 });
@@ -931,6 +1013,25 @@ namespace Persistance.Migrations
                     b.Navigation("Sender");
                 });
 
+            modelBuilder.Entity("Domain.DirectMessageReaction", b =>
+                {
+                    b.HasOne("Domain.DirectMessage", "DirectMessage")
+                        .WithMany("Reactions")
+                        .HasForeignKey("DirectMessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Domain.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("DirectMessage");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Domain.EmojiPreference", b =>
                 {
                     b.HasOne("Domain.User", "User")
@@ -1001,6 +1102,25 @@ namespace Persistance.Migrations
                     b.Navigation("ChatRoom");
 
                     b.Navigation("ReplyToMessage");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Domain.MessageReaction", b =>
+                {
+                    b.HasOne("Domain.Message", "Message")
+                        .WithMany("Reactions")
+                        .HasForeignKey("MessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Domain.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Message");
 
                     b.Navigation("User");
                 });
@@ -1103,6 +1223,16 @@ namespace Persistance.Migrations
             modelBuilder.Entity("Domain.DirectChat", b =>
                 {
                     b.Navigation("Messages");
+                });
+
+            modelBuilder.Entity("Domain.DirectMessage", b =>
+                {
+                    b.Navigation("Reactions");
+                });
+
+            modelBuilder.Entity("Domain.Message", b =>
+                {
+                    b.Navigation("Reactions");
                 });
 
             modelBuilder.Entity("Domain.User", b =>

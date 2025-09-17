@@ -11,6 +11,13 @@ namespace Persistance.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.EnsureSchema(
+                name: "dbo");
+
+            migrationBuilder.CreateSequence<int>(
+                name: "UserTagSequence",
+                schema: "dbo");
+
             migrationBuilder.CreateTable(
                 name: "AspNetRoles",
                 columns: table => new
@@ -34,7 +41,7 @@ namespace Persistance.Migrations
                     Bio = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     ImageUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     BannerUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    FriendCode = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Tag = table.Column<int>(type: "int", nullable: false, defaultValueSql: "NEXT VALUE FOR dbo.UserTagSequence"),
                     Status = table.Column<int>(type: "int", nullable: false),
                     LastSeen = table.Column<DateTime>(type: "datetime2", nullable: false),
                     UserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
@@ -183,7 +190,8 @@ namespace Persistance.Migrations
                     Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     Title = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Date = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    OwnerId = table.Column<string>(type: "nvarchar(450)", nullable: false)
+                    OwnerId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    ImageUrl = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -294,6 +302,31 @@ namespace Persistance.Migrations
                         name: "FK_UserFriends_AspNetUsers_UserId",
                         column: x => x.UserId,
                         principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ChatRoomBans",
+                columns: table => new
+                {
+                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    ChatRoomId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    DateBanned = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ChatRoomBans", x => new { x.UserId, x.ChatRoomId });
+                    table.ForeignKey(
+                        name: "FK_ChatRoomBans_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_ChatRoomBans_ChatRooms_ChatRoomId",
+                        column: x => x.ChatRoomId,
+                        principalTable: "ChatRooms",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -515,7 +548,8 @@ namespace Persistance.Migrations
                         name: "FK_ChatRoomMemberRoles_AspNetUsers_UserId",
                         column: x => x.UserId,
                         principalTable: "AspNetUsers",
-                        principalColumn: "Id");
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_ChatRoomMemberRoles_ChatRoomRoles_RoleId",
                         column: x => x.RoleId,
@@ -641,9 +675,9 @@ namespace Persistance.Migrations
                 column: "NormalizedEmail");
 
             migrationBuilder.CreateIndex(
-                name: "IX_AspNetUsers_FriendCode",
+                name: "IX_AspNetUsers_Tag",
                 table: "AspNetUsers",
-                column: "FriendCode",
+                column: "Tag",
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -652,6 +686,11 @@ namespace Persistance.Migrations
                 column: "NormalizedUserName",
                 unique: true,
                 filter: "[NormalizedUserName] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ChatRoomBans_ChatRoomId",
+                table: "ChatRoomBans",
+                column: "ChatRoomId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ChatRoomInvites_AllowedUserId",
@@ -846,6 +885,9 @@ namespace Persistance.Migrations
                 name: "AspNetUserTokens");
 
             migrationBuilder.DropTable(
+                name: "ChatRoomBans");
+
+            migrationBuilder.DropTable(
                 name: "ChatRoomInvites");
 
             migrationBuilder.DropTable(
@@ -898,6 +940,10 @@ namespace Persistance.Migrations
 
             migrationBuilder.DropTable(
                 name: "AspNetUsers");
+
+            migrationBuilder.DropSequence(
+                name: "UserTagSequence",
+                schema: "dbo");
         }
     }
 }
