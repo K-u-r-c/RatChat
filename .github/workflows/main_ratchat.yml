@@ -27,6 +27,21 @@ jobs:
           fetch-depth: 0
           ref: production
 
+      - name: Sync repo to server workdir
+        env:
+          SRC: ${{ github.workspace }}
+          DST: /home/kurc/applications/RatChat
+        run: |
+          rsync -a --delete \
+            --exclude '.git' \
+            --exclude 'node_modules' \
+            --exclude 'API/bin' \
+            --exclude 'API/obj' \
+            --exclude 'client/node_modules' \
+            --exclude 'client/dist' \
+            --exclude '.env' \
+            "$SRC"/ "$DST"/
+
       - name: Write .env for compose (secrets → server)
         working-directory: ${{ env.ROOT_DIR }}
         env:
