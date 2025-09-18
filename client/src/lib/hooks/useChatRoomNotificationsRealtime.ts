@@ -46,7 +46,7 @@ export const useChatRoomNotificationsRealtime = (
       this.hubConnection.on("UserKicked", (kickedUserId: string) => {
         if (userId && kickedUserId === userId) {
           toast.error("You have been kicked from this chat room.");
-          router.navigate("/chat-rooms");
+          router.navigate("/");
         } else {
           toast.info(
             `User ${kickedUserId} has been kicked from the chat room.`
@@ -69,7 +69,7 @@ export const useChatRoomNotificationsRealtime = (
       this.hubConnection.on("UserBanned", (bannedUserId: string) => {
         if (userId && bannedUserId === userId) {
           toast.error("You have been banned from this chat room.");
-          router.navigate("/chat-rooms");
+          router.navigate("/");
         } else {
           toast.info(
             `User ${bannedUserId} has been banned from the chat room.`
@@ -126,7 +126,10 @@ export const useChatRoomNotificationsRealtime = (
         this.hubConnection
           .stop()
           .catch((error) => {
-            console.error("Error stopping friends connection:", error);
+            console.error(
+              "Error stopping chatroom-notifications connection:",
+              error
+            );
           })
           .finally(() => {
             this.hubConnection = null;
