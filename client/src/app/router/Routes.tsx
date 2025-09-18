@@ -26,36 +26,33 @@ export const router = createBrowserRouter([
       {
         element: <RequireAuth />,
         children: [
-          { path: "", element: <EmptyPage /> },
+          { index: true, element: <EmptyPage /> },
           { path: "chat-rooms/:id", element: <ChatRoomDetails /> },
           { path: "chat-rooms/:id/:token/join", element: <JoinChatRoomPage /> },
           { path: "profiles/:id", element: <ProfilePage /> },
           { path: "friends", element: <Friends /> },
           { path: "direct-chats/:id", element: <DirectChatDetails /> },
-          { path: "not-found", element: <NotFound /> },
-          { path: "server-error", element: <ServerError /> },
+          { path: "change-password", element: <ChangePasswordForm /> },
         ],
       },
-      { path: "*", element: <Navigate replace to="/login" /> },
     ],
   },
+
   {
     path: "/",
     element: <AuthLayout />,
     children: [
-      { path: "", element: <Navigate replace to="/login" /> },
-      {
-        element: <RequireAuth />,
-        children: [
-          { path: "change-password", element: <ChangePasswordForm /> },
-        ],
-      },
       { path: "login", element: <LoginForm /> },
       { path: "register", element: <RegisterForm /> },
       { path: "confirm-email", element: <VerifyEmail /> },
       { path: "forgot-password", element: <ForgotPasswordForm /> },
-      { path: "reset-password", element: <ResetPasswordForm /> },
       { path: "auth-callback", element: <AuthCallback /> },
+      { path: "reset-password", element: <ResetPasswordForm /> },
     ],
   },
+
+  { path: "/not-found", element: <NotFound /> },
+  { path: "/server-error", element: <ServerError /> },
+
+  { path: "*", element: <Navigate to="/not-found" replace /> },
 ]);

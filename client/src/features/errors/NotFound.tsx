@@ -6,12 +6,12 @@ export default function NotFound() {
   return (
     <Paper
       sx={{
-        height: 400,
+        height: "100vh",
+        width: "100vw",
         display: "flex",
         flexDirection: "column",
         justifyContent: "center",
         alignItems: "center",
-        p: 6,
       }}
     >
       <SearchOff sx={{ fontSize: 100 }} color="primary" />

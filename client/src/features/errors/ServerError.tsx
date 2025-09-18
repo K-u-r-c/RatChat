@@ -1,26 +1,29 @@
-import { SearchOff } from "@mui/icons-material";
-import { Button, Paper, Typography } from "@mui/material";
+import { ErrorOutline } from "@mui/icons-material";
+import { Button, Paper, Typography, Box } from "@mui/material";
 import { Link } from "react-router";
 
-export default function NotFound() {
+export default function ServerError() {
   return (
     <Paper
       sx={{
-        height: 400,
+        height: "100vh",
+        width: "100vw",
         display: "flex",
         flexDirection: "column",
         justifyContent: "center",
         alignItems: "center",
-        p: 6,
       }}
     >
-      <SearchOff sx={{ fontSize: 100 }} color="primary" />
+      <ErrorOutline sx={{ fontSize: 96 }} color="error" />
       <Typography gutterBottom variant="h3">
-        Oops - we could not find what you are looking for
+        Server Error
       </Typography>
-      <Button fullWidth component={Link} to="/">
-        Return to the app
-      </Button>
+
+      <Box sx={{ display: "flex", gap: 2, width: { xs: "100%", sm: "auto" } }}>
+        <Button component={Link} to="/" variant="contained" color="primary">
+          Return to the app
+        </Button>
+      </Box>
     </Paper>
   );
 }
