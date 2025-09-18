@@ -310,6 +310,8 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
         onClose={() => setAnchorEl(null)}
         member={selectedMember}
         loadRoles={rolesStore.getUserRoles}
+        chatRoomId={id ?? ""}
+        ownerId={chatRoom.ownerId}
       />
     </Box>
   );
