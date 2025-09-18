@@ -25,6 +25,7 @@ export type User = {
 
 export type ChatRoomBan = {
   userId: string;
+  user: User?;
   chatRoomId: string;
   dateBanned: string;
 };
