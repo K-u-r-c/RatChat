@@ -3,16 +3,26 @@ import { useQueryClient } from "@tanstack/react-query";
 import { startMessagesHub, on, off, connection } from "../realtime/messagesHub";
 import { useStore } from "./useStore";
 import { useAccount } from "./useAccount";
-import type { ChatMessage } from "../types";
+import type { ChatMessage, DirectMessage } from "../types";
 
 type ChatRoomUpdatedPayload = {
   chatRoomId?: string;
   message?: ChatMessage;
 };
 
+type DirectChatUpdatedPayload = {
+  directChatId?: string;
+  message?: DirectMessage;
+};
+
+type RegisteredHandler = {
+  event: string;
+  handler: (...args: unknown[]) => void;
+};
+
 export function useMessagesHub() {
   const queryClient = useQueryClient();
-  const handlerRef = useRef<((...args: unknown[]) => void) | null>(null);
+  const handlersRef = useRef<RegisteredHandler[]>([]);
   const { messagesNotificationsStore } = useStore();
   const { currentUser } = useAccount();
   const currentUserIdRef = useRef<string | undefined>(undefined);
@@ -26,11 +36,13 @@ export function useMessagesHub() {
         await startMessagesHub();
         if (!mounted) return;
 
-        if (handlerRef.current) {
-          off("ChatRoomUpdated", handlerRef.current);
-        }
+        // Clean up any previous handlers before attaching new ones
+        handlersRef.current.forEach(({ event, handler }) =>
+          off(event, handler)
+        );
+        handlersRef.current = [];
 
-        const handler = (...args: unknown[]) => {
+        const chatRoomHandler = (...args: unknown[]) => {
           const payload = args[0] as ChatRoomUpdatedPayload | undefined;
           queryClient.invalidateQueries({
             queryKey: ["chatRooms"],
@@ -47,8 +59,34 @@ export function useMessagesHub() {
           messagesNotificationsStore.incrementUnread(chatRoomId);
         };
 
-        handlerRef.current = handler;
-        on("ChatRoomUpdated", handler);
+        on("ChatRoomUpdated", chatRoomHandler);
+        handlersRef.current.push({
+          event: "ChatRoomUpdated",
+          handler: chatRoomHandler,
+        });
+
+        const directChatHandler = (...args: unknown[]) => {
+          const payload = args[0] as DirectChatUpdatedPayload | undefined;
+          queryClient.invalidateQueries({
+            queryKey: ["direct-chats"],
+            exact: false,
+          });
+
+          const directChatId = payload?.directChatId;
+          const message = payload?.message;
+          const currentUserId = currentUserIdRef.current;
+
+          if (!directChatId || !message) return;
+          if (currentUserId && message.senderId === currentUserId) return;
+
+          messagesNotificationsStore.incrementDirectUnread(directChatId);
+        };
+
+        on("DirectChatUpdated", directChatHandler);
+        handlersRef.current.push({
+          event: "DirectChatUpdated",
+          handler: directChatHandler,
+        });
       } catch (err) {
         if (import.meta.env.DEV)
           console.error("Messages hub connect error", err);
@@ -59,10 +97,8 @@ export function useMessagesHub() {
 
     return () => {
       mounted = false;
-      if (handlerRef.current) {
-        off("ChatRoomUpdated", handlerRef.current);
-        handlerRef.current = null;
-      }
+      handlersRef.current.forEach(({ event, handler }) => off(event, handler));
+      handlersRef.current = [];
     };
   }, [queryClient, messagesNotificationsStore]);
 

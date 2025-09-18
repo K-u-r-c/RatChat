@@ -94,6 +94,8 @@ const SideNav = observer(function SideNav() {
     };
   }, [fetchNextPage, hasNextPage]);
 
+  const totalDirectUnread = messagesNotificationsStore.totalDirectUnread;
+
   return (
     <Box
       component="nav"
@@ -129,7 +131,25 @@ const SideNav = observer(function SideNav() {
           }}
           className="rc-server-btn"
         >
-          <Forum />
+          <Badge
+            color="error"
+            overlap="rectangular"
+            badgeContent={totalDirectUnread}
+            invisible={!totalDirectUnread}
+            max={99}
+            sx={{
+              "& .MuiBadge-badge": {
+                fontSize: 11,
+                fontWeight: 700,
+                minWidth: 20,
+                height: 20,
+                borderRadius: "999px",
+                px: 0.75,
+              },
+            }}
+          >
+            <Forum />
+          </Badge>
         </IconButton>
       </Tooltip>
 
