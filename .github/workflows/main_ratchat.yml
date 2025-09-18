@@ -54,16 +54,6 @@ jobs:
 
           docker compose -f "${COMPOSE_FILE}" up -d --force-recreate sql minio
 
-          echo "Waiting for SQL to be healthy..."
-          timeout 240s bash -c ' \
-            until [ "$(docker inspect -f {{.State.Health.Status}} $(docker compose -f ${COMPOSE_FILE} ps -q sql))" = "healthy" ]; do sleep 2; done \
-          '
-
-          echo "Waiting for MinIO to be healthy..."
-          timeout 240s bash -c ' \
-            until [ "$(docker inspect -f {{.State.Health.Status}} $(docker compose -f ${COMPOSE_FILE} ps -q minio))" = "healthy" ]; do sleep 2; done \
-          '
-
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
