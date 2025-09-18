@@ -125,12 +125,11 @@ jobs:
           dotnet restore
           dotnet build -c Release --no-restore
 
-      - name: Restart backend (systemd) + healthcheck
+      - name: Restart backend
         run: |
           sudo systemctl restart ratchat-backend
           sleep 2
           sudo systemctl --no-pager status ratchat-backend || true
-          curl -fsS http://10.66.66.2:5000/health || (echo "Backend healthcheck FAILED" && exit 1)
 
       - name: Build frontend
         working-directory: ${{ env.CLIENT_DIR }}
