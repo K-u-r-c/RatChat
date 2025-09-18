@@ -49,8 +49,8 @@ jobs:
           # Defensive cleanup (nie przerywa joba, jeśli nic nie działa)
           docker compose -f "${COMPOSE_FILE}" down --remove-orphans || true
 
-          systemctl daemon-reload
-          systemctl restart docker
+          sudo systemctl daemon-reload
+          sudo systemctl restart docker
 
           docker compose -f "${COMPOSE_FILE}" up -d --force-recreate sql minio
 
