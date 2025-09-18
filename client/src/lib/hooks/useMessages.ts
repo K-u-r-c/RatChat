@@ -1,6 +1,7 @@
 import { useLocalObservable } from "mobx-react-lite";
 import { HubConnection } from "@microsoft/signalr";
 import { useEffect, useRef } from "react";
+import { useStore } from "./useStore";
 import type { ChatMessage, PagedList, MessageReaction } from "../types";
 import { runInAction } from "mobx";
 import { toast } from "react-toastify";
@@ -39,6 +40,20 @@ const toPagedPayload = (payload: MessagesPayload) => {
 
 export const useMessages = (chatRoomId?: string) => {
   const created = useRef(false);
+  const { messagesNotificationsStore } = useStore();
+
+  useEffect(() => {
+    if (!chatRoomId) {
+      messagesNotificationsStore.setActiveChatRoom(null);
+      return;
+    }
+
+    messagesNotificationsStore.setActiveChatRoom(chatRoomId);
+
+    return () => {
+      messagesNotificationsStore.setActiveChatRoom(null);
+    };
+  }, [chatRoomId, messagesNotificationsStore]);
 
   const messageStore = useLocalObservable(() => ({
     messages: [] as ChatMessage[],
