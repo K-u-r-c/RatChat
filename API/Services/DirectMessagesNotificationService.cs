@@ -1,6 +1,8 @@
+using System;
 using Application.DirectMessages.DTOs;
 using Application.Interfaces;
 using API.SignalR;
+using Domain;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Persistance;
@@ -27,6 +29,37 @@ public class DirectMessagesNotificationService(
             .ToList();
 
         if (participantIds.Count == 0) return;
+
+        var recipientsToIncrement = participantIds
+            .Where(id => id != message.SenderId)
+            .ToList();
+
+        if (recipientsToIncrement.Count > 0)
+        {
+            var existingCounters = await context.DirectChatNotifications
+                .Where(n => n.DirectChatId == directChatId && recipientsToIncrement.Contains(n.UserId))
+                .ToListAsync();
+
+            foreach (var userId in recipientsToIncrement)
+            {
+                var counter = existingCounters.FirstOrDefault(n => n.UserId == userId);
+                if (counter is null)
+                {
+                    counter = new DirectChatNotification
+                    {
+                        Id = Guid.NewGuid(),
+                        DirectChatId = directChatId,
+                        UserId = userId,
+                    };
+                    context.DirectChatNotifications.Add(counter);
+                }
+
+                counter.UnreadCount += 1;
+                counter.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await context.SaveChangesAsync();
+        }
 
         var payload = new
         {

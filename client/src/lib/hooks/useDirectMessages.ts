@@ -9,6 +9,7 @@ import type { DirectMessage, MessageReaction, PagedList } from "../types";
 import { runInAction } from "mobx";
 import { toast } from "react-toastify";
 import { calculatePageSizeForMessages } from "../util/util";
+import notificationsApi from "../api/notifications";
 import { useStore } from "./useStore";
 import { useAccount } from "./useAccount";
 
@@ -117,7 +118,11 @@ export const useDirectMessages = (directChatId?: string) => {
             }
           });
 
-          messagesNotificationsStore.markDirectChatRead(directChatId);
+          const cleared =
+            messagesNotificationsStore.markDirectChatRead(directChatId);
+          if (cleared) {
+            notificationsApi.markDirectChatRead(directChatId).catch(() => {});
+          }
         }
       );
 
@@ -227,14 +232,13 @@ export const useDirectMessages = (directChatId?: string) => {
   }));
 
   useEffect(() => {
-    if (directChatId && !created.current) {
-      directMessageStore
-        .createHubConnection(directChatId)
-        .catch((error) =>
-          console.log("Error creating direct message connection: ", error)
-        );
-      created.current = true;
+    if (!directChatId) {
+      created.current = false;
+      return;
     }
+
+    directMessageStore.createHubConnection(directChatId).catch(() => {});
+    created.current = true;
 
     return () => {
       directMessageStore.stopHubConnection();
@@ -249,7 +253,11 @@ export const useDirectMessages = (directChatId?: string) => {
       return;
     }
 
-    messagesNotificationsStore.setActiveDirectChat(directChatId);
+    const shouldSync =
+      messagesNotificationsStore.setActiveDirectChat(directChatId);
+    if (shouldSync) {
+      notificationsApi.markDirectChatRead(directChatId).catch(() => {});
+    }
 
     return () => {
       messagesNotificationsStore.setActiveDirectChat(null);

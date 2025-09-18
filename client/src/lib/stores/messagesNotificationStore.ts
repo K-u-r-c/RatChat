@@ -1,4 +1,5 @@
 import { makeAutoObservable, observable } from "mobx";
+import type { NotificationCounters } from "../types";
 
 export class MessagesNotificationStore {
   unreadByRoom = observable.map<string, number>();
@@ -16,29 +17,47 @@ export class MessagesNotificationStore {
     }
   }
 
-  setActiveChatRoom(chatRoomId: string | null) {
-    this.activeChatRoomId = chatRoomId;
-    if (chatRoomId && this.windowFocused) {
-      this.markRoomRead(chatRoomId);
-    }
+  hydrate(counters: NotificationCounters) {
+    this.unreadByRoom.clear();
+    this.directUnreadByChat.clear();
+
+    Object.entries(counters.chatRooms).forEach(([chatRoomId, count]) => {
+      if (count > 0) this.unreadByRoom.set(chatRoomId, count);
+    });
+
+    Object.entries(counters.directChats).forEach(([chatId, count]) => {
+      if (count > 0) this.directUnreadByChat.set(chatId, count);
+    });
   }
 
-  setActiveDirectChat(chatId: string | null) {
+  setActiveChatRoom(chatRoomId: string | null): boolean {
+    this.activeChatRoomId = chatRoomId;
+    if (!chatRoomId || !this.windowFocused) return false;
+    const unread = this.unreadByRoom.get(chatRoomId) ?? 0;
+    if (unread === 0) return false;
+    this.unreadByRoom.delete(chatRoomId);
+    return true;
+  }
+
+  setActiveDirectChat(chatId: string | null): boolean {
     this.activeDirectChatId = chatId;
-    if (chatId && this.windowFocused) {
-      this.markDirectChatRead(chatId);
-    }
+    if (!chatId || !this.windowFocused) return false;
+    const unread = this.directUnreadByChat.get(chatId) ?? 0;
+    if (unread === 0) return false;
+    this.directUnreadByChat.delete(chatId);
+    return true;
   }
 
   setWindowFocused(focused: boolean) {
     this.windowFocused = focused;
-    if (focused) {
-      if (this.activeChatRoomId) {
-        this.markRoomRead(this.activeChatRoomId);
-      }
-      if (this.activeDirectChatId) {
-        this.markDirectChatRead(this.activeDirectChatId);
-      }
+    if (!focused) return;
+
+    if (this.activeChatRoomId) {
+      this.unreadByRoom.delete(this.activeChatRoomId);
+    }
+
+    if (this.activeDirectChatId) {
+      this.directUnreadByChat.delete(this.activeDirectChatId);
     }
   }
 
@@ -60,21 +79,29 @@ export class MessagesNotificationStore {
     this.playNotificationSound();
   }
 
-  markRoomRead(chatRoomId: string) {
-    if (this.unreadByRoom.has(chatRoomId)) {
-      this.unreadByRoom.delete(chatRoomId);
-    }
+  markRoomRead(chatRoomId: string): boolean {
+    if (!this.unreadByRoom.has(chatRoomId)) return false;
+    this.unreadByRoom.delete(chatRoomId);
+    return true;
   }
 
-  markDirectChatRead(chatId: string) {
-    if (this.directUnreadByChat.has(chatId)) {
-      this.directUnreadByChat.delete(chatId);
-    }
+  markDirectChatRead(chatId: string): boolean {
+    if (!this.directUnreadByChat.has(chatId)) return false;
+    this.directUnreadByChat.delete(chatId);
+    return true;
   }
 
   clearAll() {
     this.unreadByRoom.clear();
     this.directUnreadByChat.clear();
+  }
+
+  get totalChatRoomUnread() {
+    let total = 0;
+    for (const count of this.unreadByRoom.values()) {
+      total += count;
+    }
+    return total;
   }
 
   get totalDirectUnread() {
@@ -85,17 +112,20 @@ export class MessagesNotificationStore {
     return total;
   }
 
+  get totalUnread() {
+    return this.totalChatRoomUnread + this.totalDirectUnread;
+  }
+
   private async playNotificationSound() {
     if (typeof window === "undefined") return;
 
     try {
       const audio = new Audio("/notify.mp3");
       audio.volume = 0.6;
-      audio.play().catch(() => {});
-
+      await audio.play();
       return;
     } catch {
-      // Fallback to oscillator
+      // Fallback to oscillator below
     }
 
     try {
@@ -116,7 +146,7 @@ export class MessagesNotificationStore {
       if (!ctx) return;
 
       if (ctx.state === "suspended") {
-        ctx.resume().catch(() => {});
+        await ctx.resume().catch(() => {});
       }
 
       const oscillator = ctx.createOscillator();

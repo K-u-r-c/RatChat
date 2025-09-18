@@ -2,6 +2,7 @@ import { useLocalObservable } from "mobx-react-lite";
 import { HubConnection } from "@microsoft/signalr";
 import { useEffect, useRef } from "react";
 import { useStore } from "./useStore";
+import notificationsApi from "../api/notifications";
 import type { ChatMessage, PagedList, MessageReaction } from "../types";
 import { runInAction } from "mobx";
 import { toast } from "react-toastify";
@@ -48,7 +49,10 @@ export const useMessages = (chatRoomId?: string) => {
       return;
     }
 
-    messagesNotificationsStore.setActiveChatRoom(chatRoomId);
+    const shouldSync = messagesNotificationsStore.setActiveChatRoom(chatRoomId);
+    if (shouldSync) {
+      notificationsApi.markChatRoomRead(chatRoomId).catch(() => {});
+    }
 
     return () => {
       messagesNotificationsStore.setActiveChatRoom(null);

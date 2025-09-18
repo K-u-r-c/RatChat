@@ -268,3 +268,8 @@ export type UserStatusDto = {
 export type OnlineUsersDto = {
   userIds: string[];
 };
+
+export type NotificationCounters = {
+  chatRooms: Record<string, number>;
+  directChats: Record<string, number>;
+};
