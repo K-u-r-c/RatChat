@@ -54,11 +54,6 @@ jobs:
 
           docker compose -f "${COMPOSE_FILE}" up -d --force-recreate sql minio
 
-      - name: Set up .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
       - name: Generate appsettings.json from secrets
         working-directory: ${{ env.API_DIR }}
         env:
@@ -136,11 +131,6 @@ jobs:
           sleep 2
           sudo systemctl --no-pager status ratchat-backend || true
           curl -fsS http://10.66.66.2:5000/health || (echo "Backend healthcheck FAILED" && exit 1)
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
 
       - name: Build frontend
         working-directory: ${{ env.CLIENT_DIR }}
