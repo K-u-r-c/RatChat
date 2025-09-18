@@ -133,7 +133,7 @@ public class ChatRoomsController(IHubContext<ChatRoomNotificationsHub> hubContex
 
         if (result.IsSuccess)
         {
-            await _hubContext.Clients.Group(id).SendAsync("UserKicked", user_id);
+            await _hubContext.Clients.Group(id).SendAsync("UserKicked", result.Value);
         }
 
         return HandleResult(result);
@@ -157,7 +157,7 @@ public class ChatRoomsController(IHubContext<ChatRoomNotificationsHub> hubContex
 
         if (result.IsSuccess)
         {
-            await _hubContext.Clients.Group(id).SendAsync("UserBanned", user_id);
+            await _hubContext.Clients.Group(id).SendAsync("UserBanned", result.Value);
         }
 
         return HandleResult(result);
@@ -180,7 +180,7 @@ public class ChatRoomsController(IHubContext<ChatRoomNotificationsHub> hubContex
 
         if (result.IsSuccess)
         {
-            await _hubContext.Clients.Group(id).SendAsync("UserUnbanned", user_id);
+            await _hubContext.Clients.Group(id).SendAsync("UserUnbanned", result.Value);
         }
 
         return HandleResult(result);

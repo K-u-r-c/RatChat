@@ -8,6 +8,7 @@ import {
 import { toast } from "react-toastify";
 import { router } from "../../app/router/Routes";
 import { useQueryClient } from "@tanstack/react-query";
+import type { User } from "../types";
 
 export const useChatRoomNotificationsRealtime = (
   chatRoomId?: string,
@@ -43,13 +44,13 @@ export const useChatRoomNotificationsRealtime = (
       });
 
       // Server events
-      this.hubConnection.on("UserKicked", (kickedUserId: string) => {
-        if (userId && kickedUserId === userId) {
+      this.hubConnection.on("UserKicked", (kickedUser: User) => {
+        if (userId && kickedUser.id === userId) {
           toast.error("You have been kicked from this chat room.");
           router.navigate("/");
         } else {
           toast.info(
-            `User ${kickedUserId} has been kicked from the chat room.`
+            `User ${kickedUser.displayName} has been kicked from the chat room.`
           );
 
           queryClient.setQueryData<any>(
@@ -57,7 +58,7 @@ export const useChatRoomNotificationsRealtime = (
             (prev: any) => {
               if (!prev) return prev;
               const members = (prev.members ?? []).filter(
-                (m: any) => m.id !== kickedUserId
+                (m: any) => m.id !== kickedUser
               );
               return { ...prev, members };
             }
@@ -66,13 +67,13 @@ export const useChatRoomNotificationsRealtime = (
         }
       });
 
-      this.hubConnection.on("UserBanned", (bannedUserId: string) => {
-        if (userId && bannedUserId === userId) {
+      this.hubConnection.on("UserBanned", (bannedUser: User) => {
+        if (userId && bannedUser.id === userId) {
           toast.error("You have been banned from this chat room.");
           router.navigate("/");
         } else {
           toast.info(
-            `User ${bannedUserId} has been banned from the chat room.`
+            `User ${bannedUser.displayName} has been banned from the chat room.`
           );
 
           queryClient.setQueryData<any>(
@@ -80,12 +81,12 @@ export const useChatRoomNotificationsRealtime = (
             (prev: any) => {
               if (!prev) return prev;
               const members = (prev.members ?? []).filter(
-                (m: any) => m.id !== bannedUserId
+                (m: any) => m.id !== bannedUser
               );
               const bans = [
                 ...(prev.bans ?? []),
                 {
-                  userId: bannedUserId,
+                  userId: bannedUser,
                   chatRoomId,
                   dateBanned: new Date().toISOString(),
                 },
@@ -97,12 +98,12 @@ export const useChatRoomNotificationsRealtime = (
         }
       });
 
-      this.hubConnection.on("UserUnbanned", (unbannedUserId: string) => {
-        if (userId && unbannedUserId === userId) {
+      this.hubConnection.on("UserUnbanned", (unbannedUser: User) => {
+        if (userId && unbannedUser.id === userId) {
           toast.info("You have been unbanned from this chat room.");
         } else {
           toast.info(
-            `User ${unbannedUserId} has been unbanned from the chat room.`
+            `User ${unbannedUser.displayName} has been unbanned from the chat room.`
           );
 
           if (chatRoomId) {
@@ -111,7 +112,7 @@ export const useChatRoomNotificationsRealtime = (
               (prev: any) => {
                 if (!prev) return prev;
                 const bans = (prev.bans ?? []).filter(
-                  (b: any) => b.userId !== unbannedUserId
+                  (b: any) => b.userId !== unbannedUser.id
                 );
                 return { ...prev, bans };
               }
