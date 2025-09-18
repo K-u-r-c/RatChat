@@ -7,13 +7,12 @@ import {
   Stack,
   Typography,
   IconButton,
-  Tooltip,
 } from "@mui/material";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import type { ChatRoomRole, Profile } from "../../../lib/types";
 import { formatUserTag } from "../../../lib/util/util";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import ChatRoomMemberActions from "./ChatRoomMemberActions";
 
 type Props = {
@@ -99,7 +98,24 @@ export default function ChatRoomMemberPopover({
                 backgroundPosition: "center",
                 position: "relative",
               }}
-            ></Box>
+            >
+              <span>
+                <IconButton
+                  size="small"
+                  onClick={openActions}
+                  sx={{
+                    position: "absolute",
+                    top: 6,
+                    right: 6,
+                    bgcolor: "rgba(0,0,0,0.35)",
+                    color: "white",
+                    "&:hover": { bgcolor: "rgba(0,0,0,0.55)" },
+                  }}
+                >
+                  <MoreHorizIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Box>
             {/* Avatar + name */}
             <Box sx={{ px: 2, pb: 2, position: "relative" }}>
               <Link
