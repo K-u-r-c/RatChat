@@ -1,79 +1,157 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-
-name: Build and deploy ASP.Net Core app to Azure Web App - ratchat
+name: Deploy RatChat
 
 on:
   push:
-    branches:
-      - production
-  workflow_dispatch:
+    branches: [production]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
 
 jobs:
-  build:
-    runs-on: windows-latest
-    permissions:
-      contents: read #This is required for actions/checkout
+  deploy:
+    runs-on: self-hosted
+    env:
+      ROOT_DIR: /home/kurc/applications/RatChat
+      API_DIR: /home/kurc/applications/RatChat/API
+      CLIENT_DIR: /home/kurc/applications/RatChat/client
+      WEB_ROOT: /var/www/ratchat
+      COMPOSE_FILE: /home/kurc/applications/RatChat/docker-compose.yml
+      DOTNET_VERSION: '9.0.x'
+      NODE_VERSION: '20'
 
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up node.js
-        uses: actions/setup-node@v3
+      - name: Checkout production
+        uses: actions/checkout@v4
         with:
-          node-version: '20'
-        
-      - name: Install deps and build react app
-        run: |
-          cd client
-          npm install
-          npm run build
+          fetch-depth: 0
+          ref: production
 
-      - name: Set up .NET Core
+      - name: Write .env for compose (secrets → server)
+        working-directory: ${{ env.ROOT_DIR }}
+        env:
+          MSSQL_SA_PASSWORD: ${{ secrets.MSSQL_SA_PASSWORD }}
+          MINIO_ROOT_USER: ${{ secrets.MINIO_ROOT_USER }}
+          MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
+        run: |
+          umask 177
+          cat > .env <<EOF
+          MSSQL_SA_PASSWORD=${MSSQL_SA_PASSWORD}
+          MINIO_ROOT_USER=${MINIO_ROOT_USER}
+          MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+          EOF
+          chmod 600 .env
+          echo ".env written at $(pwd)/.env with 600 perms"
+
+      - name: Ensure Docker services (SQL + MinIO)
+        working-directory: ${{ env.ROOT_DIR }}
+        run: |
+          docker compose -f "${COMPOSE_FILE}" up -d sql minio
+          echo "Waiting for SQL to be healthy..."
+          timeout 240s bash -c ' \
+            until [ "$(docker inspect -f {{.State.Health.Status}} $(docker compose -f ${COMPOSE_FILE} ps -q sql))" = "healthy" ]; do sleep 2; done \
+          '
+          echo "Waiting for MinIO to be healthy..."
+          timeout 240s bash -c ' \
+            until [ "$(docker inspect -f {{.State.Health.Status}} $(docker compose -f ${COMPOSE_FILE} ps -q minio))" = "healthy" ]; do sleep 2; done \
+          '
+
+      - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.x'
+          dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Build with dotnet
-        run: dotnet build --configuration Release
+      - name: Generate appsettings.json from secrets
+        working-directory: ${{ env.API_DIR }}
+        env:
+          SQL_CONNECTION: ${{ secrets.SQL_CONNECTION }}
+          MINIO_ENDPOINT: ${{ secrets.MINIO_ENDPOINT }}
+          MINIO_ACCESS_KEY: ${{ secrets.MINIO_ACCESS_KEY }}
+          MINIO_SECRET_KEY: ${{ secrets.MINIO_SECRET_KEY }}
+          MINIO_BUCKET: ${{ secrets.MINIO_BUCKET }}
+          RESEND_TOKEN: ${{ secrets.RESEND_TOKEN }}
+          GITHUB_CLIENT_ID: ${{ secrets.GITHUB_CLIENT_ID }}
+          GITHUB_CLIENT_SECRET: ${{ secrets.GITHUB_CLIENT_SECRET }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          CLIENT_APP_URL: ${{ secrets.CLIENT_APP_URL }}
+          ALLOWED_HOSTS: ${{ secrets.ALLOWED_HOSTS }}
+        run: |
+          umask 177
+          cat > appsettings.json <<'JSON'
+          {
+            "Logging": {
+              "LogLevel": {
+                "Default": "Information",
+                "Microsoft.AspNetCore": "Warning"
+              }
+            },
+            "ConnectionStrings": {
+              "DefaultConnection": "__SQL_CONNECTION__"
+            },
+            "MinIO": {
+              "Endpoint": "__MINIO_ENDPOINT__",
+              "AccessKey": "__MINIO_ACCESS_KEY__",
+              "SecretKey": "__MINIO_SECRET_KEY__",
+              "BucketName": "__MINIO_BUCKET__"
+            },
+            "Resend": {
+              "ApiToken": "__RESEND_TOKEN__"
+            },
+            "Authentication": {
+              "GitHub": {
+                "ClientId": "__GITHUB_CLIENT_ID__",
+                "ClientSecret": "__GITHUB_CLIENT_SECRET__"
+              },
+              "Google": {
+                "ClientId": "__GOOGLE_CLIENT_ID__",
+                "ClientSecret": "__GOOGLE_CLIENT_SECRET__"
+              }
+            },
+            "ClientAppUrl": "__CLIENT_APP_URL__",
+            "AllowedHosts": "__ALLOWED_HOSTS__"
+          }
+          JSON
+          sed -i "s|__SQL_CONNECTION__|${SQL_CONNECTION//|/\\|}|g" appsettings.json
+          sed -i "s|__MINIO_ENDPOINT__|${MINIO_ENDPOINT//|/\\|}|g" appsettings.json
+          sed -i "s|__MINIO_ACCESS_KEY__|${MINIO_ACCESS_KEY//|/\\|}|g" appsettings.json
+          sed -i "s|__MINIO_SECRET_KEY__|${MINIO_SECRET_KEY//|/\\|}|g" appsettings.json
+          sed -i "s|__MINIO_BUCKET__|${MINIO_BUCKET//|/\\|}|g" appsettings.json
+          sed -i "s|__RESEND_TOKEN__|${RESEND_TOKEN//|/\\|}|g" appsettings.json
+          sed -i "s|__GITHUB_CLIENT_ID__|${GITHUB_CLIENT_ID//|/\\|}|g" appsettings.json
+          sed -i "s|__GITHUB_CLIENT_SECRET__|${GITHUB_CLIENT_SECRET//|/\\|}|g" appsettings.json
+          sed -i "s|__GOOGLE_CLIENT_ID__|${GOOGLE_CLIENT_ID//|/\\|}|g" appsettings.json
+          sed -i "s|__GOOGLE_CLIENT_SECRET__|${GOOGLE_CLIENT_SECRET//|/\\|}|g" appsettings.json
+          sed -i "s|__CLIENT_APP_URL__|${CLIENT_APP_URL//|/\\|}|g" appsettings.json
+          sed -i "s|__ALLOWED_HOSTS__|${ALLOWED_HOSTS//|/\\|}|g" appsettings.json
+          chmod 600 appsettings.json
 
-      - name: dotnet publish
-        run: dotnet publish -c Release -o "${{env.DOTNET_ROOT}}/myapp"
+      - name: Restore & Build backend (Release)
+        working-directory: ${{ env.API_DIR }}
+        run: |
+          dotnet restore
+          dotnet build -c Release --no-restore
 
-      - name: Upload artifact for deployment job
-        uses: actions/upload-artifact@v4
+      - name: Restart backend (systemd) + healthcheck
+        run: |
+          sudo systemctl restart ratchat-backend
+          sleep 2
+          sudo systemctl --no-pager status ratchat-backend || true
+          curl -fsS http://10.66.66.2:5000/health || (echo "Backend healthcheck FAILED" && exit 1)
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
         with:
-          name: .net-app
-          path: ${{env.DOTNET_ROOT}}/myapp
+          node-version: ${{ env.NODE_VERSION }}
 
-  deploy:
-    runs-on: windows-latest
-    needs: build
-    environment:
-      name: 'Production'
-      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
-    permissions:
-      id-token: write #This is required for requesting the JWT
-      contents: read #This is required for actions/checkout
+      - name: Build frontend
+        working-directory: ${{ env.CLIENT_DIR }}
+        run: |
+          npm ci
+          npm run build
 
-    steps:
-      - name: Download artifact from build job
-        uses: actions/download-artifact@v4
-        with:
-          name: .net-app
-      
-      - name: Login to Azure
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_9AFAA754D4F44BB99E48FCB14CF91837 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_61BFD516269C4104A5685676FEDEFAE6 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_EB2C0A9FF5CE435CB3FA05EDB4438CF6 }}
-
-      - name: Deploy to Azure Web App
-        id: deploy-to-webapp
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: 'ratchat'
-          slot-name: 'Production'
-          package: .
-          
+      - name: Deploy frontend to web root
+        run: |
+          sudo mkdir -p "${WEB_ROOT}"
+          sudo rsync -a --delete "${CLIENT_DIR}/dist/" "${WEB_ROOT}/"
+          echo "Frontend deployed to ${WEB_ROOT}"
