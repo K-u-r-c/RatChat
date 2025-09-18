@@ -116,7 +116,7 @@ export default function ChatInput({
         }}
         sx={{
           bgcolor: "#2b2d33ff",
-          borderRadius: 9999,
+          borderRadius: 2,
           "& .MuiOutlinedInput-notchedOutline": {
             borderColor: "transparent !important",
           },
