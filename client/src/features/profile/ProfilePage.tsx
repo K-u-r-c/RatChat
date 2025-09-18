@@ -61,7 +61,7 @@ export default function ProfilePage() {
   const handleSendMessage = async () => {
     if (!profile) return;
 
-    navigate("/direct-chats");
+    navigate("/");
   };
 
   const handleAddFriend = async () => {

@@ -1,7 +1,15 @@
 import { Box, CssBaseline, Container, Typography } from "@mui/material";
-import { Outlet, ScrollRestoration } from "react-router";
+import { Outlet, ScrollRestoration, Navigate } from "react-router";
+import { useAccount } from "../../lib/hooks/useAccount";
 
 export default function AuthLayout() {
+  const { currentUser, loadingUserInfo } = useAccount();
+
+  // If we already know the user is logged in, send them into the app.
+  if (!loadingUserInfo && currentUser) {
+    return <Navigate to="/" replace />;
+  }
+
   return (
     <Box
       sx={{

@@ -60,7 +60,7 @@ export default function Friends() {
       navigate(`/direct-chats/${existingChat.id}`);
     } else {
       toast.error("Chat not found. Please try refreshing the page.");
-      navigate("/direct-chats");
+      navigate("/");
     }
   };
 

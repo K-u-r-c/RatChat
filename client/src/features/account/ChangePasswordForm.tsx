@@ -221,7 +221,7 @@ export default function ChangePasswordForm() {
               fontSize: { xs: "14px", sm: "16px" },
             }}
             component={Link}
-            to="/direct-chats"
+            to="/"
           >
             Return to app
           </Typography>
