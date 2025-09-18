@@ -32,6 +32,8 @@ public class GetMessages
 
                 var query = context.Messages
                     .Where(x => x.ChatRoomId == request.ChatRoomId)
+                    .Include(x => x.Reactions)
+                        .ThenInclude(r => r.User)
                     .OrderBy(x => x.CreatedAt);
 
                 var messages = new List<MessageDto>();
@@ -71,6 +73,8 @@ public class GetMessages
             {
                 var messages = await context.Messages
                     .Where(x => x.ChatRoomId == request.ChatRoomId && x.CreatedAt < request.Cursor.Value)
+                    .Include(x => x.Reactions)
+                        .ThenInclude(r => r.User)
                     .OrderByDescending(x => x.CreatedAt)
                     .Take(request.PageSize + 1)
                     .ProjectTo<MessageDto>(mapper.ConfigurationProvider)

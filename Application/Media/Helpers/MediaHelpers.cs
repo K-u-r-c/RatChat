@@ -10,27 +10,28 @@ public static class MediaHelpers
         {
             MediaCategory.ProfileImage => $"users/{userId}/profile/images",
             MediaCategory.ProfileBackground => $"users/{userId}/profile/backgrounds",
-            MediaCategory.ChatRoomImage => GetChatRoomPath(chatRoomId, channelId, "images"),
-            MediaCategory.ChatRoomVideo => GetChatRoomPath(chatRoomId, channelId, "videos"),
-            MediaCategory.ChatRoomAudio => GetChatRoomPath(chatRoomId, channelId, "audio"),
-            MediaCategory.ChatRoomDocument => GetChatRoomPath(chatRoomId, channelId, "documents"),
-            MediaCategory.ChatRoomOther => GetChatRoomPath(chatRoomId, channelId, "other"),
+            MediaCategory.ChatRoomImage => GetChatRoomPath(chatRoomId, channelId, "images", userId),
+            MediaCategory.ChatRoomVideo => GetChatRoomPath(chatRoomId, channelId, "videos", userId),
+            MediaCategory.ChatRoomAudio => GetChatRoomPath(chatRoomId, channelId, "audio", userId),
+            MediaCategory.ChatRoomDocument => GetChatRoomPath(chatRoomId, channelId, "documents", userId),
+            MediaCategory.ChatRoomOther => GetChatRoomPath(chatRoomId, channelId, "other", userId),
             _ => "misc"
         };
     }
 
-    private static string GetChatRoomPath(string? chatRoomId, string? channelId, string mediaType)
+    private static string GetChatRoomPath(string? chatRoomId, string? channelId, string mediaType, string userId)
     {
         if (string.IsNullOrEmpty(chatRoomId))
-            throw new ArgumentException("ChatRoomId is required for chat room media", nameof(chatRoomId));
+        {
+            return $"users/{userId}/direct-messages/{mediaType}";
+        }
 
         var basePath = $"chatrooms/{chatRoomId}";
 
-        // If channelId is provided, add it to the path (for future channel support)
         if (!string.IsNullOrEmpty(channelId))
             basePath += $"/channels/{channelId}";
         else
-            basePath += "/general"; // default channel
+            basePath += "/general";
 
         return $"{basePath}/{mediaType}";
     }

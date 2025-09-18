@@ -55,29 +55,24 @@ public class DeleteMedia
                     return Result<Unit>.Failure("You do not have permission to delete this media file.", 403);
                 }
 
-                mediaFile.ReferenceCount--;
+                var folderPath = MediaHelpers.GetFolderPath(
+                    request.Category,
+                    user.Id,
+                    request.ChatRoomId,
+                    request.ChannelId);
 
-                if (mediaFile.ReferenceCount <= 0 || request.ForceDelete)
+                var deleteResult = await fileStorage.DeleteFileAsync(request.PublicId, folderPath);
+
+                if (!deleteResult.IsSuccess && !request.ForceDelete)
+                    return Result<Unit>.Failure(deleteResult.Error!, deleteResult.Code);
+
+                context.MediaFiles.Remove(mediaFile);
+
+                if (request.Category == MediaCategory.ProfileImage &&
+                    user.ImageUrl?.Contains(request.PublicId) == true)
                 {
-                    var folderPath = MediaHelpers.GetFolderPath(
-                        request.Category,
-                        user.Id,
-                        request.ChatRoomId,
-                        request.ChannelId);
-
-                    var deleteResult = await fileStorage.DeleteFileAsync(request.PublicId, folderPath);
-
-                    if (!deleteResult.IsSuccess && !request.ForceDelete)
-                        return Result<Unit>.Failure(deleteResult.Error!, deleteResult.Code);
-
-                    context.MediaFiles.Remove(mediaFile);
-
-                    if (request.Category == MediaCategory.ProfileImage &&
-                        user.ImageUrl?.Contains(request.PublicId) == true)
-                    {
-                        user.ImageUrl = null;
-                        await userManager.UpdateAsync(user);
-                    }
+                    user.ImageUrl = null;
+                    await userManager.UpdateAsync(user);
                 }
 
                 await context.SaveChangesAsync(cancellationToken);

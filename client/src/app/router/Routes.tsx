@@ -1,6 +1,5 @@
 import { createBrowserRouter, Navigate } from "react-router";
 import App from "../layout/App";
-import HomePage from "../../features/home/HomePage";
 import RequireAuth from "./RequireAuth";
 import NotFound from "../../features/errors/NotFound";
 import ServerError from "../../features/errors/ServerError";
@@ -11,11 +10,13 @@ import ForgotPasswordForm from "../../features/account/ForgotPasswordForm";
 import ResetPasswordForm from "../../features/account/ResetPasswordForm";
 import ChangePasswordForm from "../../features/account/ChangePasswordForm";
 import AuthCallback from "../../features/account/AuthCallback";
-import ChatRoomsDashboard from "../../features/chatRooms/dashboard/ChatRoomsDashboard";
 import ChatRoomDetails from "../../features/chatRooms/details/ChatRoomDetails";
-import ChatRoomForm from "../../features/chatRooms/forms/ChatRoomForm";
 import JoinChatRoomPage from "../../features/chatRooms/join/JoinChatRoomPage";
 import ProfilePage from "../../features/profile/ProfilePage";
+import Friends from "../../features/friends/Friends";
+import AuthLayout from "../layout/AuthLayout";
+import EmptyPage from "../layout/EmptyPage";
+import DirectChatDetails from "../../features/directChats/DirectChatDetails";
 
 export const router = createBrowserRouter([
   {
@@ -25,25 +26,36 @@ export const router = createBrowserRouter([
       {
         element: <RequireAuth />,
         children: [
-          { path: "chat-rooms", element: <ChatRoomsDashboard /> },
+          { path: "", element: <EmptyPage /> },
           { path: "chat-rooms/:id", element: <ChatRoomDetails /> },
-          { path: "create-chat-room", element: <ChatRoomForm key="create" /> },
           { path: "chat-rooms/:id/:token/join", element: <JoinChatRoomPage /> },
-          { path: "manage/:id", element: <ChatRoomForm /> },
-          { path: "change-password", element: <ChangePasswordForm /> },
           { path: "profiles/:id", element: <ProfilePage /> },
+          { path: "friends", element: <Friends /> },
+          { path: "direct-chats/:id", element: <DirectChatDetails /> },
+          { path: "not-found", element: <NotFound /> },
+          { path: "server-error", element: <ServerError /> },
         ],
       },
-      { path: "", element: <HomePage /> },
-      { path: "not-found", element: <NotFound /> },
-      { path: "server-error", element: <ServerError /> },
+      { path: "*", element: <Navigate replace to="/login" /> },
+    ],
+  },
+  {
+    path: "/",
+    element: <AuthLayout />,
+    children: [
+      { path: "", element: <Navigate replace to="/login" /> },
+      {
+        element: <RequireAuth />,
+        children: [
+          { path: "change-password", element: <ChangePasswordForm /> },
+        ],
+      },
       { path: "login", element: <LoginForm /> },
       { path: "register", element: <RegisterForm /> },
       { path: "confirm-email", element: <VerifyEmail /> },
       { path: "forgot-password", element: <ForgotPasswordForm /> },
       { path: "reset-password", element: <ResetPasswordForm /> },
       { path: "auth-callback", element: <AuthCallback /> },
-      { path: "*", element: <Navigate replace to="/not-found" /> },
     ],
   },
 ]);

@@ -33,7 +33,7 @@ agent.interceptors.response.use(
     }
     store.uiStore.isIdle();
 
-    const { status, data } = error.response;
+    const { status, data, config } = error.response;
     switch (status) {
       case 400:
         if (data.errors) {
@@ -51,10 +51,23 @@ agent.interceptors.response.use(
       case 401:
         if (data.detail === "NotAllowed") {
           throw new Error(data.detail);
-        } else {
-          toast.error("Unauthorised");
         }
         break;
+      case 403: {
+        const isChatRoomDetailsGet =
+          config?.url?.startsWith("/chatRooms/") &&
+          (config?.method ?? "get").toLowerCase() === "get";
+
+        if (isChatRoomDetailsGet) {
+          if (!store.uiStore.consumeSuppressNextChatRoomForbiddenToast()) {
+            toast.error("You are not a member of this chat room");
+            router.navigate("/direct-chats");
+          }
+        } else {
+          toast.error("Forbidden");
+        }
+        break;
+      }
       case 404:
         router.navigate("/not-found");
         break;

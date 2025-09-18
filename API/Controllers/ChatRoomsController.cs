@@ -1,8 +1,8 @@
 using Application.ChatRooms.Commands;
 using Application.ChatRooms.DTOs;
 using Application.ChatRooms.Queries;
-using Application.Chats.Commands;
 using Application.Core;
+using Domain.Enums;
 using Infrastructure.Security;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -23,6 +23,7 @@ public class ChatRoomsController : BaseApiController
     }
 
     [HttpGet("{id}")]
+    [Authorize(Policy = ChatRoomPermissions.ViewChatRoom)]
     public async Task<ActionResult<ChatRoomDto>> GetChatRoomDetails(string id)
     {
         return HandleResult(await Mediator.Send(new GetChatRoomDetails.Query { Id = id }));
@@ -48,6 +49,27 @@ public class ChatRoomsController : BaseApiController
         chatRoomDto.Id = id;
         return HandleResult(
             await Mediator.Send(new EditChatRoom.Command { ChatRoomDto = chatRoomDto })
+        );
+    }
+
+    [HttpPut("{id}/image")]
+    [Authorize(Policy = IsAdminStrings.IsChatRoomAdmin)]
+    public async Task<ActionResult<Unit>> UpdateChatRoomImage(string id, SetChatRoomImageDto setChatRoomImageDto)
+    {
+        setChatRoomImageDto.Id = id;
+        return HandleResult(
+            await Mediator.Send(
+                new UpdateChatRoomImage.Command { Dto = setChatRoomImageDto }
+            )
+        );
+    }
+
+    [HttpDelete("{id}/image")]
+    [Authorize(Policy = IsAdminStrings.IsChatRoomAdmin)]
+    public async Task<ActionResult<Unit>> DeleteChatRoomImage(string id)
+    {
+        return HandleResult(
+            await Mediator.Send(new DeleteChatRoomImage.Command { Id = id })
         );
     }
 
@@ -77,9 +99,17 @@ public class ChatRoomsController : BaseApiController
     }
 
     [HttpPost("{id}/generateInviteLink")]
-    [Authorize(Policy = IsAdminStrings.IsChatRoomAdmin)]
+    [Authorize(Policy = ChatRoomPermissions.CreateInviteLinks)]
     public async Task<ActionResult<string>> GenerateInviteLink(string id)
     {
         return HandleResult(await Mediator.Send(new GenerateInviteLink.Command { Id = id }));
+    }
+
+    [HttpPost("{id}/invites")]
+    [Authorize(Policy = ChatRoomPermissions.CreateInviteLinks)]
+    public async Task<ActionResult<string>> CreateInvite(string id, [FromBody] CreateInvite.Command command)
+    {
+        command.Id = id;
+        return HandleResult(await Mediator.Send(command));
     }
 }

@@ -1,25 +1,43 @@
-import { Box, Container, CssBaseline } from "@mui/material";
-import NavBar from "./NavBar";
-import { Outlet, ScrollRestoration, useLocation } from "react-router";
-import HomePage from "../../features/home/HomePage";
+import { Box, CssBaseline } from "@mui/material";
+import { Outlet, ScrollRestoration } from "react-router";
+import { useAccount } from "../../lib/hooks/useAccount";
+import FriendsRealtimeProvider from "../shared/components/FriendsRealtimeProvider";
+import StatusRealtimeProvider from "../shared/components/StatusRealtimeProvider";
+import SideNav from "./SideNav/SideNav";
+import SecondarySidebar from "./SideNav/SecondarySidebar";
+import ChatRoomsProfileImageRealtimeProvider from "../shared/components/ChatRoomsProfileImageRealtimeProvider";
+import NewChatRoomModal from "../../features/chatRooms/create/NewChatRoomModal";
 
 function App() {
-  const location = useLocation();
+  const { currentUser } = useAccount();
 
   return (
-    <Box sx={{ bgcolor: "#eeeeee", minHeight: "100vh" }}>
+    <Box sx={{ bgcolor: "background.default", minHeight: "100vh" }}>
       <ScrollRestoration />
       <CssBaseline />
-      {location.pathname === "/" ? (
-        <HomePage />
-      ) : (
+      {currentUser && (
         <>
-          <NavBar />
-          <Container maxWidth="xl" sx={{ pt: 14 }}>
-            <Outlet />
-          </Container>
+          <FriendsRealtimeProvider />
+          <StatusRealtimeProvider />
+          <ChatRoomsProfileImageRealtimeProvider />
         </>
       )}
+      <Box sx={{ display: "flex", minHeight: "100vh" }}>
+        <SideNav />
+        <SecondarySidebar />
+
+        <Box
+          component="main"
+          sx={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <Outlet />
+        </Box>
+      </Box>
+      <NewChatRoomModal />
     </Box>
   );
 }

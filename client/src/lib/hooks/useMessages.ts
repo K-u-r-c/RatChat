@@ -5,9 +5,10 @@ import {
   HubConnectionState,
 } from "@microsoft/signalr";
 import { useEffect, useRef } from "react";
-import type { ChatMessage, PagedList } from "../types";
+import type { ChatMessage, PagedList, MessageReaction } from "../types";
 import { runInAction } from "mobx";
 import { toast } from "react-toastify";
+import { router } from "../../app/router/Routes";
 import { calculatePageSizeForMessages } from "../util/util";
 
 export const useMessages = (chatRoomId?: string) => {
@@ -43,13 +44,37 @@ export const useMessages = (chatRoomId?: string) => {
           console.log("Error establishing connection: ", error)
         );
 
+      this.hubConnection.onclose((error) => {
+        if (import.meta.env.DEV && error)
+          console.log("Message hub closed:", error);
+        if (error) {
+          toast.error("You are not a member of this chat room");
+          router.navigate("/direct-chats");
+        }
+      });
+
       this.hubConnection.on(
         "LoadMessages",
         (pagedResult: PagedList<ChatMessage, Date>) => {
           runInAction(() => {
-            this.messages = pagedResult.items;
-            this.hasOlderMessages = !!pagedResult.nextCursor;
-            this.oldestMessageCursor = pagedResult.nextCursor;
+            if (this.messages.length > 0) {
+              const existingIds = new Set(this.messages.map((m) => m.id));
+              const toAppend = pagedResult.items.filter(
+                (m) => !existingIds.has(m.id)
+              );
+              if (toAppend.length > 0) {
+                this.messages.push(...toAppend);
+              }
+              this.hasOlderMessages =
+                this.hasOlderMessages || !!pagedResult.nextCursor;
+              if (!this.oldestMessageCursor && pagedResult.nextCursor) {
+                this.oldestMessageCursor = pagedResult.nextCursor;
+              }
+            } else {
+              this.messages = pagedResult.items;
+              this.hasOlderMessages = !!pagedResult.nextCursor;
+              this.oldestMessageCursor = pagedResult.nextCursor;
+            }
           });
         }
       );
@@ -71,6 +96,59 @@ export const useMessages = (chatRoomId?: string) => {
           this.messages.push(message);
         });
       });
+
+      this.hubConnection.on(
+        "ReceiveReactionUpdate",
+        (update: {
+          action: "added" | "removed";
+          chatRoomId: string;
+          messageId: string;
+          emoji: string;
+          userId: string;
+          displayName: string;
+          createdAt?: string | Date;
+        }) => {
+          runInAction(() => {
+            const idx = this.messages.findIndex(
+              (m) => m.id === update.messageId
+            );
+            if (idx === -1) return;
+            const msg = this.messages[idx] as ChatMessage & {
+              reactions?: MessageReaction[];
+            };
+            const list: MessageReaction[] = msg.reactions
+              ? [...msg.reactions]
+              : [];
+            if (update.action === "added") {
+              if (
+                !list.some(
+                  (r) => r.userId === update.userId && r.emoji === update.emoji
+                )
+              ) {
+                list.push({
+                  messageId: update.messageId,
+                  emoji: update.emoji,
+                  userId: update.userId,
+                  displayName: update.displayName,
+                  createdAt: update.createdAt
+                    ? new Date(update.createdAt)
+                    : new Date(),
+                });
+              }
+            } else {
+              const i = list.findIndex(
+                (r) => r.userId === update.userId && r.emoji === update.emoji
+              );
+              if (i !== -1) list.splice(i, 1);
+            }
+            (
+              this.messages as (ChatMessage & {
+                reactions?: MessageReaction[];
+              })[]
+            )[idx] = { ...msg, reactions: list };
+          });
+        }
+      );
 
       this.hubConnection.on(
         "ReceiveError",
@@ -138,6 +216,7 @@ export const useMessages = (chatRoomId?: string) => {
     return () => {
       messageStore.stopHubConnection();
       messageStore.reset();
+      created.current = false;
     };
   }, [chatRoomId, messageStore]);
 
