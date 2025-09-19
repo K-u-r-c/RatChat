@@ -62,14 +62,27 @@ export default function ChatRoomMemberPopover({
 
   const formattedTag = member ? formatUserTag(member.tag) : undefined;
 
+  useEffect(() => {
+    if (open && anchorEl && !document.body.contains(anchorEl) && !member) {
+      closeActions();
+      onClose();
+    }
+  }, [open, anchorEl, member, onClose, closeActions]);
+
+  const isAnchorValid =
+    !!anchorEl &&
+    typeof document !== "undefined" &&
+    document.body.contains(anchorEl);
+  const effectiveOpen = open && isAnchorValid && !!member;
+
   return (
     <>
       <Popover
-        open={open}
+        open={effectiveOpen}
         anchorEl={anchorEl}
         onClose={() => {
-          onClose();
           closeActions();
+          onClose();
         }}
         anchorOrigin={{ vertical: "center", horizontal: "left" }}
         transformOrigin={{ vertical: "center", horizontal: "right" }}

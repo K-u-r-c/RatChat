@@ -1,5 +1,5 @@
 import { Popover, Box, Button, Stack, Tooltip } from "@mui/material";
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { useAccount } from "../../../lib/hooks/useAccount";
 import { useChatRoomRolesRealtime } from "../../../lib/hooks/useChatRoomRolesRealtime";
 import { CHATROOM_PERMISSIONS } from "../../../lib/types/chatroomPermissions";
@@ -42,19 +42,19 @@ export default function ChatRoomMemberActions({
   const canBan =
     !isProtected && !!userPermissions[CHATROOM_PERMISSIONS.BanFromChatRoom];
 
+  useEffect(() => {
+    if (!open || !anchorEl) return;
+    if (!document.body.contains(anchorEl)) {
+      onClose();
+    }
+  }, [open, anchorEl, onClose]);
+
   const kickMutation = useMutation({
     mutationFn: async () =>
       agent.post(`/chatRooms/${chatRoomId}/kick/${member!.id}`),
     onSuccess: () => toast.success("User kicked."),
     onError: () => toast.error("Failed to kick user."),
   });
-
-  const handleKick = () => {
-    if (!member || !canKick || kickMutation.isPending) return;
-    if (!window.confirm("Kick this user?")) return;
-    kickMutation.mutate();
-    onClose();
-  };
 
   const banMutation = useMutation({
     mutationFn: async () =>
@@ -63,11 +63,20 @@ export default function ChatRoomMemberActions({
     onError: () => toast.error("Failed to ban user."),
   });
 
+  const handleKick = () => {
+    if (!member || !canKick || kickMutation.isPending) return;
+    onClose();
+    if (window.confirm("Kick this user?")) {
+      kickMutation.mutate();
+    }
+  };
+
   const handleBan = () => {
     if (!member || !canBan || banMutation.isPending) return;
-    if (!window.confirm("Ban this user?")) return;
-    banMutation.mutate();
     onClose();
+    if (window.confirm("Ban this user?")) {
+      banMutation.mutate();
+    }
   };
 
   const loading = kickMutation.isPending || banMutation.isPending;

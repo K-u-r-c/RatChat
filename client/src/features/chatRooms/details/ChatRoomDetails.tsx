@@ -123,6 +123,14 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
   };
   useChatRoomNotificationsRealtime(id, currentUser?.id);
 
+  useEffect(() => {
+    if (!anchorEl) return;
+    const anchorGone = !document.body.contains(anchorEl);
+    if (anchorGone || !selectedMember) {
+      setAnchorEl(null);
+    }
+  }, [anchorEl, selectedMember]);
+
   if (isLoadingChatRoom) return <Typography>Loading...</Typography>;
   if (!chatRoom) return <Typography>Activity not found</Typography>;
 
