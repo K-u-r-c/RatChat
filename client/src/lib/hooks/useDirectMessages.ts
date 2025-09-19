@@ -60,24 +60,22 @@ export const useDirectMessages = (directChatId?: string) => {
 
       this.currentChatId = directChatId;
 
-      this.hubConnection
-        .start()
-        .catch((error) => {
-          const isNegotiationAbort =
-            error instanceof Error &&
-            typeof error.message === "string" &&
-            error.message.includes("stopped during negotiation");
+      this.hubConnection.start().catch((error) => {
+        const isNegotiationAbort =
+          error instanceof Error &&
+          typeof error.message === "string" &&
+          error.message.includes("stopped during negotiation");
 
-          if (!isNegotiationAbort && import.meta.env.DEV) {
-            console.log("Error establishing direct message connection: ", error);
-          }
+        if (!isNegotiationAbort && import.meta.env.DEV) {
+          console.log("Error establishing direct message connection: ", error);
+        }
 
-          if (!isNegotiationAbort) {
-            this.hubConnection?.stop().catch(() => {});
-            this.hubConnection = null;
-            this.currentChatId = null;
-          }
-        });
+        if (!isNegotiationAbort) {
+          this.hubConnection?.stop().catch(() => {});
+          this.hubConnection = null;
+          this.currentChatId = null;
+        }
+      });
 
       this.hubConnection.on(
         "LoadDirectMessages",
@@ -252,11 +250,6 @@ export const useDirectMessages = (directChatId?: string) => {
     }
 
     directMessageStore.createHubConnection(directChatId).catch(() => {});
-
-    return () => {
-      directMessageStore.stopHubConnection();
-      directMessageStore.reset();
-    };
   }, [directChatId, directMessageStore]);
 
   useEffect(() => {
@@ -280,4 +273,3 @@ export const useDirectMessages = (directChatId?: string) => {
     directMessageStore,
   };
 };
-

@@ -97,7 +97,7 @@ public class CreateInvite
 
                     if (sent.IsSuccess && sent.Value != null)
                     {
-                        await directMessagesNotificationService.NotifyNewMessage(directChatResult.Value!, sent.Value);
+                        await directMessagesNotificationService.NotifyNewMessage(directChatResult.Value!, sent.Value, broadcastToDirectChat: true);
                     }
                 }
             }

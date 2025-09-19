@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Application.DirectMessages.DTOs;
 using Application.Interfaces;
 using API.SignalR;
@@ -10,11 +11,12 @@ using Persistance;
 namespace API.Services;
 
 public class DirectMessagesNotificationService(
-    IHubContext<MessageHub> hubContext,
+    IHubContext<MessageHub> messageHubContext,
+    IHubContext<DirectMessageHub> directMessageHubContext,
     AppDbContext context
 ) : IDirectMessagesNotificationService
 {
-    public async Task NotifyNewMessage(string directChatId, DirectMessageDto message)
+    public async Task NotifyNewMessage(string directChatId, DirectMessageDto message, bool broadcastToDirectChat = false)
     {
         var chatParticipants = await context.DirectChats
             .Where(dc => dc.Id == directChatId)
@@ -61,6 +63,12 @@ public class DirectMessagesNotificationService(
             await context.SaveChangesAsync();
         }
 
+        if (broadcastToDirectChat)
+        {
+            await directMessageHubContext.Clients.Group(directChatId)
+                .SendAsync("ReceiveDirectMessage", message);
+        }
+
         var payload = new
         {
             directChatId,
@@ -69,7 +77,7 @@ public class DirectMessagesNotificationService(
 
         foreach (var userId in participantIds)
         {
-            await hubContext.Clients.Group($"user-{userId}")
+            await messageHubContext.Clients.Group($"user-{userId}")
                 .SendAsync("DirectChatUpdated", payload);
         }
     }

@@ -205,6 +205,7 @@ export const useChatRooms = (identifier?: string) => {
       return response.data;
     },
     onSuccess: (joined) => {
+      uiStore.suppressNextChatRoomForbiddenToast();
       navigate(`/chat-rooms/${joined.slug}`);
       toast.success("Successfully joined the chat room!");
     },
@@ -365,4 +366,3 @@ export const useChatRooms = (identifier?: string) => {
     deleteChatRoomImage,
   };
 };
-

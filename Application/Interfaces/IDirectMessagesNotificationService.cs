@@ -4,6 +4,6 @@ namespace Application.Interfaces;
 
 public interface IDirectMessagesNotificationService
 {
-    Task NotifyNewMessage(string directChatId, DirectMessageDto message);
+    Task NotifyNewMessage(string directChatId, DirectMessageDto message, bool broadcastToDirectChat = false);
 }
 
