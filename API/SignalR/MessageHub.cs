@@ -17,6 +17,7 @@ public class MessageHub(
     IChatRoomsNotificationService chatRoomsNotificationService
 ) : Hub
 {
+    [Authorize(Policy = ChatRoomPermissions.SendMessages)]
     public async Task SendMessage(AddMessage.Command command)
     {
         try
@@ -41,6 +42,7 @@ public class MessageHub(
         }
     }
 
+    [Authorize(Policy = ChatRoomPermissions.SendMessages)]
     public async Task SendMediaMessage(AddMessage.Command command)
     {
         try
@@ -71,20 +73,11 @@ public class MessageHub(
         }
     }
 
+    [Authorize(Policy = ChatRoomPermissions.ViewChatRoom)]
     public async Task LoadMoreMessages(string chatRoomId, DateTime? cursor, int pageSize = 20)
     {
         try
         {
-            var user = await userAccessor.GetUserAsync();
-            var hasAccess = await rolePermissionService.HasPermissionAsync(
-                user.Id, chatRoomId, ChatRoomPermissions.ViewChatRoom);
-
-            if (!hasAccess)
-            {
-                await Clients.Caller.SendAsync("ReceiveError", 403, "You are not a member of this chat room");
-                return;
-            }
-
             var result = await mediator.Send(
                 new GetMessages.Query
                 {
@@ -106,6 +99,7 @@ public class MessageHub(
         }
     }
 
+    [Authorize(Policy = ChatRoomPermissions.SendMessages)]
     public async Task ToggleMessageReaction(string chatRoomId, string messageId, string emoji)
     {
         try
