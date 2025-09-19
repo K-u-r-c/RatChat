@@ -228,7 +228,8 @@ export const useMessages = (chatRoomId?: string) => {
           this.isLoadingOlder = false;
           this.loadingOlderFor = null;
         });
-        console.log("Error loading older messages: ", error);
+        if (import.meta.env.DEV)
+          console.log("Error loading older messages: ", error);
         toast.error("Failed to load older messages");
       });
     },

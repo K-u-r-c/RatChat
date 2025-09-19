@@ -61,11 +61,10 @@ export const useDirectMessages = (directChatId?: string) => {
 
       this.currentChatId = directChatId;
 
-      this.hubConnection
-        .start()
-        .catch((error) =>
-          console.log("Error establishing direct message connection: ", error)
-        );
+      this.hubConnection.start().catch((error) => {
+        if (import.meta.env.DEV)
+          console.log("Error establishing direct message connection: ", error);
+      });
 
       this.hubConnection.on(
         "LoadDirectMessages",
@@ -209,8 +208,9 @@ export const useDirectMessages = (directChatId?: string) => {
           runInAction(() => {
             this.isLoadingOlder = false;
           });
-          console.log("Error loading older direct messages: ", error);
-          toast.error("Failed to load older direct messages");
+          if (import.meta.env.DEV)
+            console.log("Error loading older messages: ", error);
+          toast.error("Failed to load older messages");
         });
     },
 

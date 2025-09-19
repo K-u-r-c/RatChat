@@ -380,11 +380,3 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
         }
     }
 }
-
-
-
-
-
-
-
-
