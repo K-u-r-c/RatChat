@@ -24,6 +24,7 @@ export type User = {
 
 export type ChatRoom = {
   id: string;
+  slug: string;
   title: string;
   imageUrl?: string;
   date: Date;
@@ -32,6 +33,11 @@ export type ChatRoom = {
   adminId: string;
   adminDisplayName: string;
   adminImageUrl?: string;
+};
+
+export type ChatRoomIdentifier = {
+  id: string;
+  slug: string;
 };
 
 export type BaseMessage = {

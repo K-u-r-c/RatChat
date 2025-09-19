@@ -42,11 +42,20 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
             .WithMany(x => x.Members)
             .HasForeignKey(x => x.ChatRoomId);
 
-        builder.Entity<ChatRoom>()
-            .HasOne(cr => cr.Owner)
-            .WithMany(o => o.OwnedChatRooms)
-            .HasForeignKey(cr => cr.OwnerId)
-            .OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<ChatRoom>(entity =>
+        {
+            entity.Property(cr => cr.Slug)
+                .IsRequired()
+                .HasMaxLength(200);
+
+            entity.HasIndex(cr => cr.Slug)
+                .IsUnique();
+
+            entity.HasOne(cr => cr.Owner)
+                .WithMany(o => o.OwnedChatRooms)
+                .HasForeignKey(cr => cr.OwnerId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
 
         builder.Entity<ChatRoomRole>(entity =>
         {
@@ -380,3 +389,4 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
         }
     }
 }
+

@@ -205,7 +205,7 @@ const SideNav = observer(function SideNav() {
                 <Tooltip key={room.id} title={room.title} placement="right">
                   <IconButton
                     component={NavLink}
-                    to={`/chat-rooms/${room.id}`}
+                    to={`/chat-rooms/${room.slug}`}
                     sx={{
                       width: 52,
                       height: 52,

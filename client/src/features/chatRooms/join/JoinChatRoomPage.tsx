@@ -4,16 +4,16 @@ import { useNavigate, useParams } from "react-router";
 import { useChatRooms } from "../../../lib/hooks/useChatRooms";
 
 const JoinChatRoomPage = () => {
-  const { id, token } = useParams();
+  const { slug, token } = useParams();
   const navigate = useNavigate();
   const { joinChatRoom } = useChatRooms();
   const hasJoined = useRef(false);
 
   useEffect(() => {
-    if (!id || !token || hasJoined.current) return;
+    if (!slug || !token || hasJoined.current) return;
     hasJoined.current = true;
-    joinChatRoom.mutate({ id, token });
-  }, [id, token, joinChatRoom]);
+    joinChatRoom.mutate({ identifier: slug, token });
+  }, [slug, token, joinChatRoom]);
 
   const handleRedirect = () => {
     navigate("/");

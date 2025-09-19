@@ -6,6 +6,7 @@ public class ChatRoomDto
 {
     public required string Id { get; set; }
     public required string Title { get; set; }
+    public required string Slug { get; set; }
     public string? ImageUrl { get; set; }
     public DateTime Date { get; set; }
     public required string AdminDisplayName { get; set; }

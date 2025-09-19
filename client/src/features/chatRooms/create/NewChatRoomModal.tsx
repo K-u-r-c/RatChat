@@ -89,12 +89,12 @@ const NewChatRoomModal = observer(function NewChatRoomModalInner() {
         parts[idx + 2] &&
         parts[idx + 3] === "join"
       ) {
-        return { id: parts[idx + 1], token: parts[idx + 2] };
+        return { identifier: parts[idx + 1], token: parts[idx + 2] };
       }
       return null;
     } catch {
       const m = invite.match(/\/chat-rooms\/([^/]+)\/([^/]+)\/join/);
-      if (m) return { id: m[1], token: m[2] };
+      if (m) return { identifier: m[1], token: m[2] };
       return null;
     }
   };
@@ -102,7 +102,7 @@ const NewChatRoomModal = observer(function NewChatRoomModalInner() {
   const onCreate = createForm.handleSubmit(async (data) => {
     setSubmitError(null);
     try {
-      const newId = await createChatRoom.mutateAsync(data);
+      const newRoom = await createChatRoom.mutateAsync(data);
       if (croppedImage) {
         const res = await fetch(croppedImage);
         const blob = await res.blob();
@@ -112,15 +112,15 @@ const NewChatRoomModal = observer(function NewChatRoomModalInner() {
         const upload = await uploadMedia.mutateAsync({
           file,
           category: MediaCategory.ChatRoomImage,
-          chatRoomId: newId,
+          chatRoomId: newRoom.id,
         });
         await setChatRoomImage.mutateAsync({
-          id: newId,
+          id: newRoom.id,
           imageUrl: upload.url,
         });
       }
       uiStore.closeCreateJoinModal();
-      navigate(`/chat-rooms/${newId}`);
+      navigate(`/chat-rooms/${newRoom.slug}`);
     } catch (e) {
       setSubmitError("Failed to create chat room. Please try again.");
       if (import.meta.env.DEV) console.error(e);

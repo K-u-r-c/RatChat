@@ -4,6 +4,7 @@ public class ChatRoom
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();
     public required string Title { get; set; }
+    public string Slug { get; set; } = string.Empty;
     public DateTime Date { get; set; } = DateTime.UtcNow;
     public required string OwnerId { get; set; }
     public User Owner { get; set; } = null!;

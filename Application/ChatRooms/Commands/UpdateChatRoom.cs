@@ -1,4 +1,6 @@
+using System;
 using Application.ChatRooms.DTOs;
+using Application.ChatRooms.Helpers;
 using Application.Core;
 using AutoMapper;
 using MediatR;
@@ -22,7 +24,18 @@ public class EditChatRoom
 
             if (chatRoom == null) return Result<Unit>.Failure("Chat room not found", 404);
 
+            var previousTitle = chatRoom.Title;
+
             mapper.Map(request.ChatRoomDto, chatRoom);
+
+            if (!string.Equals(previousTitle, chatRoom.Title, StringComparison.Ordinal))
+            {
+                chatRoom.Slug = await ChatRoomSlugGenerator.GenerateUniqueSlugAsync(
+                    context,
+                    chatRoom.Title,
+                    chatRoom.Id,
+                    cancellationToken: cancellationToken);
+            }
 
             var result = await context.SaveChangesAsync(cancellationToken) > 0;
 

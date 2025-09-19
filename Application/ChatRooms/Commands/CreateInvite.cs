@@ -17,7 +17,7 @@ public class CreateInvite
     public class Command : IRequest<Result<string>>
     {
         // Set from route. Not required in JSON body to avoid deserialization failures.
-        public string Id { get; set; } = string.Empty; // ChatRoomId
+        public string Id { get; set; } = string.Empty; // ChatRoomId or slug
         public string? AllowedUserId { get; set; }
         public int? MaxUses { get; set; }
         public int? ExpiresInMinutes { get; set; }
@@ -38,7 +38,7 @@ public class CreateInvite
 
             var chatRoom = await context.ChatRooms
                 .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
+                .FirstOrDefaultAsync(x => x.Id == request.Id || x.Slug == request.Id, cancellationToken);
             if (chatRoom == null)
                 return Result<string>.Failure("Chat room not found", 404);
 
@@ -72,7 +72,7 @@ public class CreateInvite
             if (string.IsNullOrEmpty(clientUrl))
                 return Result<string>.Failure("Client URL is not configured", 400);
 
-            var url = $"{clientUrl}/chat-rooms/{request.Id}/{encodedToken}/join";
+            var url = $"{clientUrl}/chat-rooms/{chatRoom.Slug}/{encodedToken}/join";
 
             // Optionally auto-send direct message to the friend
             if (!string.IsNullOrEmpty(request.AllowedUserId) && request.SendToFriend)
@@ -86,9 +86,8 @@ public class CreateInvite
                 if (directChatResult.IsSuccess)
                 {
                     // Send message with the invite link
-                    // Sanitize chat room title before including in message
                     var safeTitle = WebUtility.HtmlEncode(chatRoom.Title);
-                    var messageBody = $"You have been invited to join the chat room '{chatRoom.Title}'. Click to join: {url}";
+                    var messageBody = $"You have been invited to join the chat room '{safeTitle}'. Click to join: {url}";
                     var sent = await mediator.Send(new SendDirectMessage.Command
                     {
                         DirectChatId = directChatResult.Value!,

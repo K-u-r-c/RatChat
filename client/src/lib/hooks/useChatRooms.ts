@@ -8,13 +8,13 @@ import {
 import agent from "../api/agent";
 import { useNavigate } from "react-router";
 import { useAccount } from "./useAccount";
-import type { ChatRoom, PagedList } from "../types";
+import type { ChatRoom, ChatRoomIdentifier, PagedList } from "../types";
 import { useStore } from "./useStore";
 import type { FieldValues } from "react-hook-form";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 
-export const useChatRooms = (id?: string) => {
+export const useChatRooms = (identifier?: string) => {
   const queryClient = useQueryClient();
   const { currentUser } = useAccount();
   const navigate = useNavigate();
@@ -43,9 +43,9 @@ export const useChatRooms = (id?: string) => {
       initialPageParam: null,
       getNextPageParam: (lastPage) => lastPage.nextCursor,
       enabled: !!currentUser,
-      select: (data) => ({
-        ...data,
-        pages: data.pages.map((page) => ({
+      select: (paged) => ({
+        ...paged,
+        pages: paged.pages.map((page) => ({
           ...page,
           items: page.items.map((chatRoom) => {
             const admin = chatRoom.members.find(
@@ -69,43 +69,48 @@ export const useChatRooms = (id?: string) => {
   const items = (data?.pages ?? []).flatMap((p) => p.items);
 
   const { data: chatRoom, isLoading: isLoadingChatRoom } = useQuery({
-    queryKey: ["chatRooms", id],
+    queryKey: ["chatRooms", identifier],
     queryFn: async () => {
-      const response = await agent.get<ChatRoom>(`/chatRooms/${id}`);
+      const response = await agent.get<ChatRoom>(`/chatRooms/${identifier}`);
       return response.data;
     },
-    enabled: !!id && !!currentUser,
-    select: (data) => {
-      const admin = data.members.find((x) => x.id === data.adminId);
+    enabled: !!identifier && !!currentUser,
+    select: (dto) => {
+      const admin = dto.members.find((x) => x.id === dto.adminId);
       return {
-        ...data,
-        isAdmin: currentUser?.id === data.adminId,
-        isMember: data.members.some((x) => x.id === currentUser?.id),
+        ...dto,
+        isAdmin: currentUser?.id === dto.adminId,
+        isMember: dto.members.some((x) => x.id === currentUser?.id),
         adminImageUrl: admin?.imageUrl,
       };
     },
   });
+
+  useEffect(() => {
+    if (!chatRoom) return;
+    queryClient.setQueryData(["chatRooms", chatRoom.id], chatRoom);
+    queryClient.setQueryData(["chatRooms", chatRoom.slug], chatRoom);
+  }, [chatRoom, queryClient]);
 
   const updateChatRoom = useMutation({
     mutationFn: async (chatRoom: ChatRoom) => {
       await agent.put(`/chatRooms/${chatRoom.id}`, chatRoom);
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: ["chatRooms"],
-      });
+      await queryClient.invalidateQueries({ queryKey: ["chatRooms"] });
     },
   });
 
   const createChatRoom = useMutation({
-    mutationFn: async (chatRoom: FieldValues) => {
-      const response = await agent.post("/chatRooms", chatRoom);
+    mutationFn: async (payload: FieldValues) => {
+      const response = await agent.post<ChatRoomIdentifier>(
+        "/chatRooms",
+        payload
+      );
       return response.data;
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: ["chatRooms"],
-      });
+      await queryClient.invalidateQueries({ queryKey: ["chatRooms"] });
     },
   });
 
@@ -128,21 +133,53 @@ export const useChatRooms = (id?: string) => {
       allowedUserId?: string | null;
       maxUses?: number | null;
       expiresInMinutes?: number | null;
+      sendToFriend?: boolean;
     }) => {
-      const { id, ...body } = params;
       setIsGeneratingInvite(true);
-      setInviteLink(null);
+      const {
+        id,
+        allowedUserId,
+        maxUses,
+        expiresInMinutes,
+        sendToFriend = true,
+      } = params;
+
+      if (allowedUserId) {
+        const response = await agent.post<string>(
+          `/chatRooms/${id}/invites`,
+          {
+            allowedUserId,
+            maxUses,
+            expiresInMinutes,
+            sendToFriend,
+          }
+        );
+
+        return { link: response.data, sentToFriend: sendToFriend };
+      }
+
       const response = await agent.post<string>(
-        `/chatRooms/${id}/invites`,
-        body
+        `/chatRooms/${id}/generateInviteLink`,
+        {
+          maxUses,
+          expiresInMinutes,
+        }
       );
-      return response.data;
+
+      return { link: response.data, sentToFriend: false };
     },
-    onSuccess: async (data) => {
-      setInviteLink(data);
+    onSuccess: async ({ link, sentToFriend }) => {
+      setInviteLink(link);
       setIsGeneratingInvite(false);
+
+      if (sentToFriend) {
+        await queryClient.invalidateQueries({ queryKey: ["direct-chats"] });
+        toast.success("Invite sent to your friend via direct message");
+        return;
+      }
+
       try {
-        await navigator.clipboard.writeText(data);
+        await navigator.clipboard.writeText(link);
         toast.success("Invite link created and copied to clipboard");
       } catch {
         // ignore
@@ -155,12 +192,20 @@ export const useChatRooms = (id?: string) => {
   });
 
   const joinChatRoom = useMutation({
-    mutationFn: async ({ id, token }: { id: string; token: string }) => {
-      const response = await agent.post(`/chatRooms/${id}/${token}/join`);
+    mutationFn: async ({
+      identifier: target,
+      token,
+    }: {
+      identifier: string;
+      token: string;
+    }) => {
+      const response = await agent.post<ChatRoomIdentifier>(
+        `/chatRooms/${target}/${token}/join`
+      );
       return response.data;
     },
-    onSuccess: (joinedChatRoomId: string) => {
-      navigate(`/chat-rooms/${joinedChatRoomId}`);
+    onSuccess: (joined) => {
+      navigate(`/chat-rooms/${joined.slug}`);
       toast.success("Successfully joined the chat room!");
     },
     onError: () => {
@@ -193,25 +238,51 @@ export const useChatRooms = (id?: string) => {
       return response.data;
     },
     onMutate: async (data) => {
-      await queryClient.cancelQueries({ queryKey: ["chatRooms", data.id] });
-      const previous = queryClient.getQueryData<ChatRoom>([
+      const matchesKey = (key: readonly unknown[]) =>
+        key[0] === "chatRooms" &&
+        (key[1] === data.id || key[1] === chatRoom?.slug);
+
+      await queryClient.cancelQueries({
+        predicate: (query) => matchesKey(query.queryKey),
+      });
+
+      const previousById = queryClient.getQueryData<ChatRoom>([
         "chatRooms",
         data.id,
       ]);
+      const previousBySlug = chatRoom?.slug
+        ? queryClient.getQueryData<ChatRoom>(["chatRooms", chatRoom.slug])
+        : undefined;
+
       queryClient.setQueryData<ChatRoom>(["chatRooms", data.id], (old) =>
         old ? { ...old, imageUrl: data.imageUrl } : old
       );
-      return { previous };
+      if (chatRoom?.slug) {
+        queryClient.setQueryData<ChatRoom>(
+          ["chatRooms", chatRoom.slug],
+          (old) => (old ? { ...old, imageUrl: data.imageUrl } : old)
+        );
+      }
+
+      return { previousById, previousBySlug };
     },
     onSuccess: async (data) => {
       await queryClient.invalidateQueries({
-        queryKey: ["chatRooms", data.id],
+        predicate: (query) =>
+          query.queryKey[0] === "chatRooms" &&
+          (query.queryKey[1] === data.id || query.queryKey[1] === data.slug),
       });
       toast.success("Chat room image updated successfully");
     },
     onError: (err, data, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(["chatRooms", data.id], context.previous);
+      if (context?.previousById) {
+        queryClient.setQueryData(["chatRooms", data.id], context.previousById);
+      }
+      if (chatRoom?.slug && context?.previousBySlug) {
+        queryClient.setQueryData(
+          ["chatRooms", chatRoom.slug],
+          context.previousBySlug
+        );
       }
       toast.error("Failed to update chat room image");
       if (import.meta.env.DEV) console.error(err);
@@ -224,22 +295,50 @@ export const useChatRooms = (id?: string) => {
       return response.data;
     },
     onMutate: async (id) => {
-      await queryClient.cancelQueries({ queryKey: ["chatRooms", id] });
-      const previous = queryClient.getQueryData<ChatRoom>(["chatRooms", id]);
+      const slug = chatRoom?.slug;
+
+      await queryClient.cancelQueries({
+        predicate: (query) =>
+          query.queryKey[0] === "chatRooms" &&
+          (query.queryKey[1] === id || query.queryKey[1] === slug),
+      });
+
+      const previousById = queryClient.getQueryData<ChatRoom>([
+        "chatRooms",
+        id,
+      ]);
+      const previousBySlug = slug
+        ? queryClient.getQueryData<ChatRoom>(["chatRooms", slug])
+        : undefined;
+
       queryClient.setQueryData<ChatRoom>(["chatRooms", id], (old) =>
         old ? { ...old, imageUrl: undefined } : old
       );
-      return { previous };
+      if (slug) {
+        queryClient.setQueryData<ChatRoom>(["chatRooms", slug], (old) =>
+          old ? { ...old, imageUrl: undefined } : old
+        );
+      }
+
+      return { previousById, previousBySlug };
     },
     onSuccess: async (data) => {
       await queryClient.invalidateQueries({
-        queryKey: ["chatRooms", data.id],
+        predicate: (query) =>
+          query.queryKey[0] === "chatRooms" &&
+          (query.queryKey[1] === data.id || query.queryKey[1] === data.slug),
       });
       toast.success("Chat room image deleted successfully");
     },
     onError: (err, id, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(["chatRooms", id], context.previous);
+      if (context?.previousById) {
+        queryClient.setQueryData(["chatRooms", id], context.previousById);
+      }
+      if (chatRoom?.slug && context?.previousBySlug) {
+        queryClient.setQueryData(
+          ["chatRooms", chatRoom.slug],
+          context.previousBySlug
+        );
       }
       toast.error("Failed to delete chat room image");
       if (import.meta.env.DEV) console.error(err);
@@ -266,3 +365,4 @@ export const useChatRooms = (id?: string) => {
     deleteChatRoomImage,
   };
 };
+

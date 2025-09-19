@@ -28,11 +28,14 @@ import { useChatRoomRolesRealtime } from "../../lib/hooks/useChatRoomRolesRealti
 import { CHATROOM_PERMISSIONS } from "../../lib/types/chatroomPermissions";
 
 export default function ChatRoomSidebarContent() {
-  const { id } = useParams();
+  const { slug } = useParams();
   const { currentUser } = useAccount();
   const { chatRoom, isLoadingChatRoom, leaveChatRoom, deleteChatRooms } =
-    useChatRooms(id);
-  const { rolesStore } = useChatRoomRolesRealtime(id, currentUser?.id);
+    useChatRooms(slug);
+  const { rolesStore } = useChatRoomRolesRealtime(
+    chatRoom?.id,
+    currentUser?.id
+  );
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -53,7 +56,8 @@ export default function ChatRoomSidebarContent() {
       : "Are you sure you want to leave this chat room?";
 
     if (window.confirm(message)) {
-      await leaveChatRoom.mutateAsync(id!);
+      if (!chatRoom?.id) return;
+      await leaveChatRoom.mutateAsync(chatRoom.id);
     }
   };
 
@@ -158,7 +162,8 @@ export default function ChatRoomSidebarContent() {
                     "Are you sure you want to delete this chat room?"
                   )
                 ) {
-                  await deleteChatRooms.mutateAsync(id!);
+                  if (!chatRoom?.id) return;
+                  await deleteChatRooms.mutateAsync(chatRoom.id);
                 }
                 handleMenuClose();
               }}
