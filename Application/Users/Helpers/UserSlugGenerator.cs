@@ -1,33 +1,27 @@
 using System.Security.Cryptography;
+using Domain;
 using Microsoft.EntityFrameworkCore;
-using Persistance;
 
-namespace Application.ChatRooms.Helpers;
+namespace Application.Users.Helpers;
 
-public static class ChatRoomSlugGenerator
+public static class UserSlugGenerator
 {
     private const string Alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
     private const int DefaultLength = 12;
 
     public static async Task<string> GenerateUniqueSlugAsync(
-        AppDbContext context,
-        string? excludeChatRoomId = null,
-        ISet<string>? reservedSlugs = null,
+        IQueryable<User> usersQuery,
+        string? excludeUserId = null,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(usersQuery);
 
         while (true)
         {
             var candidate = CreateRandomSlug();
-            if (reservedSlugs?.Contains(candidate) ?? false)
-            {
-                continue;
-            }
-
-            var exists = await context.ChatRooms
-                .AsNoTracking()
-                .AnyAsync(x => x.Slug == candidate && x.Id != excludeChatRoomId, cancellationToken);
+            var exists = await usersQuery.AnyAsync(
+                u => u.Slug == candidate && (excludeUserId == null || u.Id != excludeUserId),
+                cancellationToken);
 
             if (!exists)
             {

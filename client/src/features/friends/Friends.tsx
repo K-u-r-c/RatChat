@@ -57,7 +57,7 @@ export default function Friends() {
     );
 
     if (existingChat) {
-      navigate(`/direct-chats/${existingChat.id}`);
+      navigate(`/direct-chats/${existingChat.otherUserSlug}`);
     } else {
       toast.error("Chat not found. Please try refreshing the page.");
       navigate("/");

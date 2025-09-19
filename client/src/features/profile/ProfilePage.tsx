@@ -34,16 +34,16 @@ import ImageUploadWidget from "./ImageUploadWidget";
 import { toast } from "react-toastify";
 
 export default function ProfilePage() {
-  const { id } = useParams();
+  const { slug } = useParams();
   const navigate = useNavigate();
-  const { profile, isLoadingProfile } = useProfiles(id);
+  const { profile, isLoadingProfile } = useProfiles(slug);
   const { currentUser } = useAccount();
   const { sendFriendRequest } = useFriends();
   const [editMode, setEditMode] = useState(false);
   const [photoMode, setPhotoMode] = useState<"profile" | "banner" | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
-  const isCurrentUser = currentUser?.id === id;
+  const isCurrentUser = profile?.id === currentUser?.id;
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);

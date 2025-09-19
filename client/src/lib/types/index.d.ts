@@ -15,6 +15,7 @@ export type User = {
   displayName: string;
   imageUrl?: string;
   bannerUrl?: string;
+  slug: string;
   tag: number;
   hasPassword: boolean;
   status: string;
@@ -97,6 +98,7 @@ export type ChatMessage = {
   createdAt: Date;
   body: string;
   userId: string;
+  userSlug: string;
   displayName: string;
   imageUrl?: string;
   type: MessageType;
@@ -122,6 +124,7 @@ export type Profile = {
   bio?: string;
   imageUrl?: string;
   bannerUrl?: string;
+  slug: string;
   friendsCount?: number;
   isFriend?: boolean;
   isOnline?: boolean;
@@ -133,6 +136,7 @@ export type Profile = {
 export type Friend = {
   id: string;
   displayName: string;
+  slug: string;
   bio?: string;
   imageUrl?: string;
   bannerUrl?: string;
@@ -146,9 +150,11 @@ export type Friend = {
 export type FriendRequest = {
   id: string;
   senderId: string;
+  senderSlug: string;
   senderDisplayName: string;
   senderImageUrl?: string;
   receiverId: string;
+  receiverSlug: string;
   receiverDisplayName: string;
   receiverImageUrl?: string;
   status: "Pending" | "Accepted" | "Declined" | "Cancelled";
@@ -165,6 +171,7 @@ export type FriendRequestsResponse = {
 export type FriendSearch = {
   id: string;
   displayName: string;
+  slug: string;
   tag: number;
   imageUrl?: string;
   isAlreadyFriend: boolean;
@@ -175,6 +182,7 @@ export type DirectChat = {
   id: string;
   otherUserId: string;
   otherUserDisplayName: string;
+  otherUserSlug: string;
   otherUserImageUrl?: string;
   lastMessageAt: Date;
   lastMessageBody?: string;
@@ -191,6 +199,7 @@ export type DirectMessage = {
   createdAt: Date;
   senderId: string;
   senderDisplayName: string;
+  senderSlug: string;
   senderImageUrl?: string;
   isOwnMessage: boolean;
   type: MessageType;

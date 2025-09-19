@@ -8,7 +8,7 @@ type Props = {
 
 export default function ProfileCard({ profile }: Props) {
   return (
-    <Link to={`/profiles/${profile.id}`} style={{ textDecoration: "none" }}>
+    <Link to={`/profiles/${profile.slug}`} style={{ textDecoration: "none" }}>
       <Box
         sx={{
           width: 340,

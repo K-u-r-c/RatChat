@@ -258,6 +258,12 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
 
         builder.Entity<User>(x =>
         {
+            x.Property(u => u.Slug)
+                .IsRequired()
+                .HasMaxLength(200);
+
+            x.HasIndex(u => u.Slug).IsUnique();
+
             x.Property(u => u.Tag)
                 .ValueGeneratedOnAdd()
                 .HasDefaultValueSql("NEXT VALUE FOR dbo.UserTagSequence");

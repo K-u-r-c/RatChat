@@ -27,7 +27,6 @@ public class CreateChatRoom
             chatRoom.OwnerId = user.Id;
             chatRoom.Slug = await ChatRoomSlugGenerator.GenerateUniqueSlugAsync(
                 context,
-                chatRoom.Title,
                 cancellationToken: cancellationToken);
 
             context.ChatRooms.Add(chatRoom);

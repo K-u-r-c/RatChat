@@ -78,9 +78,11 @@ const DefaultSidebarContent = observer(function DefaultSidebarContent() {
               <ListItemButton
                 key={chat.id}
                 component={Link}
-                to={`/direct-chats/${chat.id}`}
+                to={`/direct-chats/${chat.otherUserSlug}`}
                 sx={{ borderRadius: 1, mx: 1, my: 0.2 }}
-                selected={location.pathname === `/direct-chats/${chat.id}`}
+                selected={
+                  location.pathname === `/direct-chats/${chat.otherUserSlug}`
+                }
               >
                 <ListItemIcon sx={{ minWidth: 48 }}>
                   <Badge

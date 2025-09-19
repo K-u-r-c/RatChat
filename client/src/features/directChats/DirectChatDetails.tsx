@@ -11,11 +11,13 @@ import AvatarWithStatus from "../../app/shared/components/AvatarWithStatus";
 import { MoreHoriz } from "@mui/icons-material";
 
 const DirectChatDetails = observer(function DirectChatDetails() {
-  const { id } = useParams();
-  const { directMessageStore } = useDirectMessages(id);
+  const { userSlug } = useParams();
   const { directChats } = useDirectChats();
-
-  const currentChat = directChats?.find((chat) => chat.id === id);
+  const currentChat = directChats?.find(
+    (chat) => chat.otherUserSlug === userSlug
+  );
+  const directChatId = currentChat?.id;
+  const { directMessageStore } = useDirectMessages(directChatId);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [emojiDialogOpen, setEmojiDialogOpen] = useState(false);
 
@@ -72,7 +74,7 @@ const DirectChatDetails = observer(function DirectChatDetails() {
     if (!currentChat?.canSendMessages) return;
 
     const messageData = {
-      directChatId: id!,
+      directChatId: directChatId!,
       body,
       type,
       ...(mediaData && {
@@ -173,7 +175,7 @@ const DirectChatDetails = observer(function DirectChatDetails() {
             }
             showUserProfiles={true}
             chatRoomId={undefined}
-            directChatId={id}
+            directChatId={directChatId}
             userPermissions={undefined}
           />
         </Box>
@@ -225,7 +227,7 @@ const DirectChatDetails = observer(function DirectChatDetails() {
         open={emojiDialogOpen}
         onClose={() => setEmojiDialogOpen(false)}
         chatType={"direct"}
-        chatId={id!}
+        chatId={directChatId!}
         chatName={`Chat with ${currentChat.otherUserDisplayName}`}
       />
     </Box>

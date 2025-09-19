@@ -1,4 +1,3 @@
-using System;
 using Application.ChatRooms.DTOs;
 using Application.ChatRooms.Helpers;
 using Application.Core;
@@ -24,15 +23,12 @@ public class EditChatRoom
 
             if (chatRoom == null) return Result<Unit>.Failure("Chat room not found", 404);
 
-            var previousTitle = chatRoom.Title;
-
             mapper.Map(request.ChatRoomDto, chatRoom);
 
-            if (!string.Equals(previousTitle, chatRoom.Title, StringComparison.Ordinal))
+            if (string.IsNullOrWhiteSpace(chatRoom.Slug))
             {
                 chatRoom.Slug = await ChatRoomSlugGenerator.GenerateUniqueSlugAsync(
                     context,
-                    chatRoom.Title,
                     chatRoom.Id,
                     cancellationToken: cancellationToken);
             }

@@ -74,7 +74,7 @@ export default function UserMenuIcon() {
         {/* Create chat room moved to sidebar */}
         <MenuItem
           component={Link}
-          to={`/profiles/${currentUser?.id}`}
+          to={`/profiles/${currentUser?.slug}`}
           onClick={handleClose}
         >
           <ListItemIcon>

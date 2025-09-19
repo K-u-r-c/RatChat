@@ -1,5 +1,7 @@
+using System.Threading;
 using Application.ChatRooms.Helpers;
 using Application.Interfaces;
+using Application.Users.Helpers;
 using Domain;
 using Microsoft.AspNetCore.Identity;
 using Persistance;
@@ -25,6 +27,7 @@ public class DbInitializer
         {
             foreach (var user in users)
             {
+                user.Slug = await UserSlugGenerator.GenerateUniqueSlugAsync(userManager.Users, cancellationToken: CancellationToken.None);
                 await userManager.CreateAsync(user, "Password123@");
             }
         }
@@ -305,7 +308,6 @@ public class DbInitializer
         {
             chatRoom.Slug = await ChatRoomSlugGenerator.GenerateUniqueSlugAsync(
                 context,
-                chatRoom.Title,
                 reservedSlugs: reservedSlugs);
             reservedSlugs.Add(chatRoom.Slug);
         }
