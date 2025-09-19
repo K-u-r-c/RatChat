@@ -1,0 +1,174 @@
+import { makeAutoObservable, observable } from "mobx";
+import type { NotificationCounters } from "../types";
+
+export class MessagesNotificationStore {
+  unreadByRoom = observable.map<string, number>();
+  directUnreadByChat = observable.map<string, number>();
+  activeChatRoomId: string | null = null;
+  activeDirectChatId: string | null = null;
+  windowFocused = true;
+  private audioContext: AudioContext | null = null;
+
+  constructor() {
+    makeAutoObservable(this, {}, { autoBind: true });
+    if (typeof document !== "undefined") {
+      this.windowFocused =
+        document.visibilityState === "visible" && document.hasFocus();
+    }
+  }
+
+  hydrate(counters: NotificationCounters) {
+    this.unreadByRoom.clear();
+    this.directUnreadByChat.clear();
+
+    Object.entries(counters.chatRooms).forEach(([chatRoomId, count]) => {
+      if (count > 0) this.unreadByRoom.set(chatRoomId, count);
+    });
+
+    Object.entries(counters.directChats).forEach(([chatId, count]) => {
+      if (count > 0) this.directUnreadByChat.set(chatId, count);
+    });
+  }
+
+  setActiveChatRoom(chatRoomId: string | null): boolean {
+    this.activeChatRoomId = chatRoomId;
+    if (!chatRoomId || !this.windowFocused) return false;
+    const unread = this.unreadByRoom.get(chatRoomId) ?? 0;
+    if (unread === 0) return false;
+    this.unreadByRoom.delete(chatRoomId);
+    return true;
+  }
+
+  setActiveDirectChat(chatId: string | null): boolean {
+    this.activeDirectChatId = chatId;
+    if (!chatId || !this.windowFocused) return false;
+    const unread = this.directUnreadByChat.get(chatId) ?? 0;
+    if (unread === 0) return false;
+    this.directUnreadByChat.delete(chatId);
+    return true;
+  }
+
+  setWindowFocused(focused: boolean) {
+    this.windowFocused = focused;
+    if (!focused) return;
+
+    if (this.activeChatRoomId) {
+      this.unreadByRoom.delete(this.activeChatRoomId);
+    }
+
+    if (this.activeDirectChatId) {
+      this.directUnreadByChat.delete(this.activeDirectChatId);
+    }
+  }
+
+  incrementUnread(chatRoomId: string) {
+    if (!chatRoomId) return;
+    if (this.activeChatRoomId === chatRoomId && this.windowFocused) return;
+
+    const current = this.unreadByRoom.get(chatRoomId) ?? 0;
+    this.unreadByRoom.set(chatRoomId, current + 1);
+    this.playNotificationSound();
+  }
+
+  incrementDirectUnread(chatId: string) {
+    if (!chatId) return;
+    if (this.activeDirectChatId === chatId && this.windowFocused) return;
+
+    const current = this.directUnreadByChat.get(chatId) ?? 0;
+    this.directUnreadByChat.set(chatId, current + 1);
+    this.playNotificationSound();
+  }
+
+  markRoomRead(chatRoomId: string): boolean {
+    if (!this.unreadByRoom.has(chatRoomId)) return false;
+    this.unreadByRoom.delete(chatRoomId);
+    return true;
+  }
+
+  markDirectChatRead(chatId: string): boolean {
+    if (!this.directUnreadByChat.has(chatId)) return false;
+    this.directUnreadByChat.delete(chatId);
+    return true;
+  }
+
+  clearAll() {
+    this.unreadByRoom.clear();
+    this.directUnreadByChat.clear();
+  }
+
+  get totalChatRoomUnread() {
+    let total = 0;
+    for (const count of this.unreadByRoom.values()) {
+      total += count;
+    }
+    return total;
+  }
+
+  get totalDirectUnread() {
+    let total = 0;
+    for (const count of this.directUnreadByChat.values()) {
+      total += count;
+    }
+    return total;
+  }
+
+  get totalUnread() {
+    return this.totalChatRoomUnread + this.totalDirectUnread;
+  }
+
+  private async playNotificationSound() {
+    if (typeof window === "undefined") return;
+
+    try {
+      const audio = new Audio("/notify.mp3");
+      audio.volume = 0.6;
+      await audio.play();
+      return;
+    } catch {
+      // Fallback to oscillator below
+    }
+
+    try {
+      if (!this.audioContext) {
+        const AudioContextConstructor =
+          window.AudioContext ||
+          (
+            window as typeof window & {
+              webkitAudioContext?: typeof AudioContext;
+            }
+          ).webkitAudioContext;
+
+        if (!AudioContextConstructor) return;
+        this.audioContext = new AudioContextConstructor();
+      }
+
+      const ctx = this.audioContext;
+      if (!ctx) return;
+
+      if (ctx.state === "suspended") {
+        await ctx.resume().catch(() => {});
+      }
+
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+
+      oscillator.type = "sine";
+      oscillator.frequency.value = 880;
+
+      const now = ctx.currentTime;
+
+      gainNode.gain.setValueAtTime(0.0001, now);
+      gainNode.gain.exponentialRampToValueAtTime(0.2, now + 0.02);
+      gainNode.gain.exponentialRampToValueAtTime(0.12, now + 0.08);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.6);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+
+      oscillator.start(now);
+      oscillator.stop(now + 0.6);
+    } catch {
+      // ignore audio errors (e.g. autoplay restrictions)
+    }
+  }
+}

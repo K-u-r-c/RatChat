@@ -93,7 +93,7 @@ export default function AddFriendTab({ autoFocus }: AddFriendTabProps) {
         {results.map((r) => (
           <Box key={r.id}>
             <ListItem
-              onClick={() => navigate(`/profiles/${r.id}`)}
+              onClick={() => navigate(`/profiles/${r.slug}`)}
               sx={{ cursor: "pointer" }}
               secondaryAction={
                 <ButtonGroup variant="contained" size="small">

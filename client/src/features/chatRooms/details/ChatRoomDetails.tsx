@@ -1,4 +1,4 @@
-import { useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { useChatRooms } from "../../../lib/hooks/useChatRooms";
 import {
   Box,
@@ -16,14 +16,24 @@ import ChatRoomDetailsChat from "./ChatRoomDetailsChat";
 import { useChatRoomRolesRealtime } from "../../../lib/hooks/useChatRoomRolesRealtime";
 import { observer } from "mobx-react-lite";
 import { useAccount } from "../../../lib/hooks/useAccount";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ChatRoomMemberPopover from "./ChatRoomMemberPopover";
 
 const ChatRoomDetails = observer(function ChatRoomDetails() {
-  const { id } = useParams();
+  const { slug } = useParams();
+  const navigate = useNavigate();
   const { currentUser } = useAccount();
-  const { chatRoom, isLoadingChatRoom } = useChatRooms(id);
-  const { rolesStore } = useChatRoomRolesRealtime(id, currentUser?.id);
+  const { chatRoom, isLoadingChatRoom } = useChatRooms(slug);
+  const { rolesStore } = useChatRoomRolesRealtime(
+    chatRoom?.id,
+    currentUser?.id
+  );
+
+  useEffect(() => {
+    if (chatRoom && slug && slug !== chatRoom.slug) {
+      navigate(`/chat-rooms/${chatRoom.slug}`, { replace: true });
+    }
+  }, [chatRoom, chatRoom?.slug, slug, navigate]);
 
   const isOnlineStatus = (status?: string, fallbackIsOnline?: boolean) => {
     const s = (status || "").toLowerCase();
@@ -155,7 +165,10 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
 
         {/* Chat */}
         <Box sx={{ flex: 1, minHeight: 0 }}>
-          <ChatRoomDetailsChat userPermissions={rolesStore.userPermissions} />
+          <ChatRoomDetailsChat
+            chatRoomId={chatRoom.id}
+            userPermissions={rolesStore.userPermissions}
+          />
         </Box>
       </Box>
 

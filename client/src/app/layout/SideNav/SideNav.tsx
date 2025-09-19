@@ -1,6 +1,7 @@
 import {
   Box,
   Avatar,
+  Badge,
   CircularProgress,
   IconButton,
   Tooltip,
@@ -10,10 +11,11 @@ import { NavLink } from "react-router";
 import { NAV_WIDTH } from "../../../lib/types/constants";
 import UserMenuIcon from "../UserMenuIcon";
 import { useEffect, useRef, useState } from "react";
+import { observer } from "mobx-react-lite";
 import { useChatRooms } from "../../../lib/hooks/useChatRooms";
 import { useStore } from "../../../lib/hooks/useStore";
 
-export default function SideNav() {
+const SideNav = observer(function SideNav() {
   const {
     chatRooms,
     isLoading,
@@ -21,7 +23,7 @@ export default function SideNav() {
     hasNextPage,
     isFetchingNextPage,
   } = useChatRooms();
-  const { uiStore } = useStore();
+  const { uiStore, messagesNotificationsStore } = useStore();
   const listRef = useRef<HTMLDivElement | null>(null);
   const [hasAbove, setHasAbove] = useState(false);
   const [hasBelow, setHasBelow] = useState(false);
@@ -92,6 +94,8 @@ export default function SideNav() {
     };
   }, [fetchNextPage, hasNextPage]);
 
+  const totalDirectUnread = messagesNotificationsStore.totalDirectUnread;
+
   return (
     <Box
       component="nav"
@@ -127,7 +131,25 @@ export default function SideNav() {
           }}
           className="rc-server-btn"
         >
-          <Forum />
+          <Badge
+            color="error"
+            overlap="rectangular"
+            badgeContent={totalDirectUnread}
+            invisible={!totalDirectUnread}
+            max={99}
+            sx={{
+              "& .MuiBadge-badge": {
+                fontSize: 11,
+                fontWeight: 700,
+                minWidth: 20,
+                height: 20,
+                borderRadius: "999px",
+                px: 0.75,
+              },
+            }}
+          >
+            <Forum />
+          </Badge>
         </IconButton>
       </Tooltip>
 
@@ -175,43 +197,70 @@ export default function SideNav() {
         >
           {isLoading && <CircularProgress size={24} />}
           {!isLoading &&
-            chatRooms?.map((room) => (
-              <Tooltip key={room.id} title={room.title} placement="right">
-                <IconButton
-                  component={NavLink}
-                  to={`/chat-rooms/${room.id}`}
-                  sx={{
-                    width: 52,
-                    height: 52,
-                    borderRadius: 2,
-                    p: 0,
-                    bgcolor: "transparent",
-                    "&.active": {
-                      outline: "2px solid",
-                      outlineColor: "primary.main",
-                      outlineOffset: 2,
-                    },
-                  }}
-                  className="rc-server-btn"
-                >
-                  <Avatar
-                    variant="rounded"
+            chatRooms?.map((room) => {
+              const unreadCount =
+                messagesNotificationsStore.unreadByRoom.get(room.id) ?? 0;
+
+              return (
+                <Tooltip key={room.id} title={room.title} placement="right">
+                  <IconButton
+                    component={NavLink}
+                    to={`/chat-rooms/${room.slug}`}
                     sx={{
                       width: 52,
                       height: 52,
                       borderRadius: 2,
-                      bgcolor: "#2f3136",
-                      fontWeight: 700,
-                      color: "#fff",
+                      p: 0,
+                      bgcolor: "transparent",
+                      "&.active": {
+                        outline: "2px solid",
+                        outlineColor: "primary.main",
+                        outlineOffset: 2,
+                      },
                     }}
-                    src={room.imageUrl}
-                    alt={room.title}
+                    className="rc-server-btn"
                   >
-                    {room.title?.charAt(0).toUpperCase()}
-                  </Avatar>
-                </IconButton>
-              </Tooltip>
-            ))}
+                    <Badge
+                      overlap="rectangular"
+                      anchorOrigin={{ vertical: "top", horizontal: "right" }}
+                      color="error"
+                      badgeContent={unreadCount}
+                      invisible={!unreadCount}
+                      max={99}
+                      sx={{
+                        "& .MuiBadge-badge": {
+                          fontSize: 11,
+                          fontWeight: 700,
+                          minWidth: 22,
+                          height: 20,
+                          borderRadius: "999px",
+                          boxShadow: "0 0 0 2px #1e1f24",
+                          right: 2,
+                          top: 2,
+                          px: 0.75,
+                        },
+                      }}
+                    >
+                      <Avatar
+                        variant="rounded"
+                        sx={{
+                          width: 52,
+                          height: 52,
+                          borderRadius: 2,
+                          bgcolor: "#2f3136",
+                          fontWeight: 700,
+                          color: "#fff",
+                        }}
+                        src={room.imageUrl}
+                        alt={room.title}
+                      >
+                        {room.title?.charAt(0).toUpperCase()}
+                      </Avatar>
+                    </Badge>
+                  </IconButton>
+                </Tooltip>
+              );
+            })}
 
           {/* Add chat room button */}
           <Tooltip title="Create chat room" placement="right">
@@ -260,4 +309,6 @@ export default function SideNav() {
       </Box>
     </Box>
   );
-}
+});
+
+export default SideNav;

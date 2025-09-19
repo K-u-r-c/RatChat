@@ -23,6 +23,8 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
     public required DbSet<ChatRoomPermission> ChatRoomPermissions { get; set; }
     public required DbSet<ChatRoomRolePermission> ChatRoomRolePermissions { get; set; }
     public required DbSet<ChatRoomInvite> ChatRoomInvites { get; set; }
+    public required DbSet<ChatRoomNotification> ChatRoomNotifications { get; set; }
+    public required DbSet<DirectChatNotification> DirectChatNotifications { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -40,11 +42,20 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
             .WithMany(x => x.Members)
             .HasForeignKey(x => x.ChatRoomId);
 
-        builder.Entity<ChatRoom>()
-            .HasOne(cr => cr.Owner)
-            .WithMany(o => o.OwnedChatRooms)
-            .HasForeignKey(cr => cr.OwnerId)
-            .OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<ChatRoom>(entity =>
+        {
+            entity.Property(cr => cr.Slug)
+                .IsRequired()
+                .HasMaxLength(200);
+
+            entity.HasIndex(cr => cr.Slug)
+                .IsUnique();
+
+            entity.HasOne(cr => cr.Owner)
+                .WithMany(o => o.OwnedChatRooms)
+                .HasForeignKey(cr => cr.OwnerId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
 
         builder.Entity<ChatRoomRole>(entity =>
         {
@@ -247,6 +258,12 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
 
         builder.Entity<User>(x =>
         {
+            x.Property(u => u.Slug)
+                .IsRequired()
+                .HasMaxLength(200);
+
+            x.HasIndex(u => u.Slug).IsUnique();
+
             x.Property(u => u.Tag)
                 .ValueGeneratedOnAdd()
                 .HasDefaultValueSql("NEXT VALUE FOR dbo.UserTagSequence");
@@ -319,10 +336,52 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        builder.Entity<ChatRoomNotification>(entity =>
+        {
+            entity.HasKey(n => n.Id);
+            entity.Property(n => n.UserId).IsRequired();
+            entity.Property(n => n.ChatRoomId).IsRequired();
+            entity.Property(n => n.UnreadCount).IsRequired();
+            entity.Property(n => n.UpdatedAt).IsRequired();
+
+            entity.HasIndex(n => new { n.UserId, n.ChatRoomId }).IsUnique();
+
+            entity.HasOne<User>()
+                .WithMany()
+                .HasForeignKey(n => n.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne<ChatRoom>()
+                .WithMany()
+                .HasForeignKey(n => n.ChatRoomId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<DirectChatNotification>(entity =>
+        {
+            entity.HasKey(n => n.Id);
+            entity.Property(n => n.UserId).IsRequired();
+            entity.Property(n => n.DirectChatId).IsRequired();
+            entity.Property(n => n.UnreadCount).IsRequired();
+            entity.Property(n => n.UpdatedAt).IsRequired();
+
+            entity.HasIndex(n => new { n.UserId, n.DirectChatId }).IsUnique();
+
+            entity.HasOne<User>()
+                .WithMany()
+                .HasForeignKey(n => n.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne<DirectChat>()
+                .WithMany()
+                .HasForeignKey(n => n.DirectChatId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         var dateTimeConverter = new ValueConverter<DateTime, DateTime>(
-            v => v.ToUniversalTime(),
-            v => DateTime.SpecifyKind(v, DateTimeKind.Utc)
-        );
+                    v => v.ToUniversalTime(),
+                    v => DateTime.SpecifyKind(v, DateTimeKind.Utc)
+                );
 
         foreach (var entityType in builder.Model.GetEntityTypes())
         {
@@ -336,3 +395,4 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
         }
     }
 }
+

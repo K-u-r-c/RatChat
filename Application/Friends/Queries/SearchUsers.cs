@@ -76,7 +76,7 @@ public class SearchUsers
                 .OrderBy(u => u.DisplayName)
                 .ThenBy(u => u.Tag)
                 .Take(25)
-                .Select(u => new { u.Id, u.DisplayName, u.ImageUrl, u.Tag })
+                .Select(u => new { u.Id, u.DisplayName, u.ImageUrl, u.Tag, u.Slug })
                 .ToListAsync(cancellationToken);
 
             var userIds = results.Select(r => r.Id).ToList();
@@ -98,6 +98,7 @@ public class SearchUsers
             {
                 Id = r.Id,
                 DisplayName = r.DisplayName ?? string.Empty,
+                Slug = r.Slug,
                 Tag = r.Tag,
                 ImageUrl = r.ImageUrl,
                 IsAlreadyFriend = friendPairs.Any(fp => (fp.UserId == currentUser.Id && fp.FriendId == r.Id) || (fp.UserId == r.Id && fp.FriendId == currentUser.Id)),

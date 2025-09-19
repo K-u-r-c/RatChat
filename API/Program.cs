@@ -91,6 +91,7 @@ builder.Services.AddScoped<IFriendsNotificationService, FriendsNotificationServi
 builder.Services.AddScoped<IUserStatusService, UserStatusService>();
 builder.Services.AddScoped<IStatusNotificationService, StatusNotificationService>();
 builder.Services.AddScoped<IDirectMessagesNotificationService, DirectMessagesNotificationService>();
+builder.Services.AddScoped<IChatRoomsNotificationService, ChatRoomsNotificationService>();
 builder.Services.AddAutoMapper(typeof(MappingProfiles).Assembly);
 builder.Services.AddValidatorsFromAssemblyContaining<CreateChatRoomValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<UpdateProfileValidator>();

@@ -33,7 +33,8 @@ const JoinStep = <T extends FieldValues>({
           color="text.secondary"
           sx={{ mt: 1, display: "block" }}
         >
-          Invites should look like: https://ratchat/chat-rooms/123/abc/join
+          Invites should look like:
+          https://ratchat/chat-rooms/my-cool-room/abc/join
         </Typography>
         {submitError && (
           <Alert severity="error" sx={{ mt: 2 }}>

@@ -1,7 +1,6 @@
-using Application.Core;
+﻿using Application.Core;
 using Application.Friends.DTOs;
 using Application.Interfaces;
-using AutoMapper;
 using Domain;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -28,15 +27,18 @@ public class GetFriendRequests
 
             var sentRequests = await context.FriendRequests
                 .Where(fr => fr.SenderId == currentUser.Id && fr.Status == FriendRequestStatus.Pending)
+                .Include(fr => fr.Sender)
                 .Include(fr => fr.Receiver)
                 .Select(fr => new FriendRequestDto
                 {
                     Id = fr.Id,
                     SenderId = fr.SenderId,
-                    SenderDisplayName = fr.Sender.DisplayName ?? "",
+                    SenderSlug = fr.Sender.Slug,
+                    SenderDisplayName = fr.Sender.DisplayName ?? string.Empty,
                     SenderImageUrl = fr.Sender.ImageUrl,
                     ReceiverId = fr.ReceiverId,
-                    ReceiverDisplayName = fr.Receiver.DisplayName ?? "",
+                    ReceiverSlug = fr.Receiver.Slug,
+                    ReceiverDisplayName = fr.Receiver.DisplayName ?? string.Empty,
                     ReceiverImageUrl = fr.Receiver.ImageUrl,
                     Status = fr.Status.ToString(),
                     CreatedAt = fr.CreatedAt,
@@ -49,14 +51,17 @@ public class GetFriendRequests
             var receivedRequests = await context.FriendRequests
                 .Where(fr => fr.ReceiverId == currentUser.Id && fr.Status == FriendRequestStatus.Pending)
                 .Include(fr => fr.Sender)
+                .Include(fr => fr.Receiver)
                 .Select(fr => new FriendRequestDto
                 {
                     Id = fr.Id,
                     SenderId = fr.SenderId,
-                    SenderDisplayName = fr.Sender.DisplayName ?? "",
+                    SenderSlug = fr.Sender.Slug,
+                    SenderDisplayName = fr.Sender.DisplayName ?? string.Empty,
                     SenderImageUrl = fr.Sender.ImageUrl,
                     ReceiverId = fr.ReceiverId,
-                    ReceiverDisplayName = fr.Receiver.DisplayName ?? "",
+                    ReceiverSlug = fr.Receiver.Slug,
+                    ReceiverDisplayName = fr.Receiver.DisplayName ?? string.Empty,
                     ReceiverImageUrl = fr.Receiver.ImageUrl,
                     Status = fr.Status.ToString(),
                     CreatedAt = fr.CreatedAt,

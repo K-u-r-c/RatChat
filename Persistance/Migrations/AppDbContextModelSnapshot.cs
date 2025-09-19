@@ -37,6 +37,11 @@ namespace Persistance.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -44,6 +49,9 @@ namespace Persistance.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("OwnerId");
+
+                    b.HasIndex("Slug")
+                        .IsUnique();
 
                     b.ToTable("ChatRooms");
                 });
@@ -142,6 +150,36 @@ namespace Persistance.Migrations
                     b.HasIndex("RoleId");
 
                     b.ToTable("ChatRoomMemberRoles");
+                });
+
+            modelBuilder.Entity("Domain.ChatRoomNotification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ChatRoomId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("UnreadCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChatRoomId");
+
+                    b.HasIndex("UserId", "ChatRoomId")
+                        .IsUnique();
+
+                    b.ToTable("ChatRoomNotifications");
                 });
 
             modelBuilder.Entity("Domain.ChatRoomPermission", b =>
@@ -255,6 +293,36 @@ namespace Persistance.Migrations
                         .IsUnique();
 
                     b.ToTable("DirectChats");
+                });
+
+            modelBuilder.Entity("Domain.DirectChatNotification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DirectChatId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("UnreadCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DirectChatId");
+
+                    b.HasIndex("UserId", "DirectChatId")
+                        .IsUnique();
+
+                    b.ToTable("DirectChatNotifications");
                 });
 
             modelBuilder.Entity("Domain.DirectMessage", b =>
@@ -625,6 +693,11 @@ namespace Persistance.Migrations
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
@@ -649,6 +722,9 @@ namespace Persistance.Migrations
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex")
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
+
+                    b.HasIndex("Slug")
+                        .IsUnique();
 
                     b.HasIndex("Tag")
                         .IsUnique();
@@ -896,6 +972,21 @@ namespace Persistance.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Domain.ChatRoomNotification", b =>
+                {
+                    b.HasOne("Domain.ChatRoom", null)
+                        .WithMany()
+                        .HasForeignKey("ChatRoomId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Domain.ChatRoomRole", b =>
                 {
                     b.HasOne("Domain.ChatRoom", "ChatRoom")
@@ -943,6 +1034,21 @@ namespace Persistance.Migrations
                     b.Navigation("User1");
 
                     b.Navigation("User2");
+                });
+
+            modelBuilder.Entity("Domain.DirectChatNotification", b =>
+                {
+                    b.HasOne("Domain.DirectChat", null)
+                        .WithMany()
+                        .HasForeignKey("DirectChatId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Domain.DirectMessage", b =>

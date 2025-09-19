@@ -9,6 +9,7 @@ public class User : IdentityUser
     public string? Bio { get; set; }
     public string? ImageUrl { get; set; }
     public string? BannerUrl { get; set; }
+    public string Slug { get; set; } = string.Empty;
     // Globally unique, non-reused numeric tag (e.g., DisplayName#2137)
     public int Tag { get; set; }
     public UserStatus Status { get; set; } = UserStatus.Online;

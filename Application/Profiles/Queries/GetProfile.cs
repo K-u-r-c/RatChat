@@ -13,7 +13,7 @@ public class GetProfile
 {
     public class Query : IRequest<Result<UserProfileDto>>
     {
-        public required string Id { get; set; }
+        public required string Identifier { get; set; }
     }
 
     public class Handler(AppDbContext context, IMapper mapper, IUserAccessor userAccessor)
@@ -22,11 +22,12 @@ public class GetProfile
         public async Task<Result<UserProfileDto>> Handle(Query request, CancellationToken cancellationToken)
         {
             var user = await context.Users
+                .Where(x => x.Id == request.Identifier || x.Slug == request.Identifier)
                 .ProjectTo<UserProfileDto>(
                     mapper.ConfigurationProvider,
                     new { currentUserId = userAccessor.GetUserId() }
                 )
-                .SingleOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
+                .SingleOrDefaultAsync(cancellationToken);
 
             if (user == null)
                 return Result<UserProfileDto>.Failure("User not found", 404);

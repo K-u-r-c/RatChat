@@ -69,7 +69,8 @@ public class RespondToFriendRequest
                 newFriendForSender = new FriendDto
                 {
                     Id = currentUser.Id,
-                    DisplayName = currentUser.DisplayName ?? "",
+                    DisplayName = currentUser.DisplayName ?? string.Empty,
+                    Slug = currentUser.Slug,
                     Bio = currentUser.Bio,
                     ImageUrl = currentUser.ImageUrl,
                     BannerUrl = currentUser.BannerUrl,

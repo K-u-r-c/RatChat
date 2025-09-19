@@ -24,18 +24,41 @@ export const useChatRoomRolesRealtime = (
   chatRoomId?: string,
   userId?: string
 ) => {
-  const created = useRef(false);
+  const chatRoomIdRef = useRef<string | undefined>(chatRoomId);
+  const userIdRef = useRef<string | undefined>(userId);
+
+  useEffect(() => {
+    chatRoomIdRef.current = chatRoomId;
+  }, [chatRoomId]);
+
+  useEffect(() => {
+    userIdRef.current = userId;
+  }, [userId]);
 
   const rolesStore = useLocalObservable(() => ({
     roles: [] as ChatRoomRole[],
     memberRoles: new Map<string, ChatRoomRole[]>(),
     userPermissions: {} as Record<string, boolean>,
     hubConnection: null as HubConnection | null,
+    currentChatRoomId: null as string | null,
+    currentUserId: null as string | null,
+
+    ensureContext(roomId?: string, user?: string) {
+      const resolvedRoomId = roomId ?? chatRoomIdRef.current;
+      const resolvedUserId = user ?? userIdRef.current;
+      if (!resolvedRoomId || !resolvedUserId) {
+        return null;
+      }
+      this.currentChatRoomId = resolvedRoomId;
+      this.currentUserId = resolvedUserId;
+      return { roomId: resolvedRoomId, userId: resolvedUserId };
+    },
 
     async reloadUserPermissions() {
-      if (!userId) return;
+      const context = this.ensureContext();
+      if (!context) return;
 
-      const userPerms = await this.getUserPermissions(userId);
+      const userPerms = await this.getUserPermissions(context.userId);
       if (userPerms === null) return;
 
       const map: Record<string, boolean> = {};
@@ -54,16 +77,25 @@ export const useChatRoomRolesRealtime = (
       });
     },
 
-    createHubConnection() {
-      if (!chatRoomId) return;
-      if (!userId) return;
+    createHubConnection(roomIdArg?: string, userIdArg?: string) {
+      const context = this.ensureContext(roomIdArg, userIdArg);
+      if (!context) return;
+
+      const { roomId } = context;
+
+      if (
+        this.hubConnection &&
+        this.hubConnection.state === HubConnectionState.Connected
+      ) {
+        this.hubConnection.stop();
+      }
 
       this.hubConnection = new HubConnectionBuilder()
         .withUrl(
           `${
             import.meta.env.VITE_CHATROOM_ROLES_URL ||
             "https://localhost:5001/chatroom-dupa"
-          }?chatRoomId=${chatRoomId}`,
+          }?chatRoomId=${roomId}`,
           { withCredentials: true }
         )
         .withAutomaticReconnect()
@@ -133,70 +165,35 @@ export const useChatRoomRolesRealtime = (
           }
           return;
         }
-        const updatedRole = result.data;
-        const newRoles = this.roles.map((r) =>
-          r.id === updatedRole.id ? updatedRole : r
-        );
-
-        const newMemberRoles = new Map<string, ChatRoomRole[]>();
-        for (const [userId, userRoles] of this.memberRoles.entries()) {
-          const updatedUserRoles = userRoles.map((role) =>
-            role.id === updatedRole.id ? updatedRole : role
-          );
-          newMemberRoles.set(userId, updatedUserRoles);
-        }
         runInAction(() => {
-          this.roles = newRoles;
-          this.memberRoles = newMemberRoles;
+          this.roles = this.roles
+            .map((r) => (r.id === result.data.id ? result.data : r))
+            .sort(
+              (a, b) =>
+                new Date(a.createdAt).getTime() -
+                new Date(b.createdAt).getTime()
+            );
         });
-
-        this.reloadUserPermissions();
       });
 
       this.hubConnection.on("RoleDeleted", (roleId: string) => {
         runInAction(() => {
           this.roles = this.roles.filter((r) => r.id !== roleId);
-          for (const [userId, roleObjs] of this.memberRoles.entries()) {
-            const updatedRoles = roleObjs.filter((r) => r.id !== roleId);
-            this.memberRoles.set(userId, updatedRoles);
-          }
+        });
+
+        runInAction(() => {
+          const newMemberRoles = new Map(this.memberRoles);
+          newMemberRoles.forEach((roles, userKey) => {
+            newMemberRoles.set(
+              userKey,
+              roles.filter((role) => role.id !== roleId)
+            );
+          });
+          this.memberRoles = newMemberRoles;
         });
 
         this.reloadUserPermissions();
       });
-
-      this.hubConnection.on(
-        "UsersRoleLoaded",
-        (data: { [userId: string]: any[] }) => {
-          const newMemberRoles = new Map<string, ChatRoomRole[]>();
-          for (const userId in data) {
-            const roleIds = data[userId]
-              .map((role) => {
-                const result = ChatRoomRoleSchema.safeParse(role);
-                if (!result.success) {
-                  if (import.meta.env.DEV)
-                    console.error(
-                      "Role validation error (UsersRoleLoaded):",
-                      result.error,
-                      role
-                    );
-                  return null;
-                }
-                return result.data.id;
-              })
-              .filter(Boolean) as string[];
-
-            const roleObjects = roleIds
-              .map((id) => this.roles.find((r) => r.id === id))
-              .filter(Boolean) as ChatRoomRole[];
-            newMemberRoles.set(userId, roleObjects);
-          }
-
-          runInAction(() => {
-            this.memberRoles = newMemberRoles;
-          });
-        }
-      );
 
       this.hubConnection.on("RoleAssigned", (retrievedRole: any) => {
         const result = AssignedChatRoomRoleSchema.safeParse(retrievedRole);
@@ -221,7 +218,7 @@ export const useChatRoomRolesRealtime = (
           this.memberRoles = newMemberRoles;
         });
 
-        if (dataUserId === userId) this.reloadUserPermissions();
+        if (dataUserId === this.currentUserId) this.reloadUserPermissions();
       });
 
       this.hubConnection.on("RoleUnassigned", (retrievedRole: any) => {
@@ -245,7 +242,67 @@ export const useChatRoomRolesRealtime = (
           this.memberRoles = newMemberRoles;
         });
 
-        if (dataUserId === userId) this.reloadUserPermissions();
+        if (dataUserId === this.currentUserId) this.reloadUserPermissions();
+      });
+
+      this.hubConnection.on(
+        "UsersRoleLoaded",
+        (data: { [userId: string]: any[] }) => {
+          const newMemberRoles = new Map<string, ChatRoomRole[]>();
+          for (const [userKey, roles] of Object.entries(data)) {
+            const parsedRoles = roles
+              .map((role: any) => {
+                const result = ChatRoomRoleSchema.safeParse(role);
+                if (!result.success) {
+                  if (import.meta.env.DEV) {
+                    console.error(
+                      "Role validation error (UsersRoleLoaded):",
+                      result.error,
+                      role
+                    );
+                  }
+                  return null;
+                }
+                return result.data;
+              })
+              .filter(Boolean) as ChatRoomRole[];
+            newMemberRoles.set(userKey, parsedRoles);
+          }
+
+          runInAction(() => {
+            this.memberRoles = newMemberRoles;
+          });
+
+          if (data[this.currentUserId ?? ""]) this.reloadUserPermissions();
+        }
+      );
+
+      this.hubConnection.on("RoleDeletedForUser", (payload: any) => {
+        const result = UnassignedChatRoomRoleSchema.safeParse(payload);
+        if (!result.success) {
+          if (import.meta.env.DEV) {
+            console.error(
+              "Role validation error (RoleDeletedForUser):",
+              result.error,
+              payload
+            );
+          }
+          return;
+        }
+
+        const newMemberRoles = new Map(this.memberRoles);
+        newMemberRoles.forEach((roles, userKey) => {
+          newMemberRoles.set(
+            userKey,
+            roles.filter((role) => role.id !== result.data.id)
+          );
+        });
+
+        runInAction(() => {
+          this.memberRoles = newMemberRoles;
+        });
+
+        this.reloadUserPermissions();
       });
     },
 
@@ -255,9 +312,11 @@ export const useChatRoomRolesRealtime = (
         this.hubConnection.state !== HubConnectionState.Connected
       )
         return;
+      const context = this.ensureContext();
+      if (!context) return;
       try {
         await this.hubConnection.invoke("CreateRole", {
-          ChatRoomId: chatRoomId,
+          ChatRoomId: context.roomId,
           ...role,
         });
       } catch (error) {
@@ -273,9 +332,11 @@ export const useChatRoomRolesRealtime = (
         this.hubConnection.state !== HubConnectionState.Connected
       )
         return;
+      const context = this.ensureContext();
+      if (!context) return;
       try {
-        assignment.chatRoomId = chatRoomId;
-        assignment.assignedById = userId;
+        assignment.chatRoomId = context.roomId;
+        assignment.assignedById = context.userId;
         await this.hubConnection.invoke("AssignRole", assignment);
       } catch (error) {
         if (import.meta.env.DEV) {
@@ -290,8 +351,10 @@ export const useChatRoomRolesRealtime = (
         this.hubConnection.state !== HubConnectionState.Connected
       )
         return;
+      const context = this.ensureContext();
+      if (!context) return;
       try {
-        assignment.chatRoomId = chatRoomId;
+        assignment.chatRoomId = context.roomId;
         await this.hubConnection.invoke("UnassignRole", assignment);
       } catch (error) {
         if (import.meta.env.DEV) {
@@ -300,17 +363,19 @@ export const useChatRoomRolesRealtime = (
       }
     },
 
-    async getUserRoles(userId: string) {
+    async getUserRoles(targetUserId: string) {
       if (
         !this.hubConnection ||
         this.hubConnection.state !== HubConnectionState.Connected
       )
         return [];
+      const context = this.ensureContext();
+      if (!context) return [];
       try {
         const userRoles = await this.hubConnection.invoke(
           "GetUserRoles",
-          chatRoomId,
-          userId
+          context.roomId,
+          targetUserId
         );
         return userRoles
           .map((role: any) => {
@@ -337,18 +402,20 @@ export const useChatRoomRolesRealtime = (
     },
 
     async getUserPermissions(
-      userId: string
+      targetUserId: string
     ): Promise<UserChatRoomPermissions | null> {
       if (
         !this.hubConnection ||
         this.hubConnection.state !== HubConnectionState.Connected
       )
         return null;
+      const context = this.ensureContext();
+      if (!context) return null;
       try {
         const permissions = await this.hubConnection.invoke(
           "GetUserPermissions",
-          chatRoomId,
-          userId
+          context.roomId,
+          targetUserId
         );
         const result = UserChatRoomPermissionsSchema.safeParse(permissions);
         if (!result.success) {
@@ -391,8 +458,10 @@ export const useChatRoomRolesRealtime = (
         this.hubConnection.state !== HubConnectionState.Connected
       )
         return;
+      const context = this.ensureContext();
+      if (!context) return;
       try {
-        await this.hubConnection.invoke("DeleteRole", roleId, chatRoomId);
+        await this.hubConnection.invoke("DeleteRole", roleId, context.roomId);
       } catch (error) {
         if (import.meta.env.DEV) {
           console.error("Error deleting role:", error);
@@ -403,20 +472,24 @@ export const useChatRoomRolesRealtime = (
     stopHubConnection() {
       if (this.hubConnection?.state === HubConnectionState.Connected) {
         this.hubConnection.stop();
-        this.hubConnection = null;
       }
+      this.hubConnection = null;
+      this.currentChatRoomId = null;
     },
   }));
 
   useEffect(() => {
-    if (chatRoomId && !created.current) {
-      rolesStore.createHubConnection();
-      created.current = true;
-    }
+    const roomId = chatRoomId ?? chatRoomIdRef.current;
+    const resolvedUserId = userId ?? userIdRef.current;
+
+    if (!roomId || !resolvedUserId) return;
+
+    rolesStore.createHubConnection(roomId, resolvedUserId);
+
     return () => {
       rolesStore.stopHubConnection();
     };
-  }, [chatRoomId, rolesStore]);
+  }, [chatRoomId, userId, rolesStore]);
 
   return {
     rolesStore,

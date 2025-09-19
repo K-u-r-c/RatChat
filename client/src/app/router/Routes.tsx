@@ -27,11 +27,14 @@ export const router = createBrowserRouter([
         element: <RequireAuth />,
         children: [
           { index: true, element: <EmptyPage /> },
-          { path: "chat-rooms/:id", element: <ChatRoomDetails /> },
-          { path: "chat-rooms/:id/:token/join", element: <JoinChatRoomPage /> },
-          { path: "profiles/:id", element: <ProfilePage /> },
+          { path: "chat-rooms/:slug", element: <ChatRoomDetails /> },
+          {
+            path: "chat-rooms/:slug/:token/join",
+            element: <JoinChatRoomPage />,
+          },
+          { path: "profiles/:slug", element: <ProfilePage /> },
           { path: "friends", element: <Friends /> },
-          { path: "direct-chats/:id", element: <DirectChatDetails /> },
+          { path: "direct-chats/:userSlug", element: <DirectChatDetails /> },
           { path: "change-password", element: <ChangePasswordForm /> },
         ],
       },

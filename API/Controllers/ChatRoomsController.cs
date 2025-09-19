@@ -30,7 +30,7 @@ public class ChatRoomsController : BaseApiController
     }
 
     [HttpPost]
-    public async Task<ActionResult<string>> CreateChatRoom(CreateChatRoomDto createChatRoomDto)
+    public async Task<ActionResult<ChatRoomIdentifierDto>> CreateChatRoom(CreateChatRoomDto createChatRoomDto)
     {
         return HandleResult(
             await Mediator.Send(
@@ -81,7 +81,7 @@ public class ChatRoomsController : BaseApiController
     }
 
     [HttpPost("{id}/{token}/join")]
-    public async Task<ActionResult<Unit>> JoinChatRoom(string id, string token)
+    public async Task<ActionResult<ChatRoomIdentifierDto>> JoinChatRoom(string id, string token)
     {
         return HandleResult(await Mediator.Send(
             new JoinChatRoom.Command

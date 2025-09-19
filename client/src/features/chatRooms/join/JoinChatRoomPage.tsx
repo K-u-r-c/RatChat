@@ -1,19 +1,22 @@
-import { useEffect, useRef } from "react";
+﻿import { useEffect, useRef } from "react";
 import { Box, Typography, Button, CircularProgress } from "@mui/material";
 import { useNavigate, useParams } from "react-router";
 import { useChatRooms } from "../../../lib/hooks/useChatRooms";
+import { useStore } from "../../../lib/hooks/useStore";
 
 const JoinChatRoomPage = () => {
-  const { id, token } = useParams();
+  const { slug, token } = useParams();
   const navigate = useNavigate();
   const { joinChatRoom } = useChatRooms();
+  const { uiStore } = useStore();
   const hasJoined = useRef(false);
 
   useEffect(() => {
-    if (!id || !token || hasJoined.current) return;
+    if (!slug || !token || hasJoined.current) return;
+    uiStore.suppressNextChatRoomForbiddenToast();
     hasJoined.current = true;
-    joinChatRoom.mutate({ id, token });
-  }, [id, token, joinChatRoom]);
+    joinChatRoom.mutate({ identifier: slug, token });
+  }, [slug, token, joinChatRoom, uiStore]);
 
   const handleRedirect = () => {
     navigate("/");
@@ -23,16 +26,16 @@ const JoinChatRoomPage = () => {
     <Box sx={{ textAlign: "center", mt: 5 }}>
       {joinChatRoom.isPending ? (
         <CircularProgress />
-      ) : joinChatRoom.isSuccess ? (
-        <Typography variant="h6">Successfully joined the chat room!</Typography>
       ) : joinChatRoom.isError ? (
-        <Typography variant="h6" color="error">
-          Failed to join the chat room. Please check the invite link.
-        </Typography>
+        <Box>
+          <Typography variant="h6" color="error">
+            Failed to join the chat room. Please check the invite link.
+          </Typography>
+          <Button variant="contained" onClick={handleRedirect} sx={{ mt: 2 }}>
+            Go to Chat Rooms
+          </Button>
+        </Box>
       ) : null}
-      <Button variant="contained" onClick={handleRedirect} sx={{ mt: 2 }}>
-        Go to Chat Rooms
-      </Button>
     </Box>
   );
 };

@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Application.Core;
 using Application.Interfaces;
 using Application.Messages.Commands;
@@ -8,10 +7,15 @@ using Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
-
 namespace API.SignalR;
 
-public class MessageHub(IMediator mediator, IRolePermissionService rolePermissionService) : Hub
+[Authorize]
+public class MessageHub(
+    IMediator mediator,
+    IRolePermissionService rolePermissionService,
+    IUserAccessor userAccessor,
+    IChatRoomsNotificationService chatRoomsNotificationService
+) : Hub
 {
     [Authorize(Policy = ChatRoomPermissions.SendMessages)]
     public async Task SendMessage(AddMessage.Command command)
@@ -20,7 +24,15 @@ public class MessageHub(IMediator mediator, IRolePermissionService rolePermissio
         {
             var message = await HandleSendMessage.TrySendMessageAsync(mediator, command);
 
-            await Clients.Group(command.ChatRoomId).SendAsync("ReceiveMessage", message.Value);
+            if (message.Value == null)
+            {
+                throw new SendMessageHubException("Message without content", ErrorCodes.WillNotBeProcessed);
+            }
+
+            await Clients.Group($"chatroom-{command.ChatRoomId}")
+                .SendAsync("ChatRoomMessage", message.Value);
+
+            await chatRoomsNotificationService.NotifyChatRoomUpdated(command.ChatRoomId, message.Value);
         }
         catch (SendMessageHubException hubException)
         {
@@ -43,7 +55,15 @@ public class MessageHub(IMediator mediator, IRolePermissionService rolePermissio
 
             var message = await HandleSendMessage.TrySendMessageAsync(mediator, command);
 
-            await Clients.Group(command.ChatRoomId).SendAsync("ReceiveMessage", message.Value);
+            if (message.Value == null)
+            {
+                throw new SendMessageHubException("Message without content", ErrorCodes.WillNotBeProcessed);
+            }
+
+            await Clients.Group($"chatroom-{command.ChatRoomId}")
+                .SendAsync("ChatRoomMessage", message.Value);
+
+            await chatRoomsNotificationService.NotifyChatRoomUpdated(command.ChatRoomId, message.Value);
         }
         catch (SendMessageHubException hubException)
         {
@@ -67,7 +87,11 @@ public class MessageHub(IMediator mediator, IRolePermissionService rolePermissio
                 }
             );
 
-            await Clients.Caller.SendAsync("ReceiveOlderMessages", result.Value);
+            await Clients.Caller.SendAsync("ReceiveOlderMessages", new
+            {
+                chatRoomId,
+                data = result.Value
+            });
         }
         catch
         {
@@ -75,7 +99,7 @@ public class MessageHub(IMediator mediator, IRolePermissionService rolePermissio
         }
     }
 
-    [Authorize(Policy = ChatRoomPermissions.ViewChatRoom)]
+    [Authorize(Policy = ChatRoomPermissions.SendMessages)]
     public async Task ToggleMessageReaction(string chatRoomId, string messageId, string emoji)
     {
         try
@@ -89,7 +113,7 @@ public class MessageHub(IMediator mediator, IRolePermissionService rolePermissio
 
             if (result.IsSuccess)
             {
-                await Clients.Group(chatRoomId).SendAsync("ReceiveReactionUpdate", result.Value);
+                await Clients.Group($"chatroom-{chatRoomId}").SendAsync("ReceiveReactionUpdate", result.Value);
             }
             else
             {
@@ -104,39 +128,44 @@ public class MessageHub(IMediator mediator, IRolePermissionService rolePermissio
 
     public override async Task OnConnectedAsync()
     {
-        var httpContext = Context.GetHttpContext();
-        var chatRoomId = httpContext?.Request.Query["chatRoomId"];
-        if (string.IsNullOrEmpty(chatRoomId)) throw new HubException("No chat room with this id");
+        var user = await userAccessor.GetUserAsync();
+        await Groups.AddToGroupAsync(Context.ConnectionId, $"user-{user.Id}");
 
-        var userId = Context.User?.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(userId))
-        {
-            throw new HubException("Unauthenticated user");
-        }
+        await base.OnConnectedAsync();
+    }
 
+    public async Task JoinChatRoom(string chatRoomId, int? initialPageSize = null)
+    {
+        var user = await userAccessor.GetUserAsync();
         var hasAccess = await rolePermissionService.HasPermissionAsync(
-            userId!, chatRoomId!, ChatRoomPermissions.ViewChatRoom);
+            user.Id, chatRoomId, ChatRoomPermissions.ViewChatRoom);
 
         if (!hasAccess)
         {
             await Clients.Caller.SendAsync("ReceiveError", 403, "You are not a member of this chat room");
-            Context.Abort();
             return;
         }
 
-        await Groups.AddToGroupAsync(Context.ConnectionId, chatRoomId!);
+        await Groups.AddToGroupAsync(Context.ConnectionId, $"chatroom-{chatRoomId}");
 
-        var initialPageSize =
-            int.TryParse(httpContext?.Request.Query["initialPageSize"], out var size) ? size : 20;
-
+        var size = initialPageSize ?? 20;
         var result = await mediator.Send(
             new GetMessages.Query
             {
-                ChatRoomId = chatRoomId!,
-                PageSize = initialPageSize
+                ChatRoomId = chatRoomId,
+                PageSize = size
             }
         );
 
-        await Clients.Caller.SendAsync("LoadMessages", result.Value);
+        await Clients.Caller.SendAsync("LoadMessages", new
+        {
+            chatRoomId,
+            data = result.Value
+        });
+    }
+
+    public async Task LeaveChatRoom(string chatRoomId)
+    {
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"chatroom-{chatRoomId}");
     }
 }
