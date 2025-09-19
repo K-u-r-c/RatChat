@@ -28,7 +28,10 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <EmptyPage /> },
           { path: "chat-rooms/:slug", element: <ChatRoomDetails /> },
-          { path: "chat-rooms/:slug/:token/join", element: <JoinChatRoomPage /> },
+          {
+            path: "chat-rooms/:slug/:token/join",
+            element: <JoinChatRoomPage />,
+          },
           { path: "profiles/:id", element: <ProfilePage /> },
           { path: "friends", element: <Friends /> },
           { path: "direct-chats/:id", element: <DirectChatDetails /> },
@@ -56,4 +59,3 @@ export const router = createBrowserRouter([
 
   { path: "*", element: <Navigate to="/not-found" replace /> },
 ]);
-
