@@ -64,11 +64,14 @@ public class MediaController(
             }
             else
             {
-                var hasAccess = await context.DirectMessages
-                    .AnyAsync(dm => dm.MediaPublicId == mediaFile.PublicId &&
-                                    (dm.DirectChat.User1Id == user.Id || dm.DirectChat.User2Id == user.Id));
+                if (mediaFile.UploadedById != user.Id)
+                {
+                    var hasAccess = await context.DirectMessages
+                        .AnyAsync(dm => dm.MediaPublicId == mediaFile.PublicId &&
+                                        (dm.DirectChat.User1Id == user.Id || dm.DirectChat.User2Id == user.Id));
 
-                if (!hasAccess && mediaFile.UploadedById != user.Id) return Forbid();
+                    if (!hasAccess) return Forbid();
+                }
             }
         }
 
