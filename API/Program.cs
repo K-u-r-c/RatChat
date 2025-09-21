@@ -27,6 +27,7 @@ using Resend;
 using Application.ChatRoomRoles.Validators;
 using Domain.Enums;
 using API.SignalR.EventHandlers;
+using Persistance.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -130,6 +131,7 @@ builder.Services.AddAuthorization(opt =>
 });
 builder.Services.AddTransient<IAuthorizationHandler, IsAdminRequirementHandler>();
 builder.Services.AddTransient<IAuthorizationHandler, HasPermissionRequirementHandler>();
+MessageCrypto.Initialize(builder.Configuration);
 
 var clientAppOrigins = builder.Configuration["ClientAppUrl"]?
     .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);

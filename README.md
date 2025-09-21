@@ -174,3 +174,20 @@ Notes
 - Prioritize code quality and learning over speed
 - Small, reviewable changes win
 - Prefer refactoring and tests to keep the codebase welcoming
+
+Message Encryption (at rest)
+
+- Messages are encrypted at rest using AES-256-GCM via an EF Core value converter.
+- Encrypted fields:
+  - `Domain/Message.cs: Body`
+  - `Domain/DirectMessage.cs: Body`
+- Configure a 256-bit key via environment variable before starting the API:
+  - Variable: `MESSAGE_ENCRYPTION_KEY`
+  - Provide 32 bytes as Base64 or Hex (e.g., `0x...`).
+- Generate a random key (PowerShell):
+  - `$bytes = New-Object 'Byte[]' 32; [System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes); [Convert]::ToBase64String($bytes)`
+  - Persist for your user session: `setx MESSAGE_ENCRYPTION_KEY <Base64Key>` (restart shell)
+- Behavior & migration notes:
+  - New/updated records are stored encrypted with prefix `enc:v1:`.
+  - Existing plaintext rows are read as-is and remain until modified.
+  - For backfill, run a one-time job that reads and re-saves messages to trigger encryption.

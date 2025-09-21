@@ -2,6 +2,7 @@ using Domain;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Persistance.Security;
 
 namespace Persistance;
 
@@ -176,6 +177,10 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
         {
             x.HasKey(dm => dm.Id);
 
+            // Encrypt message body at rest
+            x.Property(dm => dm.Body)
+                .HasConversion(EncryptedStringConverter.Instance);
+
             x.HasOne(dm => dm.Sender)
                 .WithMany()
                 .HasForeignKey(dm => dm.SenderId)
@@ -219,6 +224,10 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
         // Reply relationship for chat room messages
         builder.Entity<Message>(x =>
         {
+            // Encrypt message body at rest
+            x.Property(m => m.Body)
+                .HasConversion(EncryptedStringConverter.Instance);
+
             x.HasOne(m => m.ReplyToMessage)
                 .WithMany()
                 .HasForeignKey(m => m.ReplyToMessageId)

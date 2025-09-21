@@ -120,7 +120,6 @@ export default function Friends() {
   const tabs: { key: string; label: React.ReactNode }[] = [
     { key: "online", label: `Online (${onlineCount})` },
     { key: "all", label: `All (${allCount})` },
-    { key: "add", label: "Add Friend" },
   ];
   if (pendingCount > 0)
     tabs.push({
@@ -140,6 +139,8 @@ export default function Friends() {
         </Box>
       ),
     });
+
+  tabs.push({ key: "add", label: "Add Friend" });
 
   const indexToKey = tabs.map((t) => t.key);
 
