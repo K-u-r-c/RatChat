@@ -22,12 +22,11 @@ public static class MessageCrypto
         {
             if (_key != null) return;
 
-            // Prefer appsettings: MessageEncryption:Key
             var keyString = configuration["MessageEncryptionKey"];
 
             if (string.IsNullOrWhiteSpace(keyString))
             {
-                throw new InvalidOperationException($"Missing required configuration 'MessageEncryption:Key' (or environment variable). Provide a 32-byte (256-bit) key before running the API.");
+                throw new InvalidOperationException($"Missing required configuration 'MessageEncryptionKey' (or environment variable). Provide a 32-byte (256-bit) key before running the API.");
             }
 
             _key = TryDecodeBase64(keyString) ?? TryDecodeHex(keyString);
