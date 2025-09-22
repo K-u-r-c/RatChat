@@ -87,6 +87,7 @@ export default function LoginForm() {
       <Paper
         component="form"
         onSubmit={handleSubmit(onSubmit)}
+        autoComplete="on"
         sx={{
           display: "flex",
           flexDirection: "column",
@@ -144,6 +145,7 @@ export default function LoginForm() {
               control={control}
               name="email"
               tabIndex={1}
+              autoComplete="username"
             />
           </Box>
 
@@ -181,6 +183,7 @@ export default function LoginForm() {
               control={control}
               name="password"
               tabIndex={2}
+              autoComplete="current-password"
             />
           </Box>
         </Box>
