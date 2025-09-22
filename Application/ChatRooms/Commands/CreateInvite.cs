@@ -48,6 +48,8 @@ public class CreateInvite
                 ? DateTime.UtcNow.AddMinutes(effectiveExpiryMinutes)
                 : (DateTime?)null;
 
+            var maxUses = string.IsNullOrEmpty(request.AllowedUserId) ? request.MaxUses : 1;
+
             var invite = new Domain.ChatRoomInvite
             {
                 Id = Guid.NewGuid().ToString(),
@@ -55,7 +57,7 @@ public class CreateInvite
                 CreatedByUserId = user.Id,
                 Secret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(16)),
                 AllowedUserId = request.AllowedUserId,
-                MaxUses = request.MaxUses,
+                MaxUses = maxUses,
                 ExpiresAt = expiresAt,
                 CreatedAt = DateTime.UtcNow
             };

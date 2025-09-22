@@ -1,4 +1,4 @@
-import agent from "./agent";
+﻿import agent from "./agent";
 import type { NotificationCounters } from "../types";
 
 const notificationsApi = {
@@ -13,6 +13,15 @@ const notificationsApi = {
 
   async markDirectChatRead(directChatId: string): Promise<void> {
     await agent.post(`/notifications/direct-chats/${directChatId}/read`, {});
+  },
+
+  async markEncryptedDirectChatRead(
+    encryptedDirectChatId: string
+  ): Promise<void> {
+    await agent.post(
+      `/notifications/encrypted-direct-chats/${encryptedDirectChatId}/read`,
+      {}
+    );
   },
 };
 

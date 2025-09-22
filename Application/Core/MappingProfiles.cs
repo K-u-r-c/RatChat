@@ -1,5 +1,7 @@
-using Application.ChatRooms.DTOs;
+﻿using Application.ChatRooms.DTOs;
 using Application.DirectChats.DTOs;
+using Application.EncryptedDirectChats.DTOs;
+using Application.EncryptedDirectMessages.DTOs;
 using Application.DirectMessages.DTOs;
 using Application.EmojiPreferences.DTOs;
 using Application.Friends.DTOs;
@@ -151,6 +153,43 @@ public class MappingProfiles : Profile
 
         CreateMap<DirectMessageReaction, MessageReactionDto>()
             .ForMember(d => d.MessageId, o => o.MapFrom(s => s.DirectMessageId))
-            .ForMember(d => d.DisplayName, o => o.MapFrom(s => s.User.DisplayName ?? ""));
+            .ForMember(d => d.DisplayName, o => o.MapFrom(s => s.User.DisplayName ?? string.Empty));
+
+        CreateMap<EncryptedDirectChat, EncryptedDirectChatDto>()
+            .ForMember(d => d.OtherUserId, o => o.MapFrom(s =>
+                s.User1Id == currentUserId ? s.User2Id : s.User1Id))
+            .ForMember(d => d.OtherUserDisplayName, o => o.MapFrom(s =>
+                s.User1Id == currentUserId ? s.User2.DisplayName : s.User1.DisplayName))
+            .ForMember(d => d.OtherUserSlug, o => o.MapFrom(s =>
+                s.User1Id == currentUserId ? s.User2.Slug : s.User1.Slug))
+            .ForMember(d => d.OtherUserImageUrl, o => o.MapFrom(s =>
+                s.User1Id == currentUserId ? s.User2.ImageUrl : s.User1.ImageUrl))
+            .ForMember(d => d.Status, o => o.MapFrom(s =>
+                s.User1Id == currentUserId ? s.User2.Status.ToString() : s.User1.Status.ToString()))
+            .ForMember(d => d.IsOnline, o => o.MapFrom(s =>
+                s.User1Id == currentUserId
+                    ? s.User2.Status.IsConsideredOnline()
+                    : s.User1.Status.IsConsideredOnline()
+            ))
+            .ForMember(d => d.LastSeen, o => o.MapFrom(s =>
+                s.User1Id == currentUserId ? s.User2.LastSeen : s.User1.LastSeen));
+
+        CreateMap<EncryptedDirectMessage, EncryptedDirectMessageDto>()
+            .ForMember(d => d.SenderDisplayName, o => o.MapFrom(s => s.Sender.DisplayName))
+            .ForMember(d => d.SenderSlug, o => o.MapFrom(s => s.Sender.Slug))
+            .ForMember(d => d.SenderImageUrl, o => o.MapFrom(s => s.Sender.ImageUrl))
+            .ForMember(d => d.IsOwnMessage, o => o.MapFrom(s => s.SenderId == currentUserId))
+            .ForMember(d => d.Type, o => o.MapFrom(s => s.Type.ToString()))
+            .ForMember(d => d.ReplyToMessageId, o => o.MapFrom(s => s.ReplyToEncryptedDirectMessageId))
+            .ForMember(d => d.ReplyToCipherText, o => o.MapFrom(s => s.ReplyToEncryptedDirectMessage != null ? s.ReplyToEncryptedDirectMessage.CipherText : null))
+            .ForMember(d => d.ReplyToCipherTextMetadata, o => o.MapFrom(s => s.ReplyToEncryptedDirectMessage != null ? s.ReplyToEncryptedDirectMessage.CipherTextMetadata : null))
+            .ForMember(d => d.ReplyToVersion, o => o.MapFrom(s => s.ReplyToEncryptedDirectMessage != null ? s.ReplyToEncryptedDirectMessage.Version : null))
+            .ForMember(d => d.ReplyToSenderId, o => o.MapFrom(s => s.ReplyToEncryptedDirectMessage != null ? s.ReplyToEncryptedDirectMessage.SenderId : null))
+            .ForMember(d => d.ReplyToSenderDisplayName, o => o.MapFrom(s => s.ReplyToEncryptedDirectMessage != null ? s.ReplyToEncryptedDirectMessage.Sender.DisplayName : null))
+            .ForMember(d => d.Reactions, o => o.MapFrom(s => s.Reactions));
+
+        CreateMap<EncryptedDirectMessageReaction, MessageReactionDto>()
+            .ForMember(d => d.MessageId, o => o.MapFrom(s => s.EncryptedDirectMessageId))
+            .ForMember(d => d.DisplayName, o => o.MapFrom(s => s.User.DisplayName ?? string.Empty));
     }
 }

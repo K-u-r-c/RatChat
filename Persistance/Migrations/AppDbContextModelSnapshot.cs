@@ -453,6 +453,149 @@ namespace Persistance.Migrations
                     b.ToTable("EmojiPreferences");
                 });
 
+            modelBuilder.Entity("Domain.EncryptedDirectChat", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("LastActivityAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("LastMessageSenderId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("User1Id")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("User2Id")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("User2Id");
+
+                    b.HasIndex("User1Id", "User2Id")
+                        .IsUnique();
+
+                    b.ToTable("EncryptedDirectChats");
+                });
+
+            modelBuilder.Entity("Domain.EncryptedDirectChatNotification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("EncryptedDirectChatId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("UnreadCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EncryptedDirectChatId");
+
+                    b.HasIndex("UserId", "EncryptedDirectChatId")
+                        .IsUnique();
+
+                    b.ToTable("EncryptedDirectChatNotifications");
+                });
+
+            modelBuilder.Entity("Domain.EncryptedDirectMessage", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("CipherText")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CipherTextMetadata")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("EncryptedDirectChatId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("ReplyToEncryptedDirectMessageId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("SenderId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Version")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReplyToEncryptedDirectMessageId");
+
+                    b.HasIndex("SenderId");
+
+                    b.HasIndex("EncryptedDirectChatId", "CreatedAt");
+
+                    b.ToTable("EncryptedDirectMessages");
+                });
+
+            modelBuilder.Entity("Domain.EncryptedDirectMessageReaction", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Emoji")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("EmojiKey")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("EncryptedDirectMessageId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("EncryptedDirectMessageId", "UserId", "EmojiKey")
+                        .IsUnique();
+
+                    b.ToTable("EncryptedDirectMessageReactions");
+                });
+
             modelBuilder.Entity("Domain.FriendRequest", b =>
                 {
                     b.Property<string>("Id")
@@ -1107,6 +1250,85 @@ namespace Persistance.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Domain.EncryptedDirectChat", b =>
+                {
+                    b.HasOne("Domain.User", "User1")
+                        .WithMany()
+                        .HasForeignKey("User1Id")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Domain.User", "User2")
+                        .WithMany()
+                        .HasForeignKey("User2Id")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("User1");
+
+                    b.Navigation("User2");
+                });
+
+            modelBuilder.Entity("Domain.EncryptedDirectChatNotification", b =>
+                {
+                    b.HasOne("Domain.EncryptedDirectChat", null)
+                        .WithMany()
+                        .HasForeignKey("EncryptedDirectChatId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Domain.EncryptedDirectMessage", b =>
+                {
+                    b.HasOne("Domain.EncryptedDirectChat", "EncryptedDirectChat")
+                        .WithMany("Messages")
+                        .HasForeignKey("EncryptedDirectChatId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Domain.EncryptedDirectMessage", "ReplyToEncryptedDirectMessage")
+                        .WithMany()
+                        .HasForeignKey("ReplyToEncryptedDirectMessageId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Domain.User", "Sender")
+                        .WithMany()
+                        .HasForeignKey("SenderId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("EncryptedDirectChat");
+
+                    b.Navigation("ReplyToEncryptedDirectMessage");
+
+                    b.Navigation("Sender");
+                });
+
+            modelBuilder.Entity("Domain.EncryptedDirectMessageReaction", b =>
+                {
+                    b.HasOne("Domain.EncryptedDirectMessage", "EncryptedDirectMessage")
+                        .WithMany("Reactions")
+                        .HasForeignKey("EncryptedDirectMessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Domain.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("EncryptedDirectMessage");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Domain.FriendRequest", b =>
                 {
                     b.HasOne("Domain.User", "Receiver")
@@ -1288,6 +1510,16 @@ namespace Persistance.Migrations
                 });
 
             modelBuilder.Entity("Domain.DirectMessage", b =>
+                {
+                    b.Navigation("Reactions");
+                });
+
+            modelBuilder.Entity("Domain.EncryptedDirectChat", b =>
+                {
+                    b.Navigation("Messages");
+                });
+
+            modelBuilder.Entity("Domain.EncryptedDirectMessage", b =>
                 {
                     b.Navigation("Reactions");
                 });

@@ -1,11 +1,13 @@
-import { makeAutoObservable, observable } from "mobx";
+﻿import { makeAutoObservable, observable } from "mobx";
 import type { NotificationCounters } from "../types";
 
 export class MessagesNotificationStore {
   unreadByRoom = observable.map<string, number>();
   directUnreadByChat = observable.map<string, number>();
+  encryptedDirectUnreadByChat = observable.map<string, number>();
   activeChatRoomId: string | null = null;
   activeDirectChatId: string | null = null;
+  activeEncryptedDirectChatId: string | null = null;
   windowFocused = true;
   private audioContext: AudioContext | null = null;
 
@@ -20,6 +22,7 @@ export class MessagesNotificationStore {
   hydrate(counters: NotificationCounters) {
     this.unreadByRoom.clear();
     this.directUnreadByChat.clear();
+    this.encryptedDirectUnreadByChat.clear();
 
     Object.entries(counters.chatRooms).forEach(([chatRoomId, count]) => {
       if (count > 0) this.unreadByRoom.set(chatRoomId, count);
@@ -28,6 +31,12 @@ export class MessagesNotificationStore {
     Object.entries(counters.directChats).forEach(([chatId, count]) => {
       if (count > 0) this.directUnreadByChat.set(chatId, count);
     });
+
+    Object.entries(counters.encryptedDirectChats ?? {}).forEach(
+      ([chatId, count]) => {
+        if (count > 0) this.encryptedDirectUnreadByChat.set(chatId, count);
+      }
+    );
   }
 
   setActiveChatRoom(chatRoomId: string | null): boolean {
@@ -48,6 +57,15 @@ export class MessagesNotificationStore {
     return true;
   }
 
+  setActiveEncryptedDirectChat(chatId: string | null): boolean {
+    this.activeEncryptedDirectChatId = chatId;
+    if (!chatId || !this.windowFocused) return false;
+    const unread = this.encryptedDirectUnreadByChat.get(chatId) ?? 0;
+    if (unread === 0) return false;
+    this.encryptedDirectUnreadByChat.delete(chatId);
+    return true;
+  }
+
   setWindowFocused(focused: boolean) {
     this.windowFocused = focused;
     if (!focused) return;
@@ -58,6 +76,10 @@ export class MessagesNotificationStore {
 
     if (this.activeDirectChatId) {
       this.directUnreadByChat.delete(this.activeDirectChatId);
+    }
+
+    if (this.activeEncryptedDirectChatId) {
+      this.encryptedDirectUnreadByChat.delete(this.activeEncryptedDirectChatId);
     }
   }
 
@@ -79,6 +101,16 @@ export class MessagesNotificationStore {
     this.playNotificationSound();
   }
 
+  incrementEncryptedDirectUnread(chatId: string) {
+    if (!chatId) return;
+    if (this.activeEncryptedDirectChatId === chatId && this.windowFocused)
+      return;
+
+    const current = this.encryptedDirectUnreadByChat.get(chatId) ?? 0;
+    this.encryptedDirectUnreadByChat.set(chatId, current + 1);
+    this.playNotificationSound();
+  }
+
   markRoomRead(chatRoomId: string): boolean {
     if (!this.unreadByRoom.has(chatRoomId)) return false;
     this.unreadByRoom.delete(chatRoomId);
@@ -91,9 +123,16 @@ export class MessagesNotificationStore {
     return true;
   }
 
+  markEncryptedDirectChatRead(chatId: string): boolean {
+    if (!this.encryptedDirectUnreadByChat.has(chatId)) return false;
+    this.encryptedDirectUnreadByChat.delete(chatId);
+    return true;
+  }
+
   clearAll() {
     this.unreadByRoom.clear();
     this.directUnreadByChat.clear();
+    this.encryptedDirectUnreadByChat.clear();
   }
 
   get totalChatRoomUnread() {
@@ -112,8 +151,20 @@ export class MessagesNotificationStore {
     return total;
   }
 
+  get totalEncryptedDirectUnread() {
+    let total = 0;
+    for (const count of this.encryptedDirectUnreadByChat.values()) {
+      total += count;
+    }
+    return total;
+  }
+
   get totalUnread() {
-    return this.totalChatRoomUnread + this.totalDirectUnread;
+    return (
+      this.totalChatRoomUnread +
+      this.totalDirectUnread +
+      this.totalEncryptedDirectUnread
+    );
   }
 
   private async playNotificationSound() {

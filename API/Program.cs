@@ -92,6 +92,7 @@ builder.Services.AddScoped<IFriendsNotificationService, FriendsNotificationServi
 builder.Services.AddScoped<IUserStatusService, UserStatusService>();
 builder.Services.AddScoped<IStatusNotificationService, StatusNotificationService>();
 builder.Services.AddScoped<IDirectMessagesNotificationService, DirectMessagesNotificationService>();
+builder.Services.AddScoped<IEncryptedDirectMessagesNotificationService, EncryptedDirectMessagesNotificationService>();
 builder.Services.AddScoped<IChatRoomsNotificationService, ChatRoomsNotificationService>();
 builder.Services.AddAutoMapper(typeof(MappingProfiles).Assembly);
 builder.Services.AddValidatorsFromAssemblyContaining<CreateChatRoomValidator>();
@@ -158,6 +159,8 @@ app.MapGroup("api").MapIdentityApi<User>();
 app.MapHub<MessageHub>("/messages");
 app.MapHub<FriendsHub>("/friends");
 app.MapHub<DirectMessageHub>("/direct-messages");
+app.MapHub<EncryptedDirectMessageHub>("/encrypted-direct-messages");
+app.MapHub<EncryptedMessageHub>("/encrypted-messages");
 app.MapHub<StatusHub>("/status");
 app.MapHub<ChatRoomRolesHub>("/chatroom-roles");
 app.MapHub<ChatRoomsProfileUpdateHub>("/chatroom-image-update");

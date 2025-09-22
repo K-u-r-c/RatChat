@@ -100,9 +100,11 @@ public class ChatRoomsController : BaseApiController
 
     [HttpPost("{id}/generateInviteLink")]
     [Authorize(Policy = ChatRoomPermissions.CreateInviteLinks)]
-    public async Task<ActionResult<string>> GenerateInviteLink(string id)
+    public async Task<ActionResult<string>> GenerateInviteLink(string id, [FromBody] GenerateInviteLink.Command? command)
     {
-        return HandleResult(await Mediator.Send(new GenerateInviteLink.Command { Id = id }));
+        var resolvedCommand = command ?? new GenerateInviteLink.Command { Id = id };
+        resolvedCommand.Id = id;
+        return HandleResult(await Mediator.Send(resolvedCommand));
     }
 
     [HttpPost("{id}/invites")]

@@ -1,4 +1,4 @@
-using Application.Notifications.Commands;
+﻿using Application.Notifications.Commands;
 using Application.Notifications.Queries;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -31,4 +31,14 @@ public class NotificationsController : BaseApiController
             DirectChatId = directChatId,
         }));
     }
+
+    [HttpPost("encrypted-direct-chats/{encryptedDirectChatId}/read")]
+    public async Task<IActionResult> MarkEncryptedDirectChatRead(string encryptedDirectChatId)
+    {
+        return HandleResult(await Mediator.Send(new MarkEncryptedDirectChatNotificationsRead.Command
+        {
+            EncryptedDirectChatId = encryptedDirectChatId,
+        }));
+    }
+
 }

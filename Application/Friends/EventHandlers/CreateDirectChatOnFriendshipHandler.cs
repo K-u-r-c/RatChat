@@ -1,4 +1,5 @@
-using Application.DirectChats.Commands;
+﻿using Application.DirectChats.Commands;
+using Application.EncryptedDirectChats.Commands;
 using Application.Friends.Events;
 using Application.Interfaces;
 using MediatR;
@@ -13,5 +14,6 @@ public class CreateDirectChatOnFriendshipHandler(IMediator mediator, IUserAccess
         var otherUserId = currentUser.Id == notification.User1Id ? notification.User2Id : notification.User1Id;
 
         await mediator.Send(new CreateDirectChat.Command { OtherUserId = otherUserId }, cancellationToken);
+        await mediator.Send(new CreateEncryptedDirectChat.Command { OtherUserId = otherUserId }, cancellationToken);
     }
 }

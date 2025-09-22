@@ -19,7 +19,7 @@ import { useEmojiPreferences } from "../../../lib/hooks/useEmojiPreferences";
 type Props = {
   open: boolean;
   onClose: () => void;
-  chatType: "chatroom" | "direct";
+  chatType: "chatroom" | "direct" | "encrypted";
   chatId: string;
   chatName: string;
 };
@@ -60,7 +60,12 @@ export default function EmojiSettingsDialog({
 }: Props) {
   const { useEmojiPreference, setEmojiPreference } = useEmojiPreferences();
 
-  const backendChatType = chatType === "chatroom" ? "ChatRoom" : "DirectChat";
+  const backendChatType =
+    chatType === "chatroom"
+      ? "ChatRoom"
+      : chatType === "encrypted"
+        ? "EncryptedDirectChat"
+        : "DirectChat";
 
   const { data: emojiPreference, isLoading } = useEmojiPreference(
     backendChatType,
@@ -127,7 +132,7 @@ export default function EmojiSettingsDialog({
       <DialogContent>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           Choose a default emoji for quick reactions in this{" "}
-          {chatType === "chatroom" ? "chat room" : "direct chat"}.
+          {chatType === "chatroom" ? "chat room" : chatType === "encrypted" ? "encrypted chat" : "direct chat"}.
         </Typography>
 
         {/* Current Selection */}
@@ -203,3 +208,4 @@ export default function EmojiSettingsDialog({
     </Dialog>
   );
 }
+

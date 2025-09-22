@@ -37,6 +37,7 @@ interface MediaChatComponentProps {
   showUserProfiles?: boolean;
   chatRoomId?: string;
   directChatId?: string;
+  encryptedDirectChatId?: string;
   userPermissions?: ReturnType<
     typeof useChatRoomRolesRealtime
   >["userPermissions"];
@@ -50,6 +51,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
   showUserProfiles = true,
   chatRoomId,
   directChatId,
+  encryptedDirectChatId,
   userPermissions,
   directCanSend,
 }: MediaChatComponentProps) {
@@ -74,11 +76,20 @@ const MediaChatComponent = observer(function MediaChatComponent({
     | undefined
   >(undefined);
 
-  const chatType = chatRoomId ? "ChatRoom" : "DirectChat";
-  const chatId = chatRoomId || directChatId || "";
+  const backendChatType = chatRoomId
+    ? "ChatRoom"
+    : encryptedDirectChatId
+      ? "EncryptedDirectChat"
+      : "DirectChat";
+  const chatId = chatRoomId ?? encryptedDirectChatId ?? directChatId ?? "";
+  const settingsDialogChatType = chatRoomId
+    ? "chatroom"
+    : encryptedDirectChatId
+      ? "encrypted"
+      : "direct";
   const { useEmojiPreference } = useEmojiPreferences();
-  const { data: emojiPreference } = useEmojiPreference(chatType, chatId);
-  const defaultEmoji = emojiPreference?.defaultEmoji || "👍";
+  const { data: emojiPreference } = useEmojiPreference(backendChatType, chatId);
+  const defaultEmoji = emojiPreference?.defaultEmoji || "\u{1F44D}";
 
   const scrollHandler = useScrollHandler({ messageStore });
   const fileUpload = useFileUpload({
@@ -267,6 +278,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
                 onJumpToMessage={handleJumpToMessage}
                 chatRoomId={chatRoomId}
                 directChatId={directChatId}
+                encryptedDirectChatId={encryptedDirectChatId}
                 defaultEmoji={defaultEmoji}
               />
             </Box>
@@ -426,7 +438,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
       <EmojiSettingsDialog
         open={showEmojiSettings}
         onClose={() => setShowEmojiSettings(false)}
-        chatType={chatRoomId ? "chatroom" : "direct"}
+        chatType={settingsDialogChatType}
         chatId={chatId}
         chatName={title}
       />
@@ -435,3 +447,4 @@ const MediaChatComponent = observer(function MediaChatComponent({
 });
 
 export default MediaChatComponent;
+

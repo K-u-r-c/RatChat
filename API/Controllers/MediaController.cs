@@ -4,7 +4,6 @@ using Application.Media.Commands;
 using Application.Media.DTOs;
 using Application.Media.Helpers;
 using MediatR;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Persistance;
@@ -66,11 +65,19 @@ public class MediaController(
             {
                 if (mediaFile.UploadedById != user.Id)
                 {
-                    var hasAccess = await context.DirectMessages
+                    var hasAccessDirect = await context.DirectMessages
                         .AnyAsync(dm => dm.MediaPublicId == mediaFile.PublicId &&
                                         (dm.DirectChat.User1Id == user.Id || dm.DirectChat.User2Id == user.Id));
 
-                    if (!hasAccess) return Forbid();
+                    var hasAccessEncrypted = await context.EncryptedDirectMessages
+                        .AnyAsync(
+                            dm =>
+                            dm.EncryptedDirectChat.User1Id == user.Id
+                            ||
+                            dm.EncryptedDirectChat.User2Id == user.Id
+                        );
+
+                    if (!hasAccessDirect && !hasAccessEncrypted) return Forbid();
                 }
             }
         }

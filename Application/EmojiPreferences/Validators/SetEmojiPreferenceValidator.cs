@@ -7,11 +7,6 @@ public class SetEmojiPreferenceValidator : AbstractValidator<SetEmojiPreference.
 {
     public SetEmojiPreferenceValidator()
     {
-        RuleFor(x => x.SetEmojiPreferenceDto.ChatType)
-            .NotEmpty().WithMessage("Chat type is required")
-            .Must(chatType => chatType == "ChatRoom" || chatType == "DirectChat")
-            .WithMessage("Chat type must be either 'ChatRoom' or 'DirectChat'");
-
         RuleFor(x => x.SetEmojiPreferenceDto.ChatId)
             .NotEmpty().WithMessage("Chat ID is required")
             .Length(1, 50).WithMessage("Chat ID must be between 1 and 50 characters");
