@@ -1,4 +1,4 @@
-export type PagedList<T, TCursor> = {
+﻿export type PagedList<T, TCursor> = {
   items: T[];
   nextCursor: TCursor;
 };
@@ -216,6 +216,39 @@ export type DirectMessage = {
   replyToMediaOriginalFileName?: string;
   reactions?: MessageReaction[];
 };
+export type EncryptedDirectChat = {
+  id: string;
+  otherUserId: string;
+  otherUserDisplayName: string;
+  otherUserSlug: string;
+  otherUserImageUrl?: string;
+  lastActivityAt: Date;
+  lastMessageSenderId?: string;
+  isOnline: boolean;
+  lastSeen?: Date;
+  status: string;
+};
+
+export type EncryptedDirectMessage = {
+  id: string;
+  cipherText: string;
+  cipherTextMetadata?: string;
+  version: string;
+  createdAt: Date;
+  senderId: string;
+  senderDisplayName: string;
+  senderSlug: string;
+  senderImageUrl?: string;
+  isOwnMessage: boolean;
+  type: MessageType;
+  replyToMessageId?: string;
+  replyToCipherText?: string;
+  replyToCipherTextMetadata?: string;
+  replyToVersion?: string;
+  replyToSenderId?: string;
+  replyToSenderDisplayName?: string;
+  reactions?: MessageReaction[];
+};
 
 export type MessageReaction = {
   messageId: string;
@@ -287,4 +320,5 @@ export type OnlineUsersDto = {
 export type NotificationCounters = {
   chatRooms: Record<string, number>;
   directChats: Record<string, number>;
+  encryptedDirectChats: Record<string, number>;
 };

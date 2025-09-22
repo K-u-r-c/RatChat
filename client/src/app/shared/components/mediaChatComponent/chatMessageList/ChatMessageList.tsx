@@ -37,6 +37,7 @@ interface ChatMessageListProps {
   chatRoomId?: string;
   defaultEmoji?: string;
   directChatId?: string;
+  encryptedDirectChatId?: string;
 }
 
 export default function ChatMessageList({
@@ -51,6 +52,7 @@ export default function ChatMessageList({
   chatRoomId,
   defaultEmoji = "👍",
   directChatId,
+  encryptedDirectChatId,
 }: ChatMessageListProps) {
   const { currentUser } = useAccount();
   const renderItems: RenderItem[] = buildRenderItems(
@@ -63,7 +65,11 @@ export default function ChatMessageList({
   // - invoke SignalR hub ("ToggleMessageReaction" or "ToggleDirectMessageReaction")
   // - if remote call fails, roll back local change
   const toggleReactionOptimistic = async (messageId: string, emoji: string) => {
-    if ((!chatRoomId && !directChatId) || !currentUser) return;
+    if (
+      (!chatRoomId && !directChatId && !encryptedDirectChatId) ||
+      !currentUser
+    )
+      return;
 
     const key = `${messageId}|${emoji}`;
     if (inFlightRef.current.has(key)) return;
@@ -113,6 +119,13 @@ export default function ChatMessageList({
         await (messageStore.hubConnection as HubConnection)?.invoke(
           "ToggleDirectMessageReaction",
           directChatId,
+          messageId,
+          emoji
+        );
+      } else if (encryptedDirectChatId) {
+        await (messageStore.hubConnection as HubConnection)?.invoke(
+          "ToggleEncryptedMessageReaction",
+          encryptedDirectChatId,
           messageId,
           emoji
         );
@@ -205,7 +218,9 @@ export default function ChatMessageList({
               onReplyClick={onReplyClick}
               onJumpToMessage={onJumpToMessage}
               defaultEmoji={defaultEmoji}
-              showEmoji={Boolean(chatRoomId || directChatId)}
+              showEmoji={Boolean(
+                chatRoomId || directChatId || encryptedDirectChatId
+              )}
               onToggleReaction={(emoji) =>
                 toggleReactionOptimistic(message.id, emoji)
               }
@@ -308,7 +323,7 @@ export default function ChatMessageList({
                   )}
 
                   {/* Emoji picker for adding reactions to the message */}
-                  {(chatRoomId || directChatId) && (
+                  {(chatRoomId || directChatId || encryptedDirectChatId) && (
                     <EmojiPickerComponent
                       variant="reaction"
                       showQuickReact={false}

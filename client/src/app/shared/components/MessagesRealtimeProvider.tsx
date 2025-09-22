@@ -1,11 +1,13 @@
-import { useEffect } from "react";
+﻿import { useEffect } from "react";
 import { autorun } from "mobx";
 import { useMessagesHub } from "../../../lib/hooks/useMessagesHub";
+import { useEncryptedMessagesHub } from "../../../lib/hooks/useEncryptedMessagesHub";
 import { useStore } from "../../../lib/hooks/useStore";
 import notificationsApi from "../../../lib/api/notifications";
 
 export default function MessagesRealtimeProvider() {
   useMessagesHub();
+  useEncryptedMessagesHub();
   const { messagesNotificationsStore } = useStore();
 
   useEffect(() => {
@@ -39,6 +41,13 @@ export default function MessagesRealtimeProvider() {
       const directUnread = activeDirect
         ? messagesNotificationsStore.directUnreadByChat.get(activeDirect) ?? 0
         : 0;
+      const activeEncrypted =
+        messagesNotificationsStore.activeEncryptedDirectChatId;
+      const encryptedUnread = activeEncrypted
+        ? messagesNotificationsStore.encryptedDirectUnreadByChat.get(
+            activeEncrypted
+          ) ?? 0
+        : 0;
 
       messagesNotificationsStore.setWindowFocused(true);
 
@@ -47,6 +56,11 @@ export default function MessagesRealtimeProvider() {
       }
       if (activeDirect && directUnread > 0) {
         notificationsApi.markDirectChatRead(activeDirect).catch(() => {});
+      }
+      if (activeEncrypted && encryptedUnread > 0) {
+        notificationsApi
+          .markEncryptedDirectChatRead(activeEncrypted)
+          .catch(() => {});
       }
     };
 

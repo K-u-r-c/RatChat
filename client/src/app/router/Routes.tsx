@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from "react-router";
+﻿import { createBrowserRouter, Navigate } from "react-router";
 import App from "../layout/App";
 import RequireAuth from "./RequireAuth";
 import NotFound from "../../features/errors/NotFound";
@@ -17,6 +17,7 @@ import Friends from "../../features/friends/Friends";
 import AuthLayout from "../layout/AuthLayout";
 import EmptyPage from "../layout/EmptyPage";
 import DirectChatDetails from "../../features/directChats/DirectChatDetails";
+import EncryptedDirectChatDetails from "../../features/encryptedDirectChats/EncryptedDirectChatDetails";
 
 export const router = createBrowserRouter([
   {
@@ -35,6 +36,10 @@ export const router = createBrowserRouter([
           { path: "profiles/:slug", element: <ProfilePage /> },
           { path: "friends", element: <Friends /> },
           { path: "direct-chats/:userSlug", element: <DirectChatDetails /> },
+          {
+            path: "encrypted-direct-chats/:userSlug",
+            element: <EncryptedDirectChatDetails />,
+          },
           { path: "change-password", element: <ChangePasswordForm /> },
         ],
       },

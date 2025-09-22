@@ -37,6 +37,7 @@ interface MediaChatComponentProps {
   showUserProfiles?: boolean;
   chatRoomId?: string;
   directChatId?: string;
+  encryptedDirectChatId?: string;
   userPermissions?: ReturnType<
     typeof useChatRoomRolesRealtime
   >["userPermissions"];
@@ -50,6 +51,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
   showUserProfiles = true,
   chatRoomId,
   directChatId,
+  encryptedDirectChatId,
   userPermissions,
   directCanSend,
 }: MediaChatComponentProps) {
@@ -75,10 +77,10 @@ const MediaChatComponent = observer(function MediaChatComponent({
   >(undefined);
 
   const chatType = chatRoomId ? "ChatRoom" : "DirectChat";
-  const chatId = chatRoomId || directChatId || "";
+  const chatId = chatRoomId || encryptedDirectChatId || directChatId || "";
   const { useEmojiPreference } = useEmojiPreferences();
   const { data: emojiPreference } = useEmojiPreference(chatType, chatId);
-  const defaultEmoji = emojiPreference?.defaultEmoji || "👍";
+  const defaultEmoji = emojiPreference?.defaultEmoji || "\u{1F44D}";
 
   const scrollHandler = useScrollHandler({ messageStore });
   const fileUpload = useFileUpload({
@@ -267,6 +269,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
                 onJumpToMessage={handleJumpToMessage}
                 chatRoomId={chatRoomId}
                 directChatId={directChatId}
+                encryptedDirectChatId={encryptedDirectChatId}
                 defaultEmoji={defaultEmoji}
               />
             </Box>

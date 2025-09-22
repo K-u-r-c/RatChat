@@ -1,4 +1,4 @@
-using Application.Core;
+﻿using Application.Core;
 using Application.Interfaces;
 using Application.Notifications.DTOs;
 using MediatR;
@@ -28,10 +28,16 @@ public class GetNotificationCounters
                 .Select(n => new { n.DirectChatId, n.UnreadCount })
                 .ToListAsync(cancellationToken);
 
+            var encryptedDirectChatCounters = await context.EncryptedDirectChatNotifications
+                .Where(n => n.UserId == user.Id && n.UnreadCount > 0)
+                .Select(n => new { n.EncryptedDirectChatId, n.UnreadCount })
+                .ToListAsync(cancellationToken);
+
             var dto = new NotificationCountersDto
             {
                 ChatRooms = chatRoomCounters.ToDictionary(x => x.ChatRoomId, x => x.UnreadCount),
                 DirectChats = directChatCounters.ToDictionary(x => x.DirectChatId, x => x.UnreadCount),
+                EncryptedDirectChats = encryptedDirectChatCounters.ToDictionary(x => x.EncryptedDirectChatId, x => x.UnreadCount),
             };
 
             return Result<NotificationCountersDto>.Success(dto);
