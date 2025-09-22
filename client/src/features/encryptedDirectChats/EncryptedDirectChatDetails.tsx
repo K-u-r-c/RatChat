@@ -1,5 +1,5 @@
 import { useParams } from "react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { observer, useLocalObservable } from "mobx-react-lite";
 import { reaction, runInAction } from "mobx";
 import {
@@ -11,10 +11,9 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
-  Tooltip,
   Typography,
 } from "@mui/material";
-import { Lock, LockOpen } from "@mui/icons-material";
+import { Lock, LockOpen, MoreHoriz } from "@mui/icons-material";
 import AvatarWithStatus from "../../app/shared/components/AvatarWithStatus";
 import EmojiSettingsDialog from "../../app/shared/components/EmojiSettingsDialog";
 import MediaChatComponent from "../../app/shared/components/mediaChatComponent/MediaChatComponent";
@@ -220,6 +219,56 @@ const EncryptedDirectChatDetails = observer(
     const [passphraseInput, setPassphraseInput] = useState("");
     const [passphraseBusy, setPassphraseBusy] = useState(false);
     const [passphraseError, setPassphraseError] = useState<string | null>(null);
+    const [rightPanelOpen, setRightPanelOpen] = useState(true);
+    const DEFAULT_RIGHT_PANEL_WIDTH = 300;
+    const STORAGE_KEY = "encryptedDirectRightPanelWidth";
+    const [rightPanelWidth, setRightPanelWidth] = useState<number>(() => {
+      const saved = Number(localStorage.getItem(STORAGE_KEY));
+      return Number.isFinite(saved) && saved > 0
+        ? saved
+        : DEFAULT_RIGHT_PANEL_WIDTH;
+    });
+    const dragStateRef = useRef<{
+      startX: number;
+      startWidth: number;
+      width: number;
+    } | null>(null);
+
+    const resetRightPanel = () => {
+      setRightPanelWidth(DEFAULT_RIGHT_PANEL_WIDTH);
+      localStorage.setItem(STORAGE_KEY, String(DEFAULT_RIGHT_PANEL_WIDTH));
+    };
+
+    const startResize = (e: React.MouseEvent) => {
+      dragStateRef.current = {
+        startX: e.clientX,
+        startWidth: rightPanelWidth,
+        width: rightPanelWidth,
+      };
+      const onMove = (ev: MouseEvent) => {
+        if (!dragStateRef.current) return;
+        const dx = dragStateRef.current.startX - ev.clientX;
+        const next = Math.min(
+          Math.max(dragStateRef.current.startWidth + dx, 220),
+          640
+        );
+        dragStateRef.current.width = next;
+        setRightPanelWidth(next);
+      };
+      const onUp = () => {
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        const width = dragStateRef.current?.width ?? rightPanelWidth;
+        dragStateRef.current = null;
+        localStorage.setItem(STORAGE_KEY, String(width));
+        document.body.style.cursor = "";
+        (document.body.style as CSSStyleDeclaration).userSelect = "";
+      };
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+      document.body.style.cursor = "col-resize";
+      (document.body.style as CSSStyleDeclaration).userSelect = "none";
+    };
 
     const messageViewStore = useLocalObservable<BaseMessageStore>(() => ({
       messages: [] as BaseMessage[],
@@ -433,87 +482,197 @@ const EncryptedDirectChatDetails = observer(
     };
 
     return (
-      <Box
-        sx={{
-          height: "100vh",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-        }}
-      >
+      <>
         <Box
           sx={{
+            height: "100vh",
             display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            borderBottom: "1px solid",
-            borderColor: "divider",
-            p: 1.5,
+            flexDirection: "row",
+            overflow: "hidden",
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-            <AvatarWithStatus
-              src={currentChat.otherUserImageUrl}
-              alt={currentChat.otherUserDisplayName}
-              status={
-                currentChat.status ||
-                (currentChat.isOnline ? "Online" : "Offline")
-              }
+          <Box
+            sx={{
+              flex: rightPanelOpen
+                ? `1 1 calc(100% - ${rightPanelWidth}px)`
+                : "1 1 100%",
+              display: "flex",
+              flexDirection: "column",
+              minWidth: 0,
+              transition: "flex-basis 200ms cubic-bezier(.4,0,.2,1)",
+            }}
+          >
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                borderBottom: "1px solid",
+                borderColor: "divider",
+                p: 1.5,
+              }}
             >
-              {currentChat.otherUserDisplayName?.charAt(0).toUpperCase()}
-            </AvatarWithStatus>
-            <Box>
-              <Typography variant="h6" fontWeight="bold">
-                {currentChat.otherUserDisplayName}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Encrypted conversation
-              </Typography>
-            </Box>
-          </Box>
-          <Box sx={{ display: "flex", gap: 1 }}>
-            <Tooltip
-              title={cryptoKey ? "Clear stored passphrase" : "Set passphrase"}
-            >
-              <span>
-                <IconButton
-                  color={cryptoKey ? "warning" : "primary"}
-                  onClick={
-                    cryptoKey
-                      ? handleClearPassphrase
-                      : handleOpenPassphraseDialog
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                <AvatarWithStatus
+                  src={currentChat.otherUserImageUrl}
+                  alt={currentChat.otherUserDisplayName}
+                  status={
+                    currentChat.status ||
+                    (currentChat.isOnline ? "Online" : "Offline")
                   }
                 >
-                  {cryptoKey ? <LockOpen /> : <Lock />}
-                </IconButton>
-              </span>
-            </Tooltip>
-            <Button variant="outlined" onClick={handleOpenPassphraseDialog}>
-              {cryptoKey ? "Update passphrase" : "Set passphrase"}
-            </Button>
-            <Button variant="outlined" onClick={() => setEmojiDialogOpen(true)}>
-              Change default emoji
-            </Button>
+                  {currentChat.otherUserDisplayName?.charAt(0).toUpperCase()}
+                </AvatarWithStatus>
+                <Box>
+                  <Typography variant="h6" fontWeight="bold">
+                    {currentChat.otherUserDisplayName}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Encrypted conversation
+                  </Typography>
+                </Box>
+              </Box>
+              <IconButton
+                aria-label="Conversation options"
+                onClick={() => setRightPanelOpen((open) => !open)}
+              >
+                <MoreHoriz />
+              </IconButton>
+            </Box>
+
+            {!cryptoKey && (
+              <Alert severity="info" sx={{ m: 2 }}>
+                Set a shared passphrase to decrypt messages in this
+                conversation.
+              </Alert>
+            )}
+
+            <Box sx={{ flex: 1, minHeight: 0 }}>
+              <MediaChatComponent
+                title={`Chat with ${currentChat.otherUserDisplayName}`}
+                messageStore={messageViewStore}
+                onSendMessage={handleSendMessage}
+                showUserProfiles
+                chatRoomId={undefined}
+                directChatId={undefined}
+                encryptedDirectChatId={encryptedDirectChatId}
+                directCanSend={Boolean(cryptoKey)}
+              />
+            </Box>
           </Box>
-        </Box>
 
-        {!cryptoKey && (
-          <Alert severity="info" sx={{ m: 2 }}>
-            Set a shared passphrase to decrypt messages in this conversation.
-          </Alert>
-        )}
-
-        <Box sx={{ flex: 1, minHeight: 0 }}>
-          <MediaChatComponent
-            title={`Chat with ${currentChat.otherUserDisplayName}`}
-            messageStore={messageViewStore}
-            onSendMessage={handleSendMessage}
-            showUserProfiles
-            chatRoomId={undefined}
-            directChatId={undefined}
-            encryptedDirectChatId={encryptedDirectChatId}
-            directCanSend={Boolean(cryptoKey)}
-          />
+          {rightPanelOpen && (
+            <>
+              <Box
+                role="separator"
+                aria-orientation="vertical"
+                onMouseDown={startResize}
+                onDoubleClick={resetRightPanel}
+                sx={{
+                  width: 4,
+                  cursor: "col-resize",
+                  flex: "0 0 4px",
+                  alignSelf: "stretch",
+                  bgcolor: "divider",
+                  "&:hover": { bgcolor: "action.hover" },
+                }}
+              />
+              <Box
+                sx={{
+                  width: rightPanelWidth,
+                  flexShrink: 0,
+                  p: 2,
+                  boxSizing: "border-box",
+                  bgcolor: "background.paper",
+                  borderLeft: "1px solid",
+                  borderColor: "divider",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 3,
+                  overflowY: "auto",
+                }}
+              >
+                <Typography variant="h6">Conversation Options</Typography>
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                  <Box>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Encryption
+                    </Typography>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                        mt: 1,
+                      }}
+                    >
+                      {cryptoKey ? (
+                        <>
+                          <Lock sx={{ fontSize: 20, color: "success.main" }} />
+                          <Typography variant="body2" color="text.secondary">
+                            Passphrase stored on this device.
+                          </Typography>
+                        </>
+                      ) : (
+                        <>
+                          <LockOpen
+                            sx={{ fontSize: 20, color: "warning.main" }}
+                          />
+                          <Typography variant="body2" color="text.secondary">
+                            Set the shared passphrase to unlock messages.
+                          </Typography>
+                        </>
+                      )}
+                    </Box>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        gap: 1,
+                        mt: 1.5,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <Button
+                        variant="contained"
+                        onClick={handleOpenPassphraseDialog}
+                      >
+                        {cryptoKey ? "Update passphrase" : "Set passphrase"}
+                      </Button>
+                      {cryptoKey && (
+                        <Button
+                          color="warning"
+                          variant="outlined"
+                          onClick={handleClearPassphrase}
+                        >
+                          Clear passphrase
+                        </Button>
+                      )}
+                    </Box>
+                  </Box>
+                  <Box>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Default Emoji
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mt: 1 }}
+                    >
+                      Choose the default reaction emoji for this encrypted
+                      conversation.
+                    </Typography>
+                    <Button
+                      variant="outlined"
+                      sx={{ mt: 1.5 }}
+                      onClick={() => setEmojiDialogOpen(true)}
+                    >
+                      Change default emoji
+                    </Button>
+                  </Box>
+                </Box>
+              </Box>
+            </>
+          )}
         </Box>
 
         <Dialog
@@ -567,10 +726,9 @@ const EncryptedDirectChatDetails = observer(
             chatName={`Chat with ${currentChat.otherUserDisplayName}`}
           />
         )}
-      </Box>
+      </>
     );
   }
 );
 
 export default EncryptedDirectChatDetails;
-
