@@ -40,6 +40,7 @@ interface MediaChatComponentProps {
   userPermissions?: ReturnType<
     typeof useChatRoomRolesRealtime
   >["userPermissions"];
+  directCanSend?: boolean;
 }
 
 const MediaChatComponent = observer(function MediaChatComponent({
@@ -50,6 +51,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
   chatRoomId,
   directChatId,
   userPermissions,
+  directCanSend,
 }: MediaChatComponentProps) {
   const [imageDialog, setImageDialog] = useState<{
     open: boolean;
@@ -387,11 +389,11 @@ const MediaChatComponent = observer(function MediaChatComponent({
                 hasAttachment={hasFileAttached}
                 hasPermission={
                   chatRoomId === undefined
-                    ? true
-                    : userPermissions &&
-                      userPermissions[CHATROOM_PERMISSIONS.SendMessages]
-                    ? true
-                    : false
+                    ? directCanSend ?? true
+                    : !!(
+                        userPermissions &&
+                        userPermissions[CHATROOM_PERMISSIONS.SendMessages]
+                      )
                 }
                 placeholder={
                   hasFileAttached

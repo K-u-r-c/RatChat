@@ -16,24 +16,24 @@ import { useDirectChats } from "../../../lib/hooks/useDirectChats";
 import { useMemo, useState } from "react";
 import { observer } from "mobx-react-lite";
 import { useStore } from "../../../lib/hooks/useStore";
+import { useFriends } from "../../../lib/hooks/useFriends";
 
 const DefaultSidebarContent = observer(function DefaultSidebarContent() {
   const location = useLocation();
   const [query, setQuery] = useState("");
   const { directChats } = useDirectChats();
   const { messagesNotificationsStore } = useStore();
-  const isFriendsRoute = location.pathname.startsWith("/friends");
+  const { friendRequests } = useFriends();
+  const friendInvitesCount = friendRequests?.received?.length || 0;
 
   const filteredChats = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const base = (directChats ?? []).filter((c) =>
-      isFriendsRoute ? c.canSendMessages : true
-    );
+    const base = directChats ?? [];
     if (!q) return base;
     return base.filter((c) =>
       (c.otherUserDisplayName ?? "").toLowerCase().includes(q)
     );
-  }, [directChats, query, isFriendsRoute]);
+  }, [directChats, query]);
 
   return (
     <>
@@ -53,7 +53,24 @@ const DefaultSidebarContent = observer(function DefaultSidebarContent() {
           sx={{ borderRadius: 1, mx: 1, my: 0.5 }}
         >
           <ListItemIcon>
-            <PeopleAlt sx={{ color: "white" }} />
+            <Badge
+              color="success"
+              overlap="rectangular"
+              anchorOrigin={{ vertical: "top", horizontal: "left" }}
+              badgeContent={friendInvitesCount}
+              invisible={!friendInvitesCount}
+              max={99}
+              sx={{
+                "& .MuiBadge-badge": {
+                  minWidth: 18,
+                  height: 18,
+                  fontSize: 10,
+                  fontWeight: 700,
+                },
+              }}
+            >
+              <PeopleAlt sx={{ color: "white" }} />
+            </Badge>
           </ListItemIcon>
           <ListItemText
             primary={<Typography color="white">Friends</Typography>}
@@ -73,13 +90,19 @@ const DefaultSidebarContent = observer(function DefaultSidebarContent() {
           {filteredChats.map((chat) => {
             const unreadCount =
               messagesNotificationsStore.directUnreadByChat.get(chat.id) ?? 0;
+            const isReadOnly = !chat.canSendMessages;
 
             return (
               <ListItemButton
                 key={chat.id}
                 component={Link}
                 to={`/direct-chats/${chat.otherUserSlug}`}
-                sx={{ borderRadius: 1, mx: 1, my: 0.2 }}
+                sx={{
+                  borderRadius: 1,
+                  mx: 1,
+                  my: 0.2,
+                  opacity: isReadOnly ? 0.6 : 1,
+                }}
                 selected={
                   location.pathname === `/direct-chats/${chat.otherUserSlug}`
                 }
@@ -105,6 +128,9 @@ const DefaultSidebarContent = observer(function DefaultSidebarContent() {
                       src={chat.otherUserImageUrl}
                       alt={chat.otherUserDisplayName}
                       status={chat.status || "Offline"}
+                      containerSx={
+                        isReadOnly ? { filter: "grayscale(100%)" } : undefined
+                      }
                     >
                       {chat.otherUserDisplayName?.charAt(0).toUpperCase()}
                     </AvatarWithStatus>
@@ -113,7 +139,7 @@ const DefaultSidebarContent = observer(function DefaultSidebarContent() {
                 <ListItemText
                   primary={
                     <Typography
-                      color="white"
+                      color={isReadOnly ? "text.secondary" : "white"}
                       fontWeight={unreadCount ? 700 : undefined}
                     >
                       {chat.otherUserDisplayName}

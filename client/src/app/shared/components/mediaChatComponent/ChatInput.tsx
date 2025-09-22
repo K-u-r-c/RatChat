@@ -1,6 +1,7 @@
 import { TextField, IconButton, CircularProgress, Box } from "@mui/material";
 import { AttachFile, Send } from "@mui/icons-material";
 import { useForm, type FieldValues } from "react-hook-form";
+import { useRef, useState } from "react";
 import EmojiPickerComponent from "../EmojiPicker";
 
 interface ChatInputProps {
@@ -29,10 +30,13 @@ export default function ChatInput({
   hasAttachment = false,
 }: ChatInputProps) {
   const { register, handleSubmit, reset, setValue, watch } = useForm();
+  const clickLockRef = useRef(false);
+  const [localSending, setLocalSending] = useState(false);
   const currentMessage = watch("body") || "";
   const canSend =
     hasPermission &&
     !isSubmitting &&
+    !localSending &&
     !isUploading &&
     ((currentMessage?.trim?.().length ?? 0) > 0 || hasAttachment);
 
@@ -103,7 +107,18 @@ export default function ChatInput({
                   <IconButton
                     aria-label="Send message"
                     color="primary"
-                    onClick={() => handleSubmit(handleFormSubmit)()}
+                    onClick={async () => {
+                      if (clickLockRef.current) return;
+                      clickLockRef.current = true;
+                      setLocalSending(true);
+                      try {
+                        const doSubmit = handleSubmit(handleFormSubmit);
+                        await Promise.resolve(doSubmit());
+                      } finally {
+                        setLocalSending(false);
+                        clickLockRef.current = false;
+                      }
+                    }}
                     disabled={!canSend}
                     size="small"
                   >
@@ -137,7 +152,7 @@ export default function ChatInput({
       {/* Default emoji on the right of the input */}
       <IconButton
         onClick={() => handleDefaultEmoji(defaultEmoji)}
-        disabled={isSubmitting || isUploading}
+        disabled={!hasPermission || isSubmitting || isUploading}
         size="small"
         title={`Quick react with ${defaultEmoji}`}
         sx={{

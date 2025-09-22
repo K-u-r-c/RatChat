@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from "react";
 import { observer } from "mobx-react-lite";
 import { useChatRooms } from "../../../lib/hooks/useChatRooms";
 import { useStore } from "../../../lib/hooks/useStore";
+import { useFriends } from "../../../lib/hooks/useFriends";
 
 const SideNav = observer(function SideNav() {
   const {
@@ -95,6 +96,8 @@ const SideNav = observer(function SideNav() {
   }, [fetchNextPage, hasNextPage]);
 
   const totalDirectUnread = messagesNotificationsStore.totalDirectUnread;
+  const { friendRequests } = useFriends();
+  const friendInvitesCount = friendRequests?.received?.length || 0;
 
   return (
     <Box
@@ -131,11 +134,13 @@ const SideNav = observer(function SideNav() {
           }}
           className="rc-server-btn"
         >
+          {/* Green top-left badge for friend invites */}
           <Badge
-            color="error"
+            color="success"
             overlap="rectangular"
-            badgeContent={totalDirectUnread}
-            invisible={!totalDirectUnread}
+            anchorOrigin={{ vertical: "top", horizontal: "left" }}
+            badgeContent={friendInvitesCount}
+            invisible={!friendInvitesCount}
             max={99}
             sx={{
               "& .MuiBadge-badge": {
@@ -144,11 +149,28 @@ const SideNav = observer(function SideNav() {
                 minWidth: 20,
                 height: 20,
                 borderRadius: "999px",
-                px: 0.75,
               },
             }}
           >
-            <Forum />
+            {/* Red top-right badge for unread direct messages */}
+            <Badge
+              color="error"
+              overlap="rectangular"
+              badgeContent={totalDirectUnread}
+              invisible={!totalDirectUnread}
+              max={99}
+              sx={{
+                "& .MuiBadge-badge": {
+                  fontSize: 11,
+                  fontWeight: 700,
+                  minWidth: 20,
+                  height: 20,
+                  borderRadius: "999px",
+                },
+              }}
+            >
+              <Forum />
+            </Badge>
           </Badge>
         </IconButton>
       </Tooltip>
@@ -234,7 +256,6 @@ const SideNav = observer(function SideNav() {
                           minWidth: 22,
                           height: 20,
                           borderRadius: "999px",
-                          boxShadow: "0 0 0 2px #1e1f24",
                           right: 2,
                           top: 2,
                           px: 0.75,
