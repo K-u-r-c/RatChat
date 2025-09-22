@@ -1,5 +1,8 @@
+using System.Security.Cryptography;
+using System.Text;
 using Application.Core;
 using Application.Interfaces;
+using Domain;
 using MediatR;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
@@ -12,16 +15,21 @@ public class GenerateInviteLink
 {
     public class Command : IRequest<Result<string>>
     {
-        public required string Id { get; set; }
+        public string Id { get; set; } = string.Empty;
+        public int? MaxUses { get; set; }
+        public int? ExpiresInMinutes { get; set; }
     }
 
     public class Handler(
-        IConfiguration configuration,
-        AppDbContext context)
+        AppDbContext context,
+        IUserAccessor userAccessor,
+        IConfiguration configuration)
         : IRequestHandler<Command, Result<string>>
     {
         public async Task<Result<string>> Handle(Command request, CancellationToken cancellationToken)
         {
+            var user = await userAccessor.GetUserAsync();
+
             var chatRoom = await context.ChatRooms
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.Id || x.Slug == request.Id, cancellationToken);
@@ -31,10 +39,31 @@ public class GenerateInviteLink
                 return Result<string>.Failure("Chat room not found", 404);
             }
 
-            var expires = DateTime.UtcNow.AddMinutes(10);
-            var token = Convert.ToBase64String(Guid.NewGuid().ToByteArray());
-            var joinToken = $"{chatRoom.Id}:{token}:{expires:o}";
-            var encodedToken = WebEncoders.Base64UrlEncode(System.Text.Encoding.UTF8.GetBytes(joinToken));
+            var effectiveExpiryMinutes = request.ExpiresInMinutes ?? 10;
+            var expiresAt = effectiveExpiryMinutes > 0
+                ? DateTime.UtcNow.AddMinutes(effectiveExpiryMinutes)
+                : (DateTime?)null;
+
+            var invite = new ChatRoomInvite
+            {
+                Id = Guid.NewGuid().ToString(),
+                ChatRoomId = chatRoom.Id,
+                CreatedByUserId = user.Id,
+                Secret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(16)),
+                MaxUses = request.MaxUses,
+                ExpiresAt = expiresAt,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            context.ChatRoomInvites.Add(invite);
+            var saved = await context.SaveChangesAsync(cancellationToken) > 0;
+            if (!saved)
+            {
+                return Result<string>.Failure("Failed to create invite", 400);
+            }
+
+            var tokenPayload = $"{invite.Id}:{invite.Secret}";
+            var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(tokenPayload));
 
             var clientUrl = configuration["ClientAppUrl"];
             if (string.IsNullOrEmpty(clientUrl))

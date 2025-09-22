@@ -6,6 +6,7 @@ using MediatR;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Persistance;
+using System.Linq;
 
 namespace Application.ChatRooms.Commands;
 
@@ -61,10 +62,11 @@ public class JoinChatRoom
                     chatRoomIdFromToken = invite.ChatRoomId;
                 }
                 // Legacy format: chatRoomId:randomToken:expires
-                else if (parts.Length == 3)
+                else if (parts.Length >= 3)
                 {
                     chatRoomIdFromToken = parts[0];
-                    legacyExpiry = DateTime.Parse(parts[2], null, System.Globalization.DateTimeStyles.RoundtripKind);
+                    var expiryString = string.Join(':', parts.Skip(2));
+                    legacyExpiry = DateTime.Parse(expiryString, null, System.Globalization.DateTimeStyles.RoundtripKind);
                 }
                 else
                 {
@@ -132,6 +134,11 @@ public class JoinChatRoom
                 if (!string.IsNullOrEmpty(invite.AllowedUserId) && invite.AllowedUserId != user.Id)
                 {
                     return Result<ChatRoomIdentifierDto>.Failure("This invite is not for you", 403);
+                }
+
+                if (!string.IsNullOrEmpty(invite.AllowedUserId))
+                {
+                    invite.MaxUses = 1;
                 }
 
                 if (invite.MaxUses.HasValue && invite.Uses >= invite.MaxUses.Value)
