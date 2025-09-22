@@ -76,10 +76,19 @@ const MediaChatComponent = observer(function MediaChatComponent({
     | undefined
   >(undefined);
 
-  const chatType = chatRoomId ? "ChatRoom" : "DirectChat";
-  const chatId = chatRoomId || encryptedDirectChatId || directChatId || "";
+  const backendChatType = chatRoomId
+    ? "ChatRoom"
+    : encryptedDirectChatId
+      ? "EncryptedDirectChat"
+      : "DirectChat";
+  const chatId = chatRoomId ?? encryptedDirectChatId ?? directChatId ?? "";
+  const settingsDialogChatType = chatRoomId
+    ? "chatroom"
+    : encryptedDirectChatId
+      ? "encrypted"
+      : "direct";
   const { useEmojiPreference } = useEmojiPreferences();
-  const { data: emojiPreference } = useEmojiPreference(chatType, chatId);
+  const { data: emojiPreference } = useEmojiPreference(backendChatType, chatId);
   const defaultEmoji = emojiPreference?.defaultEmoji || "\u{1F44D}";
 
   const scrollHandler = useScrollHandler({ messageStore });
@@ -429,7 +438,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
       <EmojiSettingsDialog
         open={showEmojiSettings}
         onClose={() => setShowEmojiSettings(false)}
-        chatType={chatRoomId ? "chatroom" : "direct"}
+        chatType={settingsDialogChatType}
         chatId={chatId}
         chatName={title}
       />
@@ -438,3 +447,4 @@ const MediaChatComponent = observer(function MediaChatComponent({
 });
 
 export default MediaChatComponent;
+

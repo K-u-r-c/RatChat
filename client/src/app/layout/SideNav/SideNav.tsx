@@ -95,7 +95,10 @@ const SideNav = observer(function SideNav() {
     };
   }, [fetchNextPage, hasNextPage]);
 
-  const totalDirectUnread = messagesNotificationsStore.totalDirectUnread;
+  const directUnreadCount = messagesNotificationsStore.totalDirectUnread;
+  const encryptedDirectUnreadCount =
+    messagesNotificationsStore.totalEncryptedDirectUnread;
+  const totalDirectBadgeCount = directUnreadCount + encryptedDirectUnreadCount;
   const { friendRequests } = useFriends();
   const friendInvitesCount = friendRequests?.received?.length || 0;
 
@@ -156,8 +159,8 @@ const SideNav = observer(function SideNav() {
             <Badge
               color="error"
               overlap="rectangular"
-              badgeContent={totalDirectUnread}
-              invisible={!totalDirectUnread}
+              badgeContent={totalDirectBadgeCount}
+              invisible={!totalDirectBadgeCount}
               max={99}
               sx={{
                 "& .MuiBadge-badge": {
@@ -333,3 +336,4 @@ const SideNav = observer(function SideNav() {
 });
 
 export default SideNav;
+

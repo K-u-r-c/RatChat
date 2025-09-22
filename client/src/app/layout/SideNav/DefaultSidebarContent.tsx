@@ -1,4 +1,4 @@
-﻿import { PeopleAlt } from "@mui/icons-material";
+import { PeopleAlt } from "@mui/icons-material";
 import {
   Badge,
   Box,
@@ -36,6 +36,9 @@ const DefaultSidebarContent = observer(function DefaultSidebarContent() {
   const { directChats } = useDirectChats();
   const { encryptedDirectChats } = useEncryptedDirectChats();
   const { messagesNotificationsStore } = useStore();
+  const directUnreadCount = messagesNotificationsStore.totalDirectUnread;
+  const encryptedUnreadCount =
+    messagesNotificationsStore.totalEncryptedDirectUnread;
 
   const handleChatViewChange = (
     _: React.MouseEvent<HTMLElement>,
@@ -142,12 +145,10 @@ const DefaultSidebarContent = observer(function DefaultSidebarContent() {
 
       <Box
         sx={{
-          px: 2,
+          px: 1,
           py: 1,
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
-          gap: 1,
         }}
       >
         <ToggleButtonGroup
@@ -158,13 +159,89 @@ const DefaultSidebarContent = observer(function DefaultSidebarContent() {
           sx={{
             backgroundColor: "rgba(255,255,255,0.04)",
             flex: 1,
+            overflow: "hidden",
           }}
         >
-          <ToggleButton value="direct" sx={{ color: "white", flex: 1 }}>
-            Direct
+          <ToggleButton
+            value="direct"
+            sx={{ color: "white", flex: 1, minWidth: 0, p: 0 }}
+          >
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                width: "100%",
+                minWidth: 0,
+                px: 1.5,
+              }}
+            >
+              <Typography
+                noWrap
+                sx={{
+                  textOverflow: "ellipsis",
+                  overflow: "hidden",
+                  minWidth: 0,
+                  flex: 1,
+                }}
+              >
+                Direct
+              </Typography>
+              <Badge
+                color="error"
+                badgeContent={directUnreadCount}
+                invisible={!directUnreadCount}
+                max={99}
+                sx={{
+                  "& .MuiBadge-badge": {
+                    minWidth: 18,
+                    height: 18,
+                    fontSize: 10,
+                    fontWeight: 700,
+                  },
+                }}
+              />
+            </Box>
           </ToggleButton>
-          <ToggleButton value="encrypted" sx={{ color: "white", flex: 1 }}>
-            Encrypted
+          <ToggleButton
+            value="encrypted"
+            sx={{ color: "white", flex: 1, minWidth: 0, p: 0 }}
+          >
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                width: "100%",
+                minWidth: 0,
+                px: 1.5,
+              }}
+            >
+              <Typography
+                noWrap
+                sx={{
+                  textOverflow: "ellipsis",
+                  overflow: "hidden",
+                  minWidth: 0,
+                  flex: 1,
+                }}
+              >
+                Encrypted
+              </Typography>
+              <Badge
+                color="error"
+                badgeContent={encryptedUnreadCount}
+                invisible={!encryptedUnreadCount}
+                max={99}
+                sx={{
+                  ml: 1,
+                  "& .MuiBadge-badge": {
+                    minWidth: 18,
+                    height: 18,
+                    fontSize: 10,
+                    fontWeight: 700,
+                  },
+                }}
+              />
+            </Box>
           </ToggleButton>
         </ToggleButtonGroup>
       </Box>

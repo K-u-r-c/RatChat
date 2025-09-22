@@ -24,11 +24,6 @@ public class SetEmojiPreference
             var user = await userAccessor.GetUserAsync();
             var dto = request.SetEmojiPreferenceDto;
 
-            if (dto.ChatType != "ChatRoom" && dto.ChatType != "DirectChat")
-            {
-                return Result<EmojiPreferenceDto>.Failure("Invalid chat type. Must be 'ChatRoom' or 'DirectChat'", 400);
-            }
-
             if (string.IsNullOrWhiteSpace(dto.DefaultEmoji))
             {
                 return Result<EmojiPreferenceDto>.Failure("Default emoji cannot be empty", 400);
@@ -53,6 +48,17 @@ public class SetEmojiPreference
                 if (!hasAccess)
                 {
                     return Result<EmojiPreferenceDto>.Failure("User does not have access to this direct chat", 403);
+                }
+            }
+            else if (dto.ChatType == "EncryptedDirectChat")
+            {
+                var hasAccess = await context.EncryptedDirectChats
+                    .AnyAsync(edc => edc.Id == dto.ChatId &&
+                                     (edc.User1Id == user.Id || edc.User2Id == user.Id), cancellationToken);
+
+                if (!hasAccess)
+                {
+                    return Result<EmojiPreferenceDto>.Failure("User does not have access to this encrypted direct chat", 403);
                 }
             }
 

@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import { Lock, LockOpen } from "@mui/icons-material";
 import AvatarWithStatus from "../../app/shared/components/AvatarWithStatus";
+import EmojiSettingsDialog from "../../app/shared/components/EmojiSettingsDialog";
 import MediaChatComponent from "../../app/shared/components/mediaChatComponent/MediaChatComponent";
 import { useEncryptedDirectChats } from "../../lib/hooks/useEncryptedDirectChats";
 import { useEncryptedDirectMessages } from "../../lib/hooks/useEncryptedDirectMessages";
@@ -214,6 +215,7 @@ const EncryptedDirectChatDetails = observer(
       encryptedDirectChatId
     );
     const [cryptoKey, setCryptoKey] = useState<CryptoKey | null>(null);
+    const [emojiDialogOpen, setEmojiDialogOpen] = useState(false);
     const [passphraseDialogOpen, setPassphraseDialogOpen] = useState(false);
     const [passphraseInput, setPassphraseInput] = useState("");
     const [passphraseBusy, setPassphraseBusy] = useState(false);
@@ -489,6 +491,9 @@ const EncryptedDirectChatDetails = observer(
             <Button variant="outlined" onClick={handleOpenPassphraseDialog}>
               {cryptoKey ? "Update passphrase" : "Set passphrase"}
             </Button>
+            <Button variant="outlined" onClick={() => setEmojiDialogOpen(true)}>
+              Change default emoji
+            </Button>
           </Box>
         </Box>
 
@@ -553,9 +558,19 @@ const EncryptedDirectChatDetails = observer(
             </Button>
           </DialogActions>
         </Dialog>
+        {encryptedDirectChatId && (
+          <EmojiSettingsDialog
+            open={emojiDialogOpen}
+            onClose={() => setEmojiDialogOpen(false)}
+            chatType="encrypted"
+            chatId={encryptedDirectChatId}
+            chatName={`Chat with ${currentChat.otherUserDisplayName}`}
+          />
+        )}
       </Box>
     );
   }
 );
 
 export default EncryptedDirectChatDetails;
+
