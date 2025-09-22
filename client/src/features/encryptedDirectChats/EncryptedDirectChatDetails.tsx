@@ -234,6 +234,9 @@ const EncryptedDirectChatDetails = observer(
       width: number;
     } | null>(null);
 
+    const sidebarRef = useRef<HTMLDivElement | null>(null);
+    const rafRef = useRef<number | null>(null);
+
     const resetRightPanel = () => {
       setRightPanelWidth(DEFAULT_RIGHT_PANEL_WIDTH);
       localStorage.setItem(STORAGE_KEY, String(DEFAULT_RIGHT_PANEL_WIDTH));
@@ -245,6 +248,13 @@ const EncryptedDirectChatDetails = observer(
         startWidth: rightPanelWidth,
         width: rightPanelWidth,
       };
+
+      const applyWidth = (w: number) => {
+        if (sidebarRef.current) {
+          sidebarRef.current.style.width = `${w}px`;
+        }
+      };
+
       const onMove = (ev: MouseEvent) => {
         if (!dragStateRef.current) return;
         const dx = dragStateRef.current.startX - ev.clientX;
@@ -253,17 +263,36 @@ const EncryptedDirectChatDetails = observer(
           640
         );
         dragStateRef.current.width = next;
-        setRightPanelWidth(next);
+
+        if (rafRef.current == null) {
+          rafRef.current = requestAnimationFrame(() => {
+            rafRef.current = null;
+            if (dragStateRef.current) applyWidth(dragStateRef.current.width);
+          });
+        }
       };
+
       const onUp = () => {
         document.removeEventListener("mousemove", onMove);
         document.removeEventListener("mouseup", onUp);
+
+        if (rafRef.current != null) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
+        }
         const width = dragStateRef.current?.width ?? rightPanelWidth;
         dragStateRef.current = null;
+        setRightPanelWidth(width);
         localStorage.setItem(STORAGE_KEY, String(width));
+
+        if (sidebarRef.current) {
+          sidebarRef.current.style.width = "";
+        }
+
         document.body.style.cursor = "";
         (document.body.style as CSSStyleDeclaration).userSelect = "";
       };
+
       document.addEventListener("mousemove", onMove);
       document.addEventListener("mouseup", onUp);
       document.body.style.cursor = "col-resize";
@@ -578,6 +607,7 @@ const EncryptedDirectChatDetails = observer(
                 }}
               />
               <Box
+                ref={sidebarRef}
                 sx={{
                   width: rightPanelWidth,
                   flexShrink: 0,
