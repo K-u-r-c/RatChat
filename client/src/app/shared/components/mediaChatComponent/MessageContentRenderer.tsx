@@ -7,6 +7,102 @@ import {
 import type { BaseMessage } from "../../../../lib/types";
 import React, { Fragment } from "react";
 import Linkify from "linkify-react";
+import LinkPreview, { type LinkPreviewData } from "./LinkPreview";
+
+const URL_PATTERN = /((https?:\/\/|www\.)[^\s<]+)/gi;
+
+const linkTypographyStyles = {
+  "& a": {
+    color: "#d7ddff",
+    textDecoration: "none",
+    fontWeight: 600,
+    borderBottom: "1px solid rgba(88, 101, 242, 0.45)",
+    textUnderlineOffset: "4px",
+    transition:
+      "color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease",
+    borderRadius: 6,
+    paddingInline: "2px",
+  },
+  "& a:hover": {
+    color: "#ffffff",
+    borderBottomColor: "rgba(88, 101, 242, 0.75)",
+    backgroundColor: "rgba(88, 101, 242, 0.18)",
+  },
+  "& a:focus-visible": {
+    outline: "2px solid rgba(88, 101, 242, 0.9)",
+    outlineOffset: "2px",
+  },
+} as const;
+
+const textBaseSx = {
+  whiteSpace: "pre-wrap",
+  wordBreak: "break-word",
+  ...linkTypographyStyles,
+} as const;
+
+function normalizeRawUrl(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^www\./i.test(trimmed)) return `https://${trimmed}`;
+  return null;
+}
+
+function extractUrls(text?: string): string[] {
+  if (!text) return [];
+  const regex = new RegExp(URL_PATTERN.source, "gi");
+  const result: string[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(text)) !== null) {
+    result.push(match[0]);
+  }
+  return result;
+}
+
+function resolveLinkPreview(
+  url: URL,
+  normalized: string
+): LinkPreviewData | null {
+  const host = url.hostname.replace(/^www\./i, "");
+  if (
+    ["youtube.com", "youtu.be", "m.youtube.com", "music.youtube.com"].includes(
+      host
+    )
+  ) {
+    let videoId = url.searchParams.get("v");
+    if (!videoId) {
+      const segments = url.pathname.split("/").filter(Boolean);
+      if (host === "youtu.be") {
+        videoId = segments[0] || null;
+      } else if (segments[0] === "shorts" || segments[0] === "embed") {
+        videoId = segments[1] || null;
+      }
+    }
+    if (!videoId) return null;
+    return {
+      type: "youtube",
+      originalUrl: normalized,
+      embedUrl: `https://www.youtube.com/embed/${videoId}`,
+    };
+  }
+  return null;
+}
+
+function getLinkPreviewData(text?: string): LinkPreviewData | null {
+  const urls = extractUrls(text);
+  for (const raw of urls) {
+    const normalized = normalizeRawUrl(raw);
+    if (!normalized) continue;
+    try {
+      const parsed = new URL(normalized);
+      const preview = resolveLinkPreview(parsed, normalized);
+      if (preview) return preview;
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
 
 interface MessageContentRendererProps {
   message: BaseMessage;
@@ -31,7 +127,7 @@ export default function MessageContentRenderer({
 
   const linkify = (text: string) => {
     if (!text) return text;
-    const urlRegex = /((https?:\/\/|www\.)[^\s<]+)/gi;
+    const urlRegex = new RegExp(URL_PATTERN.source, "gi");
     const nodes: (string | React.ReactNode)[] = [];
     let lastIndex = 0;
 
@@ -127,32 +223,42 @@ export default function MessageContentRenderer({
     sx: { maxWidth: "100%", borderRadius: 2, mt: 1 },
   };
 
+  const linkPreview = getLinkPreviewData(message.body);
+
   if (message.type === "Text" || !message.mediaUrl) {
-    const formatted = formatMessageWithEmojis(message.body);
+    const formatted = formatMessageWithEmojis(message.body || "");
+    const largeEmojiStyles = formatted.isLargeEmoji
+      ? { fontSize: "2rem", lineHeight: 1.2 }
+      : {};
     return (
-      <Typography
-        sx={{
-          whiteSpace: "pre-wrap",
-          wordBreak: "break-word",
-          fontSize: formatted.isLargeEmoji ? "2rem" : "inherit",
-          lineHeight: formatted.isLargeEmoji ? 1.2 : "inherit",
-        }}
-      >
-        <Linkify options={linkifyOptions}>{formatted.text}</Linkify>
-      </Typography>
+      <Box>
+        <Typography sx={{ ...textBaseSx, ...largeEmojiStyles }}>
+          <Linkify options={linkifyOptions}>{formatted.text}</Linkify>
+        </Typography>
+        {linkPreview && (
+          <Box sx={{ mt: 1.25 }}>
+            <LinkPreview preview={linkPreview} />
+          </Box>
+        )}
+      </Box>
     );
   }
 
   const renderMessageBody = () => {
     if (message.body && message.body !== message.mediaOriginalFileName) {
       return (
-        <Typography
-          sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word", mb: 1 }}
-        >
-          <Linkify options={linkifyOptions}>
-            {convertTextToEmoji(message.body)}
-          </Linkify>
-        </Typography>
+        <Box sx={{ mb: linkPreview ? 1.5 : 1 }}>
+          <Typography sx={textBaseSx}>
+            <Linkify options={linkifyOptions}>
+              {convertTextToEmoji(message.body)}
+            </Linkify>
+          </Typography>
+          {linkPreview && (
+            <Box sx={{ mt: 1.25 }}>
+              <LinkPreview preview={linkPreview} />
+            </Box>
+          )}
+        </Box>
       );
     }
     return null;
@@ -236,9 +342,16 @@ export default function MessageContentRenderer({
 
     default:
       return (
-        <Typography sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-          {linkify(convertTextToEmoji(message.body))}
-        </Typography>
+        <Box>
+          <Typography sx={textBaseSx}>
+            {linkify(convertTextToEmoji(message.body || ""))}
+          </Typography>
+          {linkPreview && (
+            <Box sx={{ mt: 1.25 }}>
+              <LinkPreview preview={linkPreview} />
+            </Box>
+          )}
+        </Box>
       );
   }
 }

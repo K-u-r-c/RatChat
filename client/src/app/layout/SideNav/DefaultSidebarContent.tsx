@@ -269,12 +269,32 @@ const DefaultSidebarContent = observer(function DefaultSidebarContent() {
             const secondaryNode =
               kind === "direct" ? (
                 chat.lastMessageBody ? (
-                  <Typography variant="caption" color="text.secondary" noWrap>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    noWrap
+                    sx={{
+                      textOverflow: "ellipsis",
+                      overflow: "hidden",
+                      whiteSpace: "nowrap",
+                      display: "block",
+                    }}
+                  >
                     {chat.lastMessageBody}
                   </Typography>
                 ) : null
               ) : chat.lastMessageSenderId ? (
-                <Typography variant="caption" color="text.secondary" noWrap>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  noWrap
+                  sx={{
+                    textOverflow: "ellipsis",
+                    overflow: "hidden",
+                    whiteSpace: "nowrap",
+                    display: "block",
+                  }}
+                >
                   Encrypted message
                 </Typography>
               ) : null;
