@@ -8,7 +8,6 @@ import RegisterForm from "../../features/account/RegisterForm";
 import VerifyEmail from "../../features/account/VerifyEmail";
 import ForgotPasswordForm from "../../features/account/ForgotPasswordForm";
 import ResetPasswordForm from "../../features/account/ResetPasswordForm";
-import ChangePasswordForm from "../../features/account/ChangePasswordForm";
 import AuthCallback from "../../features/account/AuthCallback";
 import ChatRoomDetails from "../../features/chatRooms/details/ChatRoomDetails";
 import JoinChatRoomPage from "../../features/chatRooms/join/JoinChatRoomPage";
@@ -40,7 +39,6 @@ export const router = createBrowserRouter([
             path: "encrypted-direct-chats/:userSlug",
             element: <EncryptedDirectChatDetails />,
           },
-          { path: "change-password", element: <ChangePasswordForm /> },
         ],
       },
     ],

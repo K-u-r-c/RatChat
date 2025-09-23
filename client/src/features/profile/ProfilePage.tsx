@@ -1,4 +1,4 @@
-import { useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 import { useProfiles } from "../../lib/hooks/useProfiles";
 import { useAccount } from "../../lib/hooks/useAccount";
 import { useFriends } from "../../lib/hooks/useFriends";
@@ -27,25 +27,53 @@ import {
   Message,
   PersonAdd,
 } from "@mui/icons-material";
-import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useEffect, useRef, useState } from "react";
 import ProfileEditForm from "./ProfileEditForm";
 import ImageUploadWidget from "./ImageUploadWidget";
+import ChangePasswordCard from "./ChangePasswordCard";
 import { toast } from "react-toastify";
 import { formatUserTag } from "../../lib/util/util";
 
 export default function ProfilePage() {
   const { slug } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { profile, isLoadingProfile } = useProfiles(slug);
   const { currentUser } = useAccount();
   const { sendFriendRequest } = useFriends();
   const [editMode, setEditMode] = useState(false);
   const [photoMode, setPhotoMode] = useState<"profile" | "banner" | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const passwordSectionRef = useRef<HTMLDivElement | null>(null);
+  const [passwordHighlight, setPasswordHighlight] = useState(false);
 
   const isCurrentUser = profile?.id === currentUser?.id;
 
+useEffect(() => {
+    if (
+      location.hash !== "#password" ||
+      !isCurrentUser ||
+      !currentUser?.hasPassword
+    ) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      passwordSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+
+    setPasswordHighlight(true);
+
+    const timeout = setTimeout(() => {
+      setPasswordHighlight(false);
+    }, 2200);
+
+    return () => clearTimeout(timeout);
+  }, [location.hash, isCurrentUser, currentUser?.hasPassword]);
+  
   const formattedTag = formatUserTag(profile?.tag);
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -337,6 +365,13 @@ export default function ProfilePage() {
                 </Box>
               )}
             </CardContent>
+            {isCurrentUser && currentUser?.hasPassword && (
+              <Grid size={{ xs: 12, lg: 4 }}>
+                <Box ref={passwordSectionRef} sx={{ height: "100%" }}>
+                  <ChangePasswordCard highlight={passwordHighlight} />
+                </Box>
+              </Grid>
+            )}
           </Card>
         </Grid>
       </Grid>

@@ -1,4 +1,4 @@
-import {
+﻿import {
   Box,
   IconButton,
   ListItemIcon,
@@ -85,7 +85,7 @@ export default function UserMenuIcon() {
         {currentUser?.hasPassword && (
           <MenuItem
             component={Link}
-            to={"/change-password"}
+            to={currentUser ? `/profiles/${currentUser.slug}#password` : "/"}
             onClick={handleClose}
           >
             <ListItemIcon>
