@@ -1,31 +1,27 @@
 ﻿import { useEffect, useMemo, useState, type SyntheticEvent } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
-import { useProfiles } from "../../lib/hooks/useProfiles";
-import { useAccount } from "../../lib/hooks/useAccount";
-import { useFriends } from "../../lib/hooks/useFriends";
 import {
-  Avatar,
-  AvatarGroup,
   Box,
-  Button,
   Dialog,
   DialogContent,
   DialogTitle,
-  Divider,
   Paper,
-  Stack,
   Tab,
   Tabs,
-  TextField,
-  Tooltip,
   Typography,
 } from "@mui/material";
-import { Edit, Message, PersonAdd } from "@mui/icons-material";
+import { toast } from "react-toastify";
+import { useProfiles } from "../../lib/hooks/useProfiles";
+import { useAccount } from "../../lib/hooks/useAccount";
+import { useFriends } from "../../lib/hooks/useFriends";
 import ImageUploadWidget from "./ImageUploadWidget";
 import ChangePasswordCard from "./ChangePasswordCard";
-import { toast } from "react-toastify";
 import { formatUserTag } from "../../lib/util/util";
 import type { Friend, Profile } from "../../lib/types";
+import { ProfileHeader } from "./ProfileHeader";
+import { PersonalSection } from "./PersonalSection";
+import { SecuritySection } from "./SecuritySection";
+import { VisitorSection } from "./VisitorSection";
 
 type SectionValue = "personal" | "settings" | "notifications" | "security";
 
@@ -61,8 +57,6 @@ export default function ProfilePage() {
   const [bioValue, setBioValue] = useState("");
   const [pendingField, setPendingField] = useState<null | "name" | "bio">(null);
   const [passwordHighlight, setPasswordHighlight] = useState(false);
-  const [isBannerHover, setIsBannerHover] = useState(false);
-  const [isAvatarHover, setIsAvatarHover] = useState(false);
 
   const isCurrentUser = profile?.id === currentUser?.id;
   const formattedTag = formatUserTag(profile?.tag);
@@ -203,462 +197,93 @@ export default function ProfilePage() {
   if (isLoadingProfile) return <Typography>Loading...</Typography>;
   if (!profile) return <Typography>Profile not found</Typography>;
 
-  const personalSection = (
-    <Stack spacing={3}>
-      <Box>
-        <Typography variant="subtitle2" color="text.secondary">
-          Display name
-        </Typography>
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          spacing={1.5}
-          alignItems={{ xs: "flex-start", sm: "center" }}
-          mt={1}
-        >
-          <Typography variant="h5" sx={{ fontWeight: 600 }}>
-            {profile.displayName}
-          </Typography>
-          {isCurrentUser && !isEditingName && (
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<Edit />}
-              onClick={() => setIsEditingName(true)}
-            >
-              Change name
-            </Button>
-          )}
-        </Stack>
-        {isCurrentUser && isEditingName && (
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={1}
-            mt={1.5}
-            alignItems={{ xs: "stretch", sm: "center" }}
-          >
-            <TextField
-              size="small"
-              label="Display name"
-              sx={{ flex: 1, minWidth: { sm: 220 } }}
-              value={nameValue}
-              onChange={(event) => setNameValue(event.target.value)}
-            />
-            <Button
-              size="small"
-              variant="contained"
-              onClick={handleSaveName}
-              disabled={pendingField === "name" && updateProfile.isPending}
-            >
-              Save
-            </Button>
-            <Button size="small" onClick={handleCancelName}>
-              Cancel
-            </Button>
-          </Stack>
-        )}
-      </Box>
-
-      <Divider flexItem sx={{ borderColor: "rgba(255,255,255,0.08)" }} />
-
-      <Box>
-        <Typography variant="subtitle2" color="text.secondary">
-          Bio
-        </Typography>
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          spacing={1.5}
-          alignItems={{ xs: "flex-start", sm: "center" }}
-          mt={1}
-        >
-          <Typography variant="body1" sx={{ whiteSpace: "pre-wrap" }}>
-            {profile.bio?.trim() ? profile.bio : "No bio added yet."}
-          </Typography>
-          {isCurrentUser && !isEditingBio && (
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<Edit />}
-              onClick={() => setIsEditingBio(true)}
-            >
-              Edit bio
-            </Button>
-          )}
-        </Stack>
-        {isCurrentUser && isEditingBio && (
-          <Stack spacing={1} mt={1.5}>
-            <TextField
-              label="Bio"
-              multiline
-              minRows={3}
-              value={bioValue}
-              onChange={(event) => setBioValue(event.target.value)}
-            />
-            <Stack direction="row" spacing={1} justifyContent="flex-end">
-              <Button
-                size="small"
-                variant="contained"
-                onClick={handleSaveBio}
-                disabled={pendingField === "bio" && updateProfile.isPending}
-              >
-                Save
-              </Button>
-              <Button size="small" onClick={handleCancelBio}>
-                Cancel
-              </Button>
-            </Stack>
-          </Stack>
-        )}
-      </Box>
-
-      <Divider flexItem sx={{ borderColor: "rgba(255,255,255,0.08)" }} />
-
-      <Box>
-        <Typography variant="subtitle2" color="text.secondary">
-          Friends ({totalFriends})
-        </Typography>
-        {friendPreviews.length ? (
-          <AvatarGroup
-            max={10}
-            total={Math.max(totalFriends, friendPreviews.length)}
-            sx={{ width: "100%", justifyContent: "left", mt: 1.5 }}
-          >
-            {friendPreviews.map((friend) => (
-              <Tooltip title={friend.displayName} key={friend.id}>
-                <Avatar
-                  src={friend.imageUrl}
-                  alt={friend.displayName}
-                  sx={{ cursor: "pointer" }}
-                  onClick={() => navigate(`/profiles/${friend.slug}`)}
-                >
-                  {friend.displayName?.charAt(0).toUpperCase() ?? "?"}
-                </Avatar>
-              </Tooltip>
-            ))}
-          </AvatarGroup>
-        ) : isLoadingFriends ? (
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
-            Loading friends…
-          </Typography>
-        ) : (
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
-            No friends to show yet.
-          </Typography>
-        )}
-      </Box>
-    </Stack>
-  );
-
-  const securitySection = (
-    <Stack spacing={3}>
-      <Box>
-        <Typography variant="h6" sx={{ fontWeight: 600 }}>
-          Account security
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          Keep your account protected by regularly updating your password.
-        </Typography>
-      </Box>
-
-      {currentUser?.hasPassword ? (
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          spacing={2}
-          alignItems={{ xs: "stretch", sm: "center" }}
-        >
-          <TextField
-            label="Current password"
-            type="password"
-            value="********"
-            disabled
-            InputProps={{ readOnly: true }}
-            sx={{
-              width: { xs: "100%", sm: 260 },
-              "& .MuiOutlinedInput-root": {
-                ...(passwordHighlight
-                  ? {
-                      boxShadow: "0 0 0 2px rgba(88,101,242,0.35)",
-                      "& .MuiOutlinedInput-notchedOutline": {
-                        borderColor: "primary.main",
-                      },
-                    }
-                  : {}),
-              },
-            }}
-          />
-          <Button
-            variant="contained"
-            onClick={() => setPasswordDialogOpen(true)}
-          >
-            Change password
-          </Button>
-        </Stack>
-      ) : (
-        <Typography variant="body2" color="text.secondary">
-          You are currently signed in without a password. Add one to enable
-          email sign in.
-        </Typography>
-      )}
-    </Stack>
-  );
-
-  const visitorSection = (
-    <Stack spacing={3}>
-      <Box>
-        <Typography variant="subtitle2" color="text.secondary">
-          Bio
-        </Typography>
-        <Typography variant="body1" sx={{ mt: 1 }}>
-          {profile.bio?.trim()
-            ? profile.bio
-            : "This user has not added a bio yet."}
-        </Typography>
-      </Box>
-
-      <Divider flexItem sx={{ borderColor: "rgba(255,255,255,0.08)" }} />
-
-      <Box>
-        <Typography variant="subtitle2" color="text.secondary">
-          Friends ({totalFriends})
-        </Typography>
-      </Box>
-    </Stack>
-  );
-
   return (
     <Box display="flex" flexDirection="column" gap={1}>
-      <Box
-        sx={{
-          position: "relative",
-          borderRadius: 3,
-          overflow: "hidden",
-          aspectRatio: "32 / 9",
-          backgroundImage: profile.bannerUrl
-            ? `url(${profile.bannerUrl})`
-            : "linear-gradient(135deg, #2c2f36, #1f2126)",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          ...(isCurrentUser
-            ? {
-                cursor: "pointer",
-              }
-            : {}),
-        }}
-        onClick={
-          isCurrentUser ? () => handleOpenImageDialog("banner") : undefined
-        }
-        onMouseEnter={() => setIsBannerHover(true)}
-        onMouseLeave={() => setIsBannerHover(false)}
-      >
-        {/* Clickable banner background layer */}
-        <Box
-          sx={{
-            position: "absolute",
-            inset: 0,
-            backgroundImage: profile.bannerUrl
-              ? `url(${profile.bannerUrl})`
-              : "linear-gradient(135deg, #2c2f36, #1f2126)",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            cursor: isCurrentUser ? "pointer" : "default",
-            zIndex: 0,
-          }}
-          onClick={
-            isCurrentUser ? () => handleOpenImageDialog("banner") : undefined
-          }
-        >
-          {isCurrentUser && (
-            <Box
-              className="bannerOverlay"
-              sx={{
-                position: "absolute",
-                inset: 0,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                bgcolor: "rgba(0,0,0,0.5)",
-                opacity: isBannerHover && !isAvatarHover ? 1 : 0,
-                transition: "opacity 200ms ease",
-              }}
-            >
-              <Stack spacing={1} alignItems="center">
-                <Edit sx={{ fontSize: 32 }} />
-                <Typography variant="body2">Change banner</Typography>
-              </Stack>
-            </Box>
-          )}
-        </Box>
+      <ProfileHeader
+        profile={profile}
+        formattedTag={formattedTag}
+        totalFriends={totalFriends}
+        isCurrentUser={Boolean(isCurrentUser)}
+        onBannerEdit={() => handleOpenImageDialog("banner")}
+        onAvatarEdit={() => handleOpenImageDialog("profile")}
+        onSendMessage={handleSendMessage}
+        onAddFriend={handleAddFriend}
+        isSendingFriendRequest={sendFriendRequest.isPending}
+      />
 
-        {/* Foreground content layer */}
-        <Box
-          sx={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "flex-end",
-            gap: 3,
-            zIndex: 2,
-            background:
-              "linear-gradient(180deg, rgba(19,19,22,0) 0%, rgba(19,19,22,0.65) 60%, rgba(19,19,22,0.9) 100%)",
-            p: { xs: 3, md: 4 },
-          }}
-        >
-          <Box
-            display="flex"
-            alignItems="flex-end"
-            justifyContent="space-between"
-            flexWrap="wrap"
-            gap={3}
+      {isCurrentUser ? (
+        <Box sx={{ ...panelSx, p: 0, overflow: "hidden" }}>
+          <Tabs
+            value={activeSection}
+            onChange={handleSectionChange}
+            variant="scrollable"
+            scrollButtons="auto"
+            sx={{
+              px: { xs: 2, md: 3 },
+              backgroundColor: "background.paper",
+              borderBottom: "1px solid rgba(255,255,255,0.08)",
+              minHeight: 48,
+              "& .MuiTab-root": {
+                color: "rgba(255,255,255,0.87)",
+                textTransform: "none",
+                minHeight: 48,
+              },
+              "& .Mui-selected": { color: "#fff" },
+              "& .MuiTabs-indicator": {
+                height: 3,
+                borderRadius: 3,
+              },
+            }}
           >
-            <Box
-              display="flex"
-              alignItems="flex-end"
-              gap={{ xs: 2, md: 3 }}
-              flexWrap="wrap"
-            >
-              <Box
-                sx={{
-                  position: "relative",
-                  width: { xs: 96, sm: 128, md: 150 },
-                  height: { xs: 96, sm: 128, md: 150 },
-                  borderRadius: "50%",
-                  overflow: "hidden",
-                  border: "4px solid rgba(255,255,255,0.85)",
-                  ...(isCurrentUser
-                    ? {
-                        cursor: "pointer",
-                        "&:hover .avatarOverlay": { opacity: 1 },
-                      }
-                    : {}),
-                }}
-                onClick={(e) => {
-                  if (!isCurrentUser) return;
-                  e.stopPropagation();
-                  handleOpenImageDialog("profile");
-                }}
-                onMouseEnter={() => setIsAvatarHover(true)}
-                onMouseLeave={() => setIsAvatarHover(false)}
-              >
-                <Avatar
-                  src={profile.imageUrl}
-                  alt={profile.displayName}
-                  sx={{
-                    width: "100%",
-                    height: "100%",
-                    fontSize: "2.5rem",
-                    bgcolor: "divider",
-                    color: "text.primary",
-                  }}
-                >
-                  {profile.displayName?.charAt(0).toUpperCase() ?? "U"}
-                </Avatar>
-                {isCurrentUser && (
-                  <Box
-                    className="avatarOverlay"
-                    sx={{
-                      position: "absolute",
-                      inset: 0,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      bgcolor: "rgba(0,0,0,0.55)",
-                      opacity: 0,
-                      transition: "opacity 200ms ease",
-                    }}
-                  >
-                    <Edit sx={{ fontSize: 28 }} />
-                  </Box>
-                )}
-              </Box>
+            <Tab value="personal" label="Personal" />
+            <Tab value="settings" label="Settings" disabled />
+            <Tab value="notifications" label="Notifications" disabled />
+            <Tab value="security" label="Security" />
+          </Tabs>
 
-              <Box>
-                <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                  {profile.displayName}
-                </Typography>
-                {formattedTag && (
-                  <Typography variant="subtitle1" color="text.secondary">
-                    #{formattedTag}
-                  </Typography>
-                )}
-                <Typography variant="body2" color="text.secondary">
-                  {totalFriends} friend{totalFriends === 1 ? "" : "s"}
-                </Typography>
-              </Box>
-            </Box>
+          <Box
+            sx={{ p: { xs: 3, md: 4 }, backgroundColor: "background.paper" }}
+          >
+            {activeSection === "personal" && (
+              <PersonalSection
+                profile={profile}
+                isCurrentUser={Boolean(isCurrentUser)}
+                nameValue={nameValue}
+                bioValue={bioValue}
+                isEditingName={isEditingName}
+                isEditingBio={isEditingBio}
+                pendingField={pendingField}
+                isMutatingProfile={updateProfile.isPending}
+                friendPreviews={friendPreviews}
+                totalFriends={totalFriends}
+                isLoadingFriends={isLoadingFriends}
+                onNameChange={setNameValue}
+                onBioChange={setBioValue}
+                onStartEditName={() => setIsEditingName(true)}
+                onCancelEditName={handleCancelName}
+                onSaveName={handleSaveName}
+                onStartEditBio={() => setIsEditingBio(true)}
+                onCancelEditBio={handleCancelBio}
+                onSaveBio={handleSaveBio}
+                onNavigateToFriend={(friendSlug) =>
+                  navigate(`/profiles/${friendSlug}`)
+                }
+              />
+            )}
 
-            {!isCurrentUser && (
-              <Stack
-                direction={{ xs: "column", sm: "row" }}
-                spacing={1.5}
-                alignItems="flex-start"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {profile.isFriend ? (
-                  <Button
-                    variant="contained"
-                    startIcon={<Message />}
-                    onClick={handleSendMessage}
-                  >
-                    Send message
-                  </Button>
-                ) : (
-                  <Button
-                    variant="contained"
-                    startIcon={<PersonAdd />}
-                    onClick={handleAddFriend}
-                    disabled={sendFriendRequest.isPending}
-                  >
-                    {sendFriendRequest.isPending ? "Sending..." : "Add friend"}
-                  </Button>
-                )}
-              </Stack>
+            {activeSection === "security" && (
+              <SecuritySection
+                hasPassword={Boolean(currentUser?.hasPassword)}
+                highlightPassword={passwordHighlight}
+                onChangePassword={() => setPasswordDialogOpen(true)}
+              />
             )}
           </Box>
         </Box>
-      </Box>
-
-      {isCurrentUser ? (
-        <>
-          {/* Unified panel: tabs + content in a single Paper */}
-          <Box sx={{ ...panelSx, p: 0, overflow: "hidden" }}>
-            <Tabs
-              value={activeSection}
-              onChange={handleSectionChange}
-              variant="scrollable"
-              scrollButtons="auto"
-              sx={{
-                px: { xs: 2, md: 3 },
-                backgroundColor: "background.paper",
-                borderBottom: "1px solid rgba(255,255,255,0.08)",
-                minHeight: 48,
-                "& .MuiTab-root": {
-                  color: "rgba(255,255,255,0.87)",
-                  textTransform: "none",
-                  minHeight: 48,
-                },
-                "& .Mui-selected": { color: "#fff" },
-                "& .MuiTabs-indicator": {
-                  height: 3,
-                  borderRadius: 3,
-                },
-              }}
-            >
-              <Tab value="personal" label="Personal" />
-              <Tab value="settings" label="Settings" disabled />
-              <Tab value="notifications" label="Notifications" disabled />
-              <Tab value="security" label="Security" />
-            </Tabs>
-
-            <Box
-              sx={{ p: { xs: 3, md: 4 }, backgroundColor: "background.paper" }}
-            >
-              {activeSection === "personal" && personalSection}
-              {activeSection === "security" && securitySection}
-            </Box>
-          </Box>
-        </>
       ) : (
-        <Paper sx={panelSx}>{visitorSection}</Paper>
+        <Paper sx={panelSx}>
+          <VisitorSection bio={profile.bio} totalFriends={totalFriends} />
+        </Paper>
       )}
 
       <Dialog
