@@ -65,7 +65,7 @@ export const useChatRoomNotificationsRealtime = (
         const me = userIdRef.current;
         if (me && kickedUser.id === me) {
           toast.error("You have been kicked from this chat room.");
-          router.navigate("/chat-rooms");
+          router.navigate("/");
           return;
         }
 
@@ -92,7 +92,7 @@ export const useChatRoomNotificationsRealtime = (
         const userId = userIdRef.current;
         if (userId && bannedUser.id === userId) {
           toast.error("You have been banned from this chat room.");
-          router.navigate("/chat-rooms");
+          router.navigate("/");
           return;
         }
 
