@@ -13,23 +13,34 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { ToastContainer } from "react-toastify";
 import { ThemeProvider } from "@mui/material/styles";
 import theme from "./app/theme";
+import { PostHogProvider } from "posthog-js/react";
 
 const queryCliient = new QueryClient();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <StoreContext.Provider value={store}>
-      <QueryClientProvider client={queryCliient}>
-        <ThemeProvider theme={theme}>
-          <ReactQueryDevtools initialIsOpen={false} />
-          <ToastContainer
-            position="bottom-right"
-            hideProgressBar
-            theme="colored"
-          />
-          <RouterProvider router={router} />
-        </ThemeProvider>
-      </QueryClientProvider>
-    </StoreContext.Provider>
+    <PostHogProvider
+      apiKey={import.meta.env.VITE_PUBLIC_POSTHOG_KEY}
+      options={{
+        api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
+        defaults: "2025-05-24",
+        capture_exceptions: true,
+        debug: import.meta.env.MODE === "development",
+      }}
+    >
+      <StoreContext.Provider value={store}>
+        <QueryClientProvider client={queryCliient}>
+          <ThemeProvider theme={theme}>
+            <ReactQueryDevtools initialIsOpen={false} />
+            <ToastContainer
+              position="bottom-right"
+              hideProgressBar
+              theme="colored"
+            />
+            <RouterProvider router={router} />
+          </ThemeProvider>
+        </QueryClientProvider>
+      </StoreContext.Provider>
+    </PostHogProvider>
   </StrictMode>
 );
