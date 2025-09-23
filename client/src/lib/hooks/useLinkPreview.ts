@@ -1,10 +1,11 @@
 ﻿import { useQuery } from "@tanstack/react-query";
 import agent from "../api/agent";
 import type { LinkPreviewData } from "../types/linkPreview";
+import { linkPreviewDataSchema } from "../schemas/linkPreviewDataSchema";
 
 const isLinkPreviewData = (value: unknown): value is LinkPreviewData => {
-  if (!value || typeof value !== "object") return false;
-  return typeof (value as { url?: unknown }).url === "string";
+  const result = linkPreviewDataSchema.safeParse(value);
+  return result.success;
 };
 
 export const useLinkPreview = (url?: string | null) => {

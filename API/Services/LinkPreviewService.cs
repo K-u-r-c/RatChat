@@ -595,31 +595,6 @@ public sealed class LinkPreviewService : ILinkPreviewService
         return "iframe";
     }
 
-    private static Uri ExpandYouTubeShortLink(Uri uri)
-    {
-        var host = NormalizeHost(uri.Host);
-        if (host.Equals("youtu.be", StringComparison.OrdinalIgnoreCase))
-        {
-            var segments = uri.AbsolutePath.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
-            if (segments.Length > 0)
-            {
-                var videoId = segments[0];
-                var builder = new StringBuilder($"https://www.youtube.com/watch?v={videoId}");
-                if (!string.IsNullOrEmpty(uri.Query))
-                {
-                    var extra = uri.Query.TrimStart('?');
-                    if (!string.IsNullOrWhiteSpace(extra))
-                    {
-                        builder.Append('&').Append(extra);
-                    }
-                }
-
-                return new Uri(builder.ToString(), UriKind.Absolute);
-            }
-        }
-
-        return uri;
-    }
     private static int? ParseInt(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return null;
@@ -627,6 +602,7 @@ public sealed class LinkPreviewService : ILinkPreviewService
             ? number
             : (int?)null;
     }
+
     private static Dictionary<string, string> ParseAttributes(string tag)
     {
         var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
