@@ -4,6 +4,7 @@ using MediatR;
 using Persistance;
 using Application.Profiles.DTOs;
 using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 
 namespace Application.ChatRooms.Commands;
 
@@ -23,11 +24,13 @@ public class UnbanUser
             Command request,
             CancellationToken cancellationToken)
         {
-            var ban = await context.ChatRoomBans.FindAsync(
-                [request.ChatRoomBanDto.UserId,
-                request.ChatRoomBanDto.ChatRoomId],
-                cancellationToken
-            );
+            var ban = await context.ChatRoomBans
+                .Include(x => x.User)
+                .FirstOrDefaultAsync(
+                    crb => crb.UserId == request.ChatRoomBanDto.UserId &&
+                    crb.ChatRoomId == request.ChatRoomBanDto.ChatRoomId,
+                    cancellationToken
+                );
 
             if (ban == null)
                 return Result<UserProfileDto>.Failure("User is not banned", 404);
