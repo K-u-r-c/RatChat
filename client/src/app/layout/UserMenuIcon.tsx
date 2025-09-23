@@ -9,7 +9,7 @@
 import Menu from "@mui/material/Menu";
 import Grow from "@mui/material/Grow";
 import MenuItem from "@mui/material/MenuItem";
-import { Password, Person, Logout } from "@mui/icons-material";
+import { Person, Logout } from "@mui/icons-material";
 import { useState } from "react";
 import { Link } from "react-router";
 import { useAccount } from "../../lib/hooks/useAccount";
@@ -82,18 +82,6 @@ export default function UserMenuIcon() {
           </ListItemIcon>
           <ListItemText>My profile</ListItemText>
         </MenuItem>
-        {currentUser?.hasPassword && (
-          <MenuItem
-            component={Link}
-            to={currentUser ? `/profiles/${currentUser.slug}#password` : "/"}
-            onClick={handleClose}
-          >
-            <ListItemIcon>
-              <Password />
-            </ListItemIcon>
-            <ListItemText>Change password</ListItemText>
-          </MenuItem>
-        )}
         <Divider />
         <MenuItem
           onClick={() => {
