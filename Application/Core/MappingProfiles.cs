@@ -196,7 +196,6 @@ public class MappingProfiles : Profile
         CreateMap<EncryptedDirectMessageReaction, MessageReactionDto>()
             .ForMember(d => d.MessageId, o => o.MapFrom(s => s.EncryptedDirectMessageId))
             .ForMember(d => d.DisplayName, o => o.MapFrom(s => s.User.DisplayName ?? string.Empty));
-            .ForMember(d => d.DisplayName, o => o.MapFrom(s => s.User.DisplayName ?? ""));
 
         CreateMap<ChatRoomBanDto, ChatRoomBan>();
         CreateMap<ChatRoomBan, ChatRoomBanDto>();
