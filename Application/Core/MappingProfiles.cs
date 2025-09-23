@@ -38,6 +38,8 @@ public class MappingProfiles : Profile
             .ForMember(d => d.DisplayName, o => o.MapFrom(s => s.User.DisplayName))
             .ForMember(d => d.Bio, o => o.MapFrom(s => s.User.Bio))
             .ForMember(d => d.Id, o => o.MapFrom(s => s.User.Id))
+            .ForMember(d => d.Slug, o => o.MapFrom(s => s.User.Slug))
+            .ForMember(d => d.Tag, o => o.MapFrom(s => s.User.Tag))
             .ForMember(d => d.ImageUrl, o => o.MapFrom(s => s.User.ImageUrl))
             .ForMember(d => d.BannerUrl, o => o.MapFrom(s => s.User.BannerUrl))
             .ForMember(
@@ -56,6 +58,7 @@ public class MappingProfiles : Profile
             .ForMember(d => d.Status, o => o.MapFrom(s => s.User.Status.ToString()));
 
         CreateMap<User, UserProfileDto>()
+            .ForMember(d => d.Tag, o => o.MapFrom(s => s.Tag))
             .ForMember(
                 d => d.FriendsCount,
                 o => o.MapFrom(s => s.Friends.Count)

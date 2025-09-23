@@ -1,7 +1,9 @@
 import Popover from "@mui/material/Popover";
 import { Avatar, Box, Chip, Divider, Stack, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
+import { Link } from "react-router";
 import type { ChatRoomRole, Profile } from "../../../lib/types";
+import { formatUserTag } from "../../../lib/util/util";
 
 type Props = {
   open: boolean;
@@ -39,6 +41,8 @@ export default function ChatRoomMemberPopover({
     };
   }, [open, member, loadRoles]);
 
+  const formattedTag = member ? formatUserTag(member.tag) : undefined;
+
   return (
     <Popover
       open={open}
@@ -72,25 +76,74 @@ export default function ChatRoomMemberPopover({
           />
           {/* Avatar + name */}
           <Box sx={{ px: 2, pb: 2, position: "relative" }}>
-            <Avatar
-              src={member.imageUrl || "/images/user.png"}
-              alt={member.displayName}
-              sx={{
-                width: 64,
-                height: 64,
-                border: "3px solid",
-                borderColor: "background.paper",
-                position: "relative",
-                top: -32,
-              }}
-            />
+            <Link
+              to={`/profiles/${member.slug}`}
+              style={{ textDecoration: "none" }}
+            >
+              <Avatar
+                src={member.imageUrl || "/images/user.png"}
+                alt={member.displayName}
+                sx={{
+                  width: 64,
+                  height: 64,
+                  border: "3px solid",
+                  borderColor: "background.paper",
+                  position: "relative",
+                  top: -32,
+                }}
+              />
+            </Link>
             <Box sx={{ mt: -2 }}>
-              <Typography variant="subtitle1" fontWeight={700}>
-                {member.displayName}
-              </Typography>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                  flexDirection: "row",
+                }}
+              >
+                <Typography
+                  variant="subtitle1"
+                  fontWeight={700}
+                  component={Link}
+                  to={`/profiles/${member.slug}`}
+                  sx={{
+                    color: "text.primary",
+                    textDecoration: "none",
+                    "&:hover": { textDecoration: "underline" },
+                    lineHeight: 1.2,
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                >
+                  {member.displayName}
+                </Typography>
+                {formattedTag && (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{
+                      lineHeight: 1.2,
+                      display: "flex",
+                      alignItems: "center",
+                    }}
+                  >
+                    #{formattedTag}
+                  </Typography>
+                )}
+              </Box>
               <Typography variant="caption" color="text.secondary">
                 {member.status || (member.isOnline ? "Online" : "Offline")}
               </Typography>
+              {member.bio && (
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mt: 1.5 }}
+                >
+                  {member.bio}
+                </Typography>
+              )}
             </Box>
           </Box>
 

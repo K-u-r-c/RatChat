@@ -1,4 +1,5 @@
 import { Avatar, Box, Tooltip, Typography, Button } from "@mui/material";
+import { Link } from "react-router";
 import type { Profile } from "../../../lib/types";
 import { useState } from "react";
 import ChatRoomManageRolesForm from "../forms/ChatRoomManageRolesForm";
@@ -41,13 +42,29 @@ const ChatRoomMembersBar = observer(
                   sx={{ textAlign: "center", minWidth: 120 }}
                 >
                   <Tooltip title={member.displayName}>
-                    <Avatar
-                      src={member.imageUrl}
-                      alt={member.displayName}
-                      sx={{ mb: 1, mx: "auto" }}
-                    />
+                    <Link
+                      to={`/profiles/${member.slug}`}
+                      style={{ textDecoration: "none" }}
+                    >
+                      <Avatar
+                        src={member.imageUrl}
+                        alt={member.displayName}
+                        sx={{ mb: 1, mx: "auto" }}
+                      />
+                    </Link>
                   </Tooltip>
-                  <Typography variant="caption" noWrap>
+                  <Typography
+                    variant="caption"
+                    noWrap
+                    component={Link}
+                    to={`/profiles/${member.slug}`}
+                    sx={{
+                      color: "text.primary",
+                      textDecoration: "none",
+                      display: "inline-block",
+                      "&:hover": { textDecoration: "underline" },
+                    }}
+                  >
                     {member.displayName}
                   </Typography>
                   <Box
