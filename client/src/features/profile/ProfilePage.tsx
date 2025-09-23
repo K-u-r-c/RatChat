@@ -1,10 +1,4 @@
-﻿import {
-  useEffect,
-  useMemo,
-  useState,
-  type MouseEvent,
-  type SyntheticEvent,
-} from "react";
+﻿import { useEffect, useMemo, useState, type SyntheticEvent } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { useProfiles } from "../../lib/hooks/useProfiles";
 import { useAccount } from "../../lib/hooks/useAccount";
@@ -44,7 +38,7 @@ type ProfileWithFriends = Profile & {
 const panelSx = {
   p: { xs: 3, md: 4 },
   borderRadius: 3,
-  bgcolor: "rgba(19,19,22,0.85)",
+  backgroundColor: "background.paper",
   border: "1px solid rgba(255,255,255,0.08)",
   backdropFilter: "blur(12px)",
 };
@@ -67,6 +61,8 @@ export default function ProfilePage() {
   const [bioValue, setBioValue] = useState("");
   const [pendingField, setPendingField] = useState<null | "name" | "bio">(null);
   const [passwordHighlight, setPasswordHighlight] = useState(false);
+  const [isBannerHover, setIsBannerHover] = useState(false);
+  const [isAvatarHover, setIsAvatarHover] = useState(false);
 
   const isCurrentUser = profile?.id === currentUser?.id;
   const formattedTag = formatUserTag(profile?.tag);
@@ -119,12 +115,6 @@ export default function ProfilePage() {
 
   const handleImageUploadComplete = () => {
     setImageDialogMode(null);
-  };
-
-  const handleBannerContentClick = (event: MouseEvent<HTMLDivElement>) => {
-    if (isCurrentUser) {
-      event.stopPropagation();
-    }
   };
 
   const handleSendMessage = () => {
@@ -435,14 +425,13 @@ export default function ProfilePage() {
   );
 
   return (
-    <Box display="flex" flexDirection="column" gap={3}>
+    <Box display="flex" flexDirection="column" gap={1}>
       <Box
         sx={{
           position: "relative",
           borderRadius: 3,
           overflow: "hidden",
           aspectRatio: "32 / 9",
-          mb: 3,
           backgroundImage: profile.bannerUrl
             ? `url(${profile.bannerUrl})`
             : "linear-gradient(135deg, #2c2f36, #1f2126)",
@@ -451,40 +440,56 @@ export default function ProfilePage() {
           ...(isCurrentUser
             ? {
                 cursor: "pointer",
-                "&:hover .bannerOverlay": {
-                  opacity: 1,
-                },
               }
             : {}),
         }}
         onClick={
           isCurrentUser ? () => handleOpenImageDialog("banner") : undefined
         }
+        onMouseEnter={() => setIsBannerHover(true)}
+        onMouseLeave={() => setIsBannerHover(false)}
       >
-        {isCurrentUser && (
-          <Box
-            className="bannerOverlay"
-            sx={{
-              position: "absolute",
-              inset: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              bgcolor: "rgba(0,0,0,0.5)",
-              opacity: 0,
-              transition: "opacity 200ms ease",
-              zIndex: 1,
-            }}
-          >
-            <Stack spacing={1} alignItems="center">
-              <Edit sx={{ fontSize: 32 }} />
-              <Typography variant="body2">Change banner</Typography>
-            </Stack>
-          </Box>
-        )}
-
+        {/* Clickable banner background layer */}
         <Box
-          onClick={handleBannerContentClick}
+          sx={{
+            position: "absolute",
+            inset: 0,
+            backgroundImage: profile.bannerUrl
+              ? `url(${profile.bannerUrl})`
+              : "linear-gradient(135deg, #2c2f36, #1f2126)",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            cursor: isCurrentUser ? "pointer" : "default",
+            zIndex: 0,
+          }}
+          onClick={
+            isCurrentUser ? () => handleOpenImageDialog("banner") : undefined
+          }
+        >
+          {isCurrentUser && (
+            <Box
+              className="bannerOverlay"
+              sx={{
+                position: "absolute",
+                inset: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                bgcolor: "rgba(0,0,0,0.5)",
+                opacity: isBannerHover && !isAvatarHover ? 1 : 0,
+                transition: "opacity 200ms ease",
+              }}
+            >
+              <Stack spacing={1} alignItems="center">
+                <Edit sx={{ fontSize: 32 }} />
+                <Typography variant="body2">Change banner</Typography>
+              </Stack>
+            </Box>
+          )}
+        </Box>
+
+        {/* Foreground content layer */}
+        <Box
           sx={{
             position: "absolute",
             inset: 0,
@@ -494,7 +499,7 @@ export default function ProfilePage() {
             gap: 3,
             zIndex: 2,
             background:
-              "linear-gradient(180deg, rgba(15,16,20,0) 0%, rgba(15,16,20,0.65) 60%, rgba(15,16,20,0.9) 100%)",
+              "linear-gradient(180deg, rgba(19,19,22,0) 0%, rgba(19,19,22,0.65) 60%, rgba(19,19,22,0.9) 100%)",
             p: { xs: 3, md: 4 },
           }}
         >
@@ -526,11 +531,13 @@ export default function ProfilePage() {
                       }
                     : {}),
                 }}
-                onClick={
-                  isCurrentUser
-                    ? () => handleOpenImageDialog("profile")
-                    : undefined
-                }
+                onClick={(e) => {
+                  if (!isCurrentUser) return;
+                  e.stopPropagation();
+                  handleOpenImageDialog("profile");
+                }}
+                onMouseEnter={() => setIsAvatarHover(true)}
+                onMouseLeave={() => setIsAvatarHover(false)}
               >
                 <Avatar
                   src={profile.imageUrl}
@@ -539,7 +546,8 @@ export default function ProfilePage() {
                     width: "100%",
                     height: "100%",
                     fontSize: "2.5rem",
-                    bgcolor: "primary.main",
+                    bgcolor: "divider",
+                    color: "text.primary",
                   }}
                 >
                   {profile.displayName?.charAt(0).toUpperCase() ?? "U"}
@@ -583,6 +591,7 @@ export default function ProfilePage() {
                 direction={{ xs: "column", sm: "row" }}
                 spacing={1.5}
                 alignItems="flex-start"
+                onClick={(e) => e.stopPropagation()}
               >
                 {profile.isFriend ? (
                   <Button
@@ -610,24 +619,43 @@ export default function ProfilePage() {
 
       {isCurrentUser ? (
         <>
-          <Paper sx={{ ...panelSx, p: 0 }}>
+          {/* Unified panel: tabs + content in a single Paper */}
+          <Box sx={{ ...panelSx, p: 0, overflow: "hidden" }}>
             <Tabs
               value={activeSection}
               onChange={handleSectionChange}
               variant="scrollable"
               scrollButtons="auto"
+              sx={{
+                px: { xs: 2, md: 3 },
+                backgroundColor: "background.paper",
+                borderBottom: "1px solid rgba(255,255,255,0.08)",
+                minHeight: 48,
+                "& .MuiTab-root": {
+                  color: "rgba(255,255,255,0.87)",
+                  textTransform: "none",
+                  minHeight: 48,
+                },
+                "& .Mui-selected": { color: "#fff" },
+                "& .MuiTabs-indicator": {
+                  height: 3,
+                  borderRadius: 3,
+                },
+              }}
             >
               <Tab value="personal" label="Personal" />
               <Tab value="settings" label="Settings" disabled />
               <Tab value="notifications" label="Notifications" disabled />
               <Tab value="security" label="Security" />
             </Tabs>
-          </Paper>
 
-          <Paper sx={panelSx}>
-            {activeSection === "personal" && personalSection}
-            {activeSection === "security" && securitySection}
-          </Paper>
+            <Box
+              sx={{ p: { xs: 3, md: 4 }, backgroundColor: "background.paper" }}
+            >
+              {activeSection === "personal" && personalSection}
+              {activeSection === "security" && securitySection}
+            </Box>
+          </Box>
         </>
       ) : (
         <Paper sx={panelSx}>{visitorSection}</Paper>
@@ -641,12 +669,12 @@ export default function ProfilePage() {
       >
         {imageDialogMode && (
           <>
-            <DialogTitle>
+            <DialogTitle sx={{ backgroundColor: "background.paper" }}>
               {imageDialogMode === "profile"
                 ? "Change profile picture"
                 : "Change banner"}
             </DialogTitle>
-            <DialogContent sx={{ pt: 2 }}>
+            <DialogContent sx={{ pt: 2, backgroundColor: "background.paper" }}>
               <ImageUploadWidget
                 key={imageDialogMode}
                 imageType={imageDialogMode}

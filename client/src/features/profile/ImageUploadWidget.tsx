@@ -33,7 +33,7 @@ export default function ImageUploadWidget({
   const { setProfileImage } = useProfiles();
 
   const isProfileImage = imageType === "profile";
-  const aspectRatio = isProfileImage ? 1 : 16 / 9;
+  const aspectRatio = isProfileImage ? 1 : 32 / 9;
   const category = isProfileImage
     ? MediaCategory.ProfileImage
     : MediaCategory.ProfileBackground;
@@ -141,7 +141,7 @@ export default function ImageUploadWidget({
           </Typography>
           {!isProfileImage && (
             <Typography variant="caption" display="block" color="primary">
-              Recommended size: 1920 x 1080 pixels
+              Recommended aspect ratio 32:9 (eg. 3840x1080)
             </Typography>
           )}
         </Paper>
@@ -158,7 +158,7 @@ export default function ImageUploadWidget({
           <Cropper
             src={preview}
             style={{
-              height: isProfileImage ? 320 : 400,
+              height: isProfileImage ? 320 : Math.round((700 * 9) / 32),
               width: isProfileImage ? 320 : 700,
               margin: "0 auto",
             }}
@@ -203,7 +203,7 @@ export default function ImageUploadWidget({
             <Box
               sx={{
                 width: "100%",
-                height: 200,
+                aspectRatio: "32 / 9",
                 backgroundImage: `url(${croppedImage})`,
                 backgroundSize: "cover",
                 backgroundPosition: "center",
