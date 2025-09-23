@@ -9,6 +9,11 @@ export function timeAgo(date: DateArg<Date>) {
   return formatDistanceToNow(date) + " ago";
 }
 
+export function formatUserTag(tag?: number) {
+  if (tag === undefined || tag === null) return undefined;
+  return String(tag).padStart(4, "0");
+}
+
 export const requiredString = (fieldName: string) =>
   z
     .string({ required_error: `${fieldName} is required` })

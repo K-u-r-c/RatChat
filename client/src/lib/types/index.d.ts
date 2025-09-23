@@ -48,9 +48,11 @@ export type BaseMessage = {
   type: MessageType;
   senderId?: string;
   senderDisplayName?: string;
+  senderSlug?: string;
   senderImageUrl?: string;
   displayName?: string;
   userId?: string;
+  userSlug?: string;
   imageUrl?: string;
   mediaUrl?: string;
   mediaPublicId?: string;
@@ -121,6 +123,7 @@ export type MessageType = "Text" | "Image" | "Video" | "Document" | "Audio";
 export type Profile = {
   id: string;
   displayName: string;
+  tag?: number;
   bio?: string;
   imageUrl?: string;
   bannerUrl?: string;

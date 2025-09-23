@@ -1,4 +1,4 @@
-import { useParams } from "react-router";
+import { Link, useParams } from "react-router";
 import { useRef, useState } from "react";
 import { observer } from "mobx-react-lite";
 import { useDirectMessages } from "../../lib/hooks/useDirectMessages";
@@ -144,10 +144,22 @@ const DirectChatDetails = observer(function DirectChatDetails() {
                 currentChat.status ||
                 (currentChat.isOnline ? "Online" : "Offline")
               }
+              component={Link}
+              to={`/profiles/${currentChat.otherUserSlug}`}
             >
               {currentChat.otherUserDisplayName[0]}
             </AvatarWithStatus>
-            <Typography variant="h6" fontWeight="bold">
+            <Typography
+              variant="h6"
+              fontWeight="bold"
+              component={Link}
+              to={`/profiles/${currentChat.otherUserSlug}`}
+              sx={{
+                color: "text.primary",
+                textDecoration: "none",
+                "&:hover": { textDecoration: "underline" },
+              }}
+            >
               {currentChat.otherUserDisplayName}
             </Typography>
           </Box>
