@@ -1,6 +1,6 @@
 import { Box, Typography, Fab, Tooltip, Badge } from "@mui/material";
 import { KeyboardArrowDown } from "@mui/icons-material";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { observer } from "mobx-react-lite";
 import { useInView } from "react-intersection-observer";
 import { type FieldValues } from "react-hook-form";
@@ -75,18 +75,19 @@ const MediaChatComponent = observer(function MediaChatComponent({
       }
     | undefined
   >(undefined);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
   const backendChatType = chatRoomId
     ? "ChatRoom"
     : encryptedDirectChatId
-      ? "EncryptedDirectChat"
-      : "DirectChat";
+    ? "EncryptedDirectChat"
+    : "DirectChat";
   const chatId = chatRoomId ?? encryptedDirectChatId ?? directChatId ?? "";
   const settingsDialogChatType = chatRoomId
     ? "chatroom"
     : encryptedDirectChatId
-      ? "encrypted"
-      : "direct";
+    ? "encrypted"
+    : "direct";
   const { useEmojiPreference } = useEmojiPreferences();
   const { data: emojiPreference } = useEmojiPreference(backendChatType, chatId);
   const defaultEmoji = emojiPreference?.defaultEmoji || "\u{1F44D}";
@@ -182,6 +183,18 @@ const MediaChatComponent = observer(function MediaChatComponent({
       body: msg.body,
       type: msg.type,
       mediaOriginalFileName: msg.mediaOriginalFileName,
+    });
+    requestAnimationFrame(() => {
+      const el = inputRef.current;
+      if (el) {
+        el.focus();
+        try {
+          const len = el.value?.length ?? 0;
+          el.setSelectionRange?.(len, len);
+        } catch {
+          /* empty */
+        }
+      }
     });
   };
 
@@ -396,9 +409,10 @@ const MediaChatComponent = observer(function MediaChatComponent({
                 onSubmit={handleSubmit}
                 onFileSelect={fileUpload.handleFileSelect}
                 defaultEmoji={defaultEmoji}
+                onEmojiSelect={() => {}}
+                onQuickReact={() => {}}
                 isSubmitting={false}
                 isUploading={fileUpload.isUploading}
-                hasAttachment={hasFileAttached}
                 hasPermission={
                   chatRoomId === undefined
                     ? directCanSend ?? true
@@ -412,6 +426,8 @@ const MediaChatComponent = observer(function MediaChatComponent({
                     ? "Add a message with your file (optional)..."
                     : "Enter your message ..."
                 }
+                hasAttachment={hasFileAttached}
+                inputRef={inputRef}
               />
             </div>
           </Box>
@@ -447,4 +463,3 @@ const MediaChatComponent = observer(function MediaChatComponent({
 });
 
 export default MediaChatComponent;
-

@@ -1,5 +1,6 @@
-using API.Middleware;
+﻿using API.Middleware;
 using API.SignalR;
+using System.Net;
 using Application.ChatRooms.Queries;
 using Application.ChatRooms.Validators;
 using Application.Core;
@@ -41,7 +42,29 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
 builder.Services.AddCors();
+builder.Services.AddMemoryCache();
 builder.Services.AddSignalR();
+builder.Services.AddHttpClient<ILinkPreviewService, LinkPreviewService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(5);
+    client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en-US,en;q=0.8");
+}).ConfigurePrimaryHttpMessageHandler(() =>
+{
+    var handler = new HttpClientHandler
+    {
+        AllowAutoRedirect = true,
+        AutomaticDecompression = DecompressionMethods.All,
+        CookieContainer = new CookieContainer(),
+    };
+
+    handler.CookieContainer.Add(new Uri("https://www.youtube.com"), new Cookie("CONSENT", "YES+1", "/", ".youtube.com"));
+    handler.CookieContainer.Add(new Uri("https://youtube.com"), new Cookie("CONSENT", "YES+1", "/", ".youtube.com"));
+    handler.CookieContainer.Add(new Uri("https://youtu.be"), new Cookie("CONSENT", "YES+1", "/", ".youtu.be"));
+    handler.CookieContainer.Add(new Uri("https://youtube-nocookie.com"), new Cookie("CONSENT", "YES+1", "/", ".youtube-nocookie.com"));
+    handler.CookieContainer.Add(new Uri("https://google.com"), new Cookie("CONSENT", "YES+1", "/", ".google.com"));
+
+    return handler;
+});
 builder.Services.AddMediatR(x =>
 {
     x.RegisterServicesFromAssemblyContaining<GetChatRoomList.Handler>();
