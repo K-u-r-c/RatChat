@@ -32,6 +32,7 @@ import { useNavigate } from "react-router";
 import ProfileEditForm from "./ProfileEditForm";
 import ImageUploadWidget from "./ImageUploadWidget";
 import { toast } from "react-toastify";
+import { formatUserTag } from "../../lib/util/util";
 
 export default function ProfilePage() {
   const { slug } = useParams();
@@ -44,6 +45,8 @@ export default function ProfilePage() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
   const isCurrentUser = profile?.id === currentUser?.id;
+
+  const formattedTag = formatUserTag(profile?.tag);
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -150,16 +153,35 @@ export default function ProfilePage() {
 
           {/* Profile Info */}
           <Box sx={{ color: "white", flex: 1 }}>
-            <Typography
-              variant="h3"
-              gutterBottom
+            <Box
               sx={{
-                fontWeight: "bold",
-                textShadow: "2px 2px 4px rgba(0,0,0,0.7)",
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                flexDirection: "row",
               }}
             >
-              {profile.displayName}
-            </Typography>
+              <Typography
+                variant="h3"
+                gutterBottom
+                sx={{
+                  fontWeight: "bold",
+                  textShadow: "2px 2px 4px rgba(0,0,0,0.7)",
+                }}
+              >
+                {profile.displayName}
+              </Typography>
+              {formattedTag && (
+                <Typography
+                  variant="h5"
+                  sx={{
+                    textShadow: "2px 2px 4px rgba(0,0,0,0.6)",
+                  }}
+                >
+                  #{formattedTag}
+                </Typography>
+              )}
+            </Box>
 
             {profile.friendsCount !== undefined && (
               <Box display="flex" gap={4} mb={2}>

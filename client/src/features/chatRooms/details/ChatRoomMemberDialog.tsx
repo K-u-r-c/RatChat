@@ -10,7 +10,9 @@ import {
   Typography,
 } from "@mui/material";
 import { useEffect, useState } from "react";
+import { Link } from "react-router";
 import type { ChatRoomRole, Profile } from "../../../lib/types";
+import { formatUserTag } from "../../../lib/util/util";
 
 type Props = {
   open: boolean;
@@ -46,6 +48,8 @@ export default function ChatRoomMemberDialog({
     };
   }, [open, member, loadRoles]);
 
+  const formattedTag = member ? formatUserTag(member.tag) : undefined;
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>Member details</DialogTitle>
@@ -66,25 +70,54 @@ export default function ChatRoomMemberDialog({
 
             {/* Avatar and name overlay */}
             <Box sx={{ px: 2, pb: 2, position: "relative" }}>
-              <Avatar
-                src={member.imageUrl || "/images/user.png"}
-                alt={member.displayName}
-                sx={{
-                  width: 90,
-                  height: 90,
-                  border: "4px solid",
-                  borderColor: "background.paper",
-                  position: "relative",
-                  top: -45,
-                }}
-              />
+              <Link
+                to={`/profiles/${member.slug}`}
+                style={{ textDecoration: "none" }}
+              >
+                <Avatar
+                  src={member.imageUrl || "/images/user.png"}
+                  alt={member.displayName}
+                  sx={{
+                    width: 90,
+                    height: 90,
+                    border: "4px solid",
+                    borderColor: "background.paper",
+                    position: "relative",
+                    top: -45,
+                  }}
+                />
+              </Link>
               <Box sx={{ mt: -3 }}>
-                <Typography variant="h6" fontWeight={700}>
+                <Typography
+                  variant="h6"
+                  fontWeight={700}
+                  component={Link}
+                  to={`/profiles/${member.slug}`}
+                  sx={{
+                    color: "text.primary",
+                    textDecoration: "none",
+                    "&:hover": { textDecoration: "underline" },
+                  }}
+                >
                   {member.displayName}
                 </Typography>
+                {formattedTag && (
+                  <Typography variant="body2" color="text.secondary">
+                    #{formattedTag}
+                  </Typography>
+                )}
                 <Typography variant="body2" color="text.secondary">
                   {member.status || (member.isOnline ? "Online" : "Offline")}
                 </Typography>
+                {member.bio && (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mt: 1.5 }}
+                  >
+                    {member.bio}
+                  </Typography>
+                )}
               </Box>
             </Box>
 
