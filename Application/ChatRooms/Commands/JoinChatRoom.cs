@@ -138,8 +138,7 @@ public class JoinChatRoom
                 return Result<ChatRoomIdentifierDto>.Failure("User is banned from this chat room", 401);
             }
 
-            // Enforce invite constraints if used
-            if (usedInviteFlow && invite != null)
+            if (invite != null)
             {
                 if (!string.IsNullOrEmpty(invite.AllowedUserId) && invite.AllowedUserId != user.Id)
                 {
@@ -177,15 +176,7 @@ public class JoinChatRoom
             {
                 await chatRoomRoleService.AssignMemberRoleAsync(user.Id, chatRoom.Id, cancellationToken);
             }
-            catch (ChatRoomNotFoundException ex)
-            {
-                return Result<ChatRoomIdentifierDto>.Failure(ex.Message, 500);
-            }
-            catch (UserNotFoundException ex)
-            {
-                return Result<ChatRoomIdentifierDto>.Failure(ex.Message, 500);
-            }
-            catch (ChatRoomRoleNotFoundException ex)
+            catch (Exception ex)
             {
                 return Result<ChatRoomIdentifierDto>.Failure(ex.Message, 500);
             }

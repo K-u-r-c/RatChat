@@ -30,6 +30,8 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
     currentUser?.id
   );
 
+  useChatRoomNotificationsRealtime(chatRoom?.id, currentUser?.id);
+
   useEffect(() => {
     if (chatRoom && slug && slug !== chatRoom.slug) {
       navigate(`/chat-rooms/${chatRoom.slug}`, { replace: true });
@@ -121,7 +123,6 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
     document.body.style.cursor = "col-resize";
     (document.body.style as CSSStyleDeclaration).userSelect = "none";
   };
-  useChatRoomNotificationsRealtime(id, currentUser?.id);
 
   useEffect(() => {
     if (!anchorEl) return;
@@ -318,8 +319,8 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
         onClose={() => setAnchorEl(null)}
         member={selectedMember}
         loadRoles={rolesStore.getUserRoles}
-        chatRoomId={id ?? ""}
-        ownerId={chatRoom.ownerId}
+        chatRoomId={chatRoom.id ?? ""}
+        ownerId={chatRoom.adminId}
       />
     </Box>
   );
