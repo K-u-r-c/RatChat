@@ -1,7 +1,7 @@
 import { TextField, IconButton, CircularProgress, Box } from "@mui/material";
 import { AttachFile, Send } from "@mui/icons-material";
 import { useForm, type FieldValues } from "react-hook-form";
-import { useRef, useState } from "react";
+import { useRef, useState, type Ref } from "react";
 import EmojiPickerComponent from "../EmojiPicker";
 
 interface ChatInputProps {
@@ -15,6 +15,7 @@ interface ChatInputProps {
   hasPermission: boolean;
   placeholder?: string;
   hasAttachment?: boolean;
+  inputRef?: Ref<HTMLInputElement | HTMLTextAreaElement>;
 }
 
 export default function ChatInput({
@@ -28,6 +29,7 @@ export default function ChatInput({
   hasPermission = true,
   placeholder = "Enter your message...",
   hasAttachment = false,
+  inputRef,
 }: ChatInputProps) {
   const { register, handleSubmit, reset, setValue, watch } = useForm();
   const clickLockRef = useRef(false);
@@ -90,6 +92,7 @@ export default function ChatInput({
         placeholder={placeholder}
         onKeyDown={handleKeyDown}
         disabled={!hasPermission}
+        inputRef={inputRef}
         slotProps={{
           input: {
             endAdornment: (
