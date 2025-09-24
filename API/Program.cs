@@ -1,8 +1,9 @@
-﻿using API.Middleware;
+using API.Middleware;
 using API.SignalR;
 using System.Net;
 using Application.ChatRooms.Queries;
 using Application.ChatRooms.Validators;
+using Application.ChatAppearances.Validators;
 using Application.Core;
 using Application.EmojiPreferences.Validators;
 using Application.Development;
@@ -117,12 +118,14 @@ builder.Services.AddScoped<IStatusNotificationService, StatusNotificationService
 builder.Services.AddScoped<IDirectMessagesNotificationService, DirectMessagesNotificationService>();
 builder.Services.AddScoped<IEncryptedDirectMessagesNotificationService, EncryptedDirectMessagesNotificationService>();
 builder.Services.AddScoped<IChatRoomsNotificationService, ChatRoomsNotificationService>();
+builder.Services.AddScoped<IChatAppearanceNotificationService, ChatAppearanceNotificationService>();
 builder.Services.AddAutoMapper(typeof(MappingProfiles).Assembly);
 builder.Services.AddValidatorsFromAssemblyContaining<CreateChatRoomValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<UpdateProfileValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<SendFriendRequestValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<UpdateStatusValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<SetEmojiPreferenceValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<SetChatAppearanceValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<CreateChatRoomRoleValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<UpdateChatRoomRoleValidator>();
 builder.Services.AddTransient<ExceptionMiddleware>();

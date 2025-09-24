@@ -1,6 +1,12 @@
 import { Box, Typography, Fab, Tooltip, Badge } from "@mui/material";
 import { KeyboardArrowDown } from "@mui/icons-material";
-import { useState, useEffect, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  type CSSProperties,
+} from "react";
 import { observer } from "mobx-react-lite";
 import { useInView } from "react-intersection-observer";
 import { type FieldValues } from "react-hook-form";
@@ -15,10 +21,14 @@ import { FilePreview } from "./FilePreview";
 import MultiFilePreview from "./MultiFilePreview";
 import ChatInput from "./ChatInput";
 import ImageViewerDialog from "./ImageViewerDialog";
-import { useEmojiPreferences } from "../../../../lib/hooks/useEmojiPreferences";
 import { useScrollHandler } from "../../../../lib/hooks/useScrollHandler";
 import { useFileUpload } from "../../../../lib/hooks/useFileUpload";
 import EmojiSettingsDialog from "../EmojiSettingsDialog";
+import { useChatAppearance } from "../../../../lib/hooks/useChatAppearance";
+import {
+  getChatBackgroundStyle,
+  DEFAULT_CHAT_BACKGROUND_KEY,
+} from "../../constants/chatBackgrounds";
 import type { useChatRoomRolesRealtime } from "../../../../lib/hooks/useChatRoomRolesRealtime";
 import { CHATROOM_PERMISSIONS } from "../../../../lib/types/chatroomPermissions";
 
@@ -88,9 +98,31 @@ const MediaChatComponent = observer(function MediaChatComponent({
     : encryptedDirectChatId
     ? "encrypted"
     : "direct";
-  const { useEmojiPreference } = useEmojiPreferences();
-  const { data: emojiPreference } = useEmojiPreference(backendChatType, chatId);
-  const defaultEmoji = emojiPreference?.defaultEmoji || "\u{1F44D}";
+  const { useAppearance } = useChatAppearance();
+  const { data: appearance } = useAppearance(backendChatType, chatId);
+
+  const chatBackgroundStyle = useMemo<CSSProperties>(() => {
+    const base = getChatBackgroundStyle(
+      appearance?.backgroundKey ?? DEFAULT_CHAT_BACKGROUND_KEY
+    );
+    const style: CSSProperties = { ...base };
+    style.transition = "background 0.3s ease";
+    if (style.backgroundImage && !style.backgroundSize) {
+      style.backgroundSize = "cover";
+    }
+    if (style.backgroundImage && !style.backgroundPosition) {
+      style.backgroundPosition = "center";
+    }
+    if (style.backgroundImage && !style.backgroundRepeat) {
+      style.backgroundRepeat = base.backgroundSize ? "repeat" : "no-repeat";
+    }
+    if (!style.backgroundImage && !style.backgroundColor) {
+      style.backgroundColor = "transparent";
+    }
+    return style;
+  }, [appearance?.backgroundKey]);
+
+  const defaultEmoji = appearance?.defaultEmoji || "\u{1F44D}";
 
   const scrollHandler = useScrollHandler({ messageStore });
   const fileUpload = useFileUpload({
@@ -238,10 +270,12 @@ const MediaChatComponent = observer(function MediaChatComponent({
     <div
       {...fileUpload.dropzoneProps}
       style={{
+        position: "relative",
         height: "100%",
         display: "flex",
         flexDirection: "column",
         minHeight: 0,
+        ...chatBackgroundStyle,
       }}
     >
       <input {...fileUpload.inputProps} />

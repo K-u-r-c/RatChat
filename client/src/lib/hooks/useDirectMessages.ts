@@ -1,4 +1,5 @@
 import { useLocalObservable } from "mobx-react-lite";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   HubConnection,
   HubConnectionBuilder,
@@ -14,6 +15,7 @@ import { useStore } from "./useStore";
 import { useAccount } from "./useAccount";
 
 export const useDirectMessages = (directChatId?: string) => {
+  const queryClient = useQueryClient();
   const { messagesNotificationsStore } = useStore();
   const { currentUser } = useAccount();
   const currentUserIdRef = useRef<string | undefined>(undefined);
@@ -180,6 +182,42 @@ export const useDirectMessages = (directChatId?: string) => {
             }
             this.messages[idx] = { ...(msg as DirectMessage), reactions: list };
           });
+        }
+      );
+
+      this.hubConnection.on(
+        "ChatAppearanceUpdated",
+        (payload: {
+          chatType?: string;
+          chatId?: string;
+          defaultEmoji?: string;
+          backgroundKey?: string;
+          updatedAt?: string;
+          updatedByUserId?: string;
+        }) => {
+          if (!payload?.chatType || !payload?.chatId) return;
+
+          queryClient.setQueryData(
+            ["chat-appearance", payload.chatType, payload.chatId],
+            (prev) => ({
+              id: (prev as { id?: string })?.id ?? "",
+              chatType: payload.chatType!,
+              chatId: payload.chatId!,
+              defaultEmoji:
+                payload.defaultEmoji ??
+                (prev as { defaultEmoji?: string })?.defaultEmoji ??
+                "\u{1F44D}",
+              backgroundKey:
+                payload.backgroundKey ??
+                (prev as { backgroundKey?: string })?.backgroundKey ??
+                "default",
+              updatedAt: payload.updatedAt ?? new Date().toISOString(),
+              updatedByUserId:
+                payload.updatedByUserId ??
+                (prev as { updatedByUserId?: string | undefined })
+                  ?.updatedByUserId,
+            })
+          );
         }
       );
 
