@@ -12,9 +12,9 @@ using Microsoft.AspNetCore.SignalR;
 
 namespace API.Controllers;
 
-public class ChatRoomsController(IHubContext<ChatRoomNotificationsHub> hubContext) : BaseApiController
+public class ChatRoomsController(IHubContext<ChatRoomModerationEventsHub> hubContext) : BaseApiController
 {
-    private readonly IHubContext<ChatRoomNotificationsHub> _hubContext = hubContext;
+    private readonly IHubContext<ChatRoomModerationEventsHub> _hubContext = hubContext;
 
     [HttpGet]
     public async Task<ActionResult<PagedList<ChatRoomDto, DateTime?>>> GetChatRooms(

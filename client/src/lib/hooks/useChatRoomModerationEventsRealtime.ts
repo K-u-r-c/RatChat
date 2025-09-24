@@ -10,7 +10,7 @@ import { toast } from "react-toastify";
 import { router } from "../../app/router/Routes";
 import { useQueryClient } from "@tanstack/react-query";
 
-export const useChatRoomNotificationsRealtime = (
+export const useChatRoomModerationEventsRealtime = (
   chatRoomId?: string,
   userId?: string
 ) => {
@@ -43,8 +43,7 @@ export const useChatRoomNotificationsRealtime = (
       this.hubConnection = new HubConnectionBuilder()
         .withUrl(
           `${
-            import.meta.env.VITE_CHATROOM_NOTIFICATIONS_URL ||
-            "https://localhost:5001/chatroom-notifications"
+            import.meta.env.VITE_CHATROOM_NOTIFICATIONS_URL
           }?chatRoomId=${roomId}`,
           { withCredentials: true }
         )
@@ -54,7 +53,7 @@ export const useChatRoomNotificationsRealtime = (
       this.hubConnection.start().catch((error) => {
         if (import.meta.env.DEV) {
           console.error(
-            "Error establishing chatroom-notifications connection:",
+            "Error establishing chatroom-moderationevents connection:",
             error
           );
         }

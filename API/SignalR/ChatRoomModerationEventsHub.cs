@@ -14,7 +14,7 @@ namespace API.SignalR;
 /// <see cref="API.Controllers.ChatRoomsController.UnbanChatRoomUser(string,string)"/>.</description></item>
 /// </list>
 /// </summary>
-public class ChatRoomNotificationsHub : Hub
+public class ChatRoomModerationEventsHub : Hub
 {
     public async override Task OnConnectedAsync()
     {

@@ -18,7 +18,7 @@ import { observer } from "mobx-react-lite";
 import { useAccount } from "../../../lib/hooks/useAccount";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ChatRoomMemberPopover from "./ChatRoomMemberPopover";
-import { useChatRoomNotificationsRealtime } from "../../../lib/hooks/useChatRoomNotificationsRealtime";
+import { useChatRoomModerationEventsRealtime } from "../../../lib/hooks/useChatRoomModerationEventsRealtime";
 
 const ChatRoomDetails = observer(function ChatRoomDetails() {
   const { slug } = useParams();
@@ -30,7 +30,7 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
     currentUser?.id
   );
 
-  useChatRoomNotificationsRealtime(chatRoom?.id, currentUser?.id);
+  useChatRoomModerationEventsRealtime(chatRoom?.id, currentUser?.id);
 
   useEffect(() => {
     if (chatRoom && slug && slug !== chatRoom.slug) {
