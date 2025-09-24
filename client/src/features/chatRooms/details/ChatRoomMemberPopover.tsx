@@ -63,7 +63,7 @@ export default function ChatRoomMemberPopover({
   const formattedTag = member ? formatUserTag(member.tag) : undefined;
 
   useEffect(() => {
-    if (open && anchorEl && !document.body.contains(anchorEl) && !member) {
+    if (open && anchorEl && !document.body.contains(anchorEl)) {
       closeActions();
       onClose();
     }
