@@ -20,6 +20,7 @@ export const useChatRoomModerationEventsRealtime = (
 
   const moderationEventStore = useLocalObservable(() => ({
     hubConnection: null as HubConnection | null,
+    connectedChatRoomId: null as string | null,
 
     createHubConnection() {
       const chatRoom = chatRoomRef.current;
@@ -27,13 +28,13 @@ export const useChatRoomModerationEventsRealtime = (
 
       if (
         this.hubConnection &&
-        this.hubConnection.state === HubConnectionState.Connected &&
-        chatRoomRef.current?.id === chatRoom.id
+        this.hubConnection.state !== HubConnectionState.Disconnected &&
+        this.connectedChatRoomId === chatRoom.id
       ) {
         return;
       }
 
-      if (this.hubConnection) {
+      if (this.hubConnection && this.connectedChatRoomId !== chatRoom.id) {
         this.stopHubConnection();
       }
 
@@ -46,6 +47,8 @@ export const useChatRoomModerationEventsRealtime = (
         )
         .withAutomaticReconnect()
         .build();
+
+      this.connectedChatRoomId = chatRoom.id;
 
       this.hubConnection.start().catch((error) => {
         if (import.meta.env.DEV) {
