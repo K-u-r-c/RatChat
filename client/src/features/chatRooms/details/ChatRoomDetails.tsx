@@ -30,7 +30,7 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
     currentUser?.id
   );
 
-  useChatRoomModerationEventsRealtime(chatRoom?.id, currentUser?.id);
+  useChatRoomModerationEventsRealtime(chatRoom, currentUser?.id);
 
   useEffect(() => {
     if (chatRoom && slug && slug !== chatRoom.slug) {

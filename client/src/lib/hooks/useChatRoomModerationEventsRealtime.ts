@@ -11,25 +11,24 @@ import { router } from "../../app/router/Routes";
 import { useQueryClient } from "@tanstack/react-query";
 
 export const useChatRoomModerationEventsRealtime = (
-  chatRoomId?: string,
+  chatRoom?: ChatRoom,
   userId?: string
 ) => {
   const queryClient = useQueryClient();
   const userIdRef = useRef(userId);
-  const chatRoomIdRef = useRef(chatRoomId);
+  const chatRoomRef = useRef(chatRoom);
 
-  const notificationsStore = useLocalObservable(() => ({
+  const moderationEventStore = useLocalObservable(() => ({
     hubConnection: null as HubConnection | null,
-    currentChatRoomId: null as string | null,
 
     createHubConnection() {
-      const roomId = chatRoomIdRef.current;
-      if (!roomId) return;
+      const chatRoom = chatRoomRef.current;
+      if (!chatRoom) return;
 
       if (
         this.hubConnection &&
-        this.currentChatRoomId === roomId &&
-        this.hubConnection.state !== HubConnectionState.Disconnected
+        this.hubConnection.state === HubConnectionState.Connected &&
+        chatRoomRef.current?.id === chatRoom.id
       ) {
         return;
       }
@@ -38,13 +37,11 @@ export const useChatRoomModerationEventsRealtime = (
         this.stopHubConnection();
       }
 
-      this.currentChatRoomId = roomId;
-
       this.hubConnection = new HubConnectionBuilder()
         .withUrl(
-          `${
-            import.meta.env.VITE_CHATROOM_NOTIFICATIONS_URL
-          }?chatRoomId=${roomId}`,
+          `${import.meta.env.VITE_CHATROOM_NOTIFICATIONS_URL}?chatRoomId=${
+            chatRoom.id
+          }`,
           { withCredentials: true }
         )
         .withAutomaticReconnect()
@@ -61,21 +58,24 @@ export const useChatRoomModerationEventsRealtime = (
 
       // Server events
       this.hubConnection.on("UserKicked", (kickedUser: User) => {
-        const me = userIdRef.current;
-        if (me && kickedUser.id === me) {
-          toast.error("You have been kicked from this chat room.");
+        const currentUserId = userIdRef.current;
+        const currentChatRoom = chatRoomRef.current;
+        if (!currentChatRoom) return;
+
+        if (currentUserId && kickedUser.id === currentUserId) {
+          toast.error(
+            `You have been kicked from the ${currentChatRoom.title}.`
+          );
           router.navigate("/");
           return;
         }
 
         toast.info(
-          `User ${kickedUser.displayName} has been kicked from the chat room.`
+          `User ${kickedUser.displayName} has been kicked from the ${currentChatRoom.title}.`
         );
 
-        const chatRoomId = chatRoomIdRef.current;
-        if (!chatRoomId) return;
         queryClient.setQueryData<ChatRoom>(
-          ["chatRooms", chatRoomId],
+          ["chatRooms", currentChatRoom.id],
           (prev) => {
             if (!prev) return prev;
             const members = (prev.members ?? []).filter(
@@ -88,21 +88,24 @@ export const useChatRoomModerationEventsRealtime = (
       });
 
       this.hubConnection.on("UserBanned", (bannedUser: User) => {
-        const userId = userIdRef.current;
-        if (userId && bannedUser.id === userId) {
-          toast.error("You have been banned from this chat room.");
+        const currentChatRoom = chatRoomRef.current;
+        if (!currentChatRoom) return;
+
+        const currentUserId = userIdRef.current;
+        if (currentUserId && bannedUser.id === currentUserId) {
+          toast.error(
+            `You have been banned from the ${currentChatRoom.title}.`
+          );
           router.navigate("/");
           return;
         }
 
         toast.info(
-          `User ${bannedUser.displayName} has been banned from the chat room.`
+          `User ${bannedUser.displayName} has been banned from the ${currentChatRoom.title}.`
         );
 
-        const chatRoomId = chatRoomIdRef.current;
-        if (!chatRoomId) return;
         queryClient.setQueryData<ChatRoom>(
-          ["chatRooms", chatRoomId],
+          ["chatRooms", currentChatRoom.id],
           (prev) => {
             if (!prev) return prev;
             const members = (prev.members ?? []).filter(
@@ -113,7 +116,7 @@ export const useChatRoomModerationEventsRealtime = (
               {
                 userId: bannedUser.id,
                 user: bannedUser,
-                chatRoomId: chatRoomId,
+                chatRoomId: currentChatRoom.id,
                 dateBanned: new Date().toISOString(),
               } as ChatRoomBan,
             ];
@@ -124,19 +127,22 @@ export const useChatRoomModerationEventsRealtime = (
       });
 
       this.hubConnection.on("UserUnbanned", (unbannedUser: User) => {
-        const userId = userIdRef.current;
-        if (userId && unbannedUser.id === userId) {
-          toast.info("You have been unbanned from this chat room.");
+        const currentChatRoom = chatRoomRef.current;
+        if (!currentChatRoom) return;
+
+        const currentUserId = userIdRef.current;
+        if (currentUserId && unbannedUser.id === currentUserId) {
+          toast.info(
+            `You have been unbanned from the ${currentChatRoom.title}.`
+          );
         } else {
           toast.info(
-            `User ${unbannedUser.displayName} has been unbanned from the chat room.`
+            `User ${unbannedUser.displayName} has been unbanned from the ${currentChatRoom.title}.`
           );
         }
 
-        const chatRoomId = chatRoomIdRef.current;
-        if (!chatRoomId) return;
         queryClient.setQueryData<ChatRoom>(
-          ["chatRooms", chatRoomId],
+          ["chatRooms", currentChatRoom.id],
           (prev) => {
             if (!prev) return prev;
             const bans = (prev.bans ?? []).filter(
@@ -150,10 +156,7 @@ export const useChatRoomModerationEventsRealtime = (
     },
 
     stopHubConnection() {
-      if (!this.hubConnection) {
-        this.currentChatRoomId = null;
-        return;
-      }
+      if (!this.hubConnection) return;
 
       this.hubConnection.off("UserKicked");
       this.hubConnection.off("UserBanned");
@@ -164,24 +167,23 @@ export const useChatRoomModerationEventsRealtime = (
         .catch((error) => {
           if (import.meta.env.DEV) {
             console.error(
-              "Error stopping chatroom-notifications connection:",
+              "Error stopping chatroom-moderationevents connection:",
               error
             );
           }
         })
         .finally(() => {
           this.hubConnection = null;
-          this.currentChatRoomId = null;
         });
     },
   }));
 
   useEffect(() => {
-    if (chatRoomId && chatRoomIdRef.current !== chatRoomId) {
-      chatRoomIdRef.current = chatRoomId;
-      notificationsStore.createHubConnection();
+    if (chatRoom && chatRoomRef.current !== chatRoom) {
+      chatRoomRef.current = chatRoom;
+      moderationEventStore.createHubConnection();
     }
-  }, [chatRoomId, notificationsStore]);
+  }, [chatRoom, moderationEventStore]);
 
   useEffect(() => {
     if (userIdRef.current !== userId) {
@@ -191,9 +193,9 @@ export const useChatRoomModerationEventsRealtime = (
 
   useEffect(() => {
     return () => {
-      notificationsStore.stopHubConnection();
+      moderationEventStore.stopHubConnection();
     };
-  }, [notificationsStore]);
+  }, [moderationEventStore]);
 
-  return { notificationsStore };
+  return { notificationsStore: moderationEventStore };
 };
