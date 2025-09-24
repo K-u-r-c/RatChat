@@ -132,7 +132,6 @@ export function ProfileHeader({
                 height: { xs: 96, sm: 128, md: 150 },
                 borderRadius: "50%",
                 overflow: "hidden",
-                border: "4px solid rgba(255,255,255,0.85)",
                 ...(isCurrentUser
                   ? {
                       cursor: "pointer",
