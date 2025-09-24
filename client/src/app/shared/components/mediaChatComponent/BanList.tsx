@@ -52,7 +52,7 @@ export default function BanList({ chatRoomId, bans, canUnban }: Props) {
               }
             >
               <ListItemText
-                primary={b.userId}
+                primary={b.user?.displayName}
                 secondary={new Date(b.dateBanned).toLocaleString()}
               />
             </ListItem>
