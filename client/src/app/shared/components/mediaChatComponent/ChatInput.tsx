@@ -18,19 +18,20 @@ interface ChatInputProps {
   inputRef?: Ref<HTMLInputElement | HTMLTextAreaElement>;
 }
 
-export default function ChatInput({
-                                    onSubmit,
-                                    onFileSelect,
-                                    onEmojiSelect,
-                                    onQuickReact,
-                                    defaultEmoji,
-                                    isSubmitting,
-                                    isUploading,
-                                    hasPermission = true,
-                                    placeholder = "Enter your message...",
-                                    hasAttachment = false,
-                                    inputRef,
-                                  }: ChatInputProps) {
+export default function ChatInput(
+  {
+    onSubmit,
+    onFileSelect,
+    onEmojiSelect,
+    onQuickReact,
+    defaultEmoji,
+    isSubmitting,
+    isUploading,
+    hasPermission = true,
+    placeholder = "Enter your message...",
+    hasAttachment = false,
+    inputRef,
+  }: ChatInputProps) {
   const {register, handleSubmit, reset, setValue, watch} = useForm();
   const clickLockRef = useRef(false);
   const [localSending, setLocalSending] = useState(false);

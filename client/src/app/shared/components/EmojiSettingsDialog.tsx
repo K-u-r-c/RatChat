@@ -1,37 +1,28 @@
+import {Close} from "@mui/icons-material";
 import {
-  useMemo,
-  useEffect,
-  useState,
-  useRef,
-  useCallback,
-  type ChangeEvent,
-} from "react";
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  Typography,
   Box,
-  Grid,
-  Paper,
-  IconButton,
+  Button,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Grid,
+  IconButton,
+  Paper,
+  Typography,
 } from "@mui/material";
-import { Close } from "@mui/icons-material";
-import EmojiPickerComponent from "./EmojiPicker";
+import {useCallback, useEffect, useMemo, useRef, useState,} from "react";
+import {type SetChatAppearanceRequest, useChatAppearance,} from "../../../lib/hooks/useChatAppearance";
+import {MediaCategory, useMedia} from "../../../lib/hooks/useMedia";
 import {
   CHAT_BACKGROUND_OPTIONS,
+  type ChatBackgroundSelection,
   DEFAULT_CHAT_BACKGROUND_KEY,
   getChatBackgroundStyle,
-  type ChatBackgroundSelection,
 } from "../constants/chatBackgrounds";
-import {
-  useChatAppearance,
-  type SetChatAppearanceRequest,
-} from "../../../lib/hooks/useChatAppearance";
-import { useMedia, MediaCategory } from "../../../lib/hooks/useMedia";
+import {CustomBackgroundUploadDialog} from "./CustomBackgroundUploadDialog";
+import EmojiPickerComponent from "./EmojiPicker";
 
 type Props = {
   open: boolean;
@@ -91,28 +82,32 @@ function normalizeBackgroundKey(value?: string): ChatBackgroundSelection {
 }
 
 export default function EmojiSettingsDialog({
-  open,
-  onClose,
-  chatType,
-  chatId,
-  chatName,
-}: Props) {
-  const { useAppearance, setAppearance } = useChatAppearance();
-  const { uploadMedia, deleteMedia } = useMedia();
+                                              open,
+                                              onClose,
+                                              chatType,
+                                              chatId,
+                                              chatName,
+                                            }: Props) {
+  const {useAppearance, setAppearance} = useChatAppearance();
+  const {uploadMedia, deleteMedia} = useMedia();
   const deleteMediaRef = useRef(deleteMedia);
 
   useEffect(() => {
     deleteMediaRef.current = deleteMedia;
   }, [deleteMedia]);
 
-  const customFileInputRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    if (!open) {
+      setIsUploadDialogOpen(false);
+    }
+  }, [open]);
 
   const backendChatType =
     chatType === "chatroom"
       ? "ChatRoom"
       : chatType === "encrypted"
-      ? "EncryptedDirectChat"
-      : "DirectChat";
+        ? "EncryptedDirectChat"
+        : "DirectChat";
 
   const {
     data: appearance,
@@ -147,6 +142,7 @@ export default function EmojiSettingsDialog({
   const [currentCustomBackground, setCurrentCustomBackground] = useState<
     CustomBackground | undefined
   >(initialCustomBackground);
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [pendingUpload, setPendingUploadState] =
     useState<CustomBackground | undefined>();
   const pendingUploadRef = useRef<CustomBackground | undefined>(undefined);
@@ -181,7 +177,7 @@ export default function EmojiSettingsDialog({
       await mutation.mutateAsync({
         publicId: pending.publicId,
         category: MediaCategory.ChatBackground,
-        ...(chatType === "chatroom" ? { chatRoomId: chatId } : {}),
+        ...(chatType === "chatroom" ? {chatRoomId: chatId} : {}),
         suppressToast: true,
       });
     } catch {
@@ -204,10 +200,11 @@ export default function EmojiSettingsDialog({
         .mutateAsync({
           publicId: pending.publicId,
           category: MediaCategory.ChatBackground,
-          ...(chatType === "chatroom" ? { chatRoomId: chatId } : {}),
+          ...(chatType === "chatroom" ? {chatRoomId: chatId} : {}),
           suppressToast: true,
         })
-        .catch(() => {});
+        .catch(() => {
+        });
     };
   }, [chatType, chatId]);
 
@@ -220,7 +217,7 @@ export default function EmojiSettingsDialog({
         const uploadResult = await uploadMedia.mutateAsync({
           file,
           category: MediaCategory.ChatBackground,
-          ...(chatType === "chatroom" ? { chatRoomId: chatId } : {}),
+          ...(chatType === "chatroom" ? {chatRoomId: chatId} : {}),
         });
 
         const uploaded: CustomBackground = {
@@ -238,19 +235,28 @@ export default function EmojiSettingsDialog({
     [maybeDeletePendingUpload, uploadMedia, chatType, chatId]
   );
 
-  const handleCustomFileChange = async (
-    event: ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      await handleCustomBackgroundUpload(file);
-    }
-    event.target.value = "";
+  const handleChooseCustomBackground = () => {
+    setIsUploadDialogOpen(true);
   };
 
-  const handleChooseCustomBackground = () => {
-    customFileInputRef.current?.click();
+  const handleUploadDialogClose = () => {
+    if (uploadMedia.isPending) {
+      return;
+    }
+    setIsUploadDialogOpen(false);
   };
+
+  const handleUploadDialogConfirm = useCallback(
+    async (file: File) => {
+      try {
+        await handleCustomBackgroundUpload(file);
+        setIsUploadDialogOpen(false);
+      } catch {
+        // errors surfaced via useMedia toast
+      }
+    },
+    [handleCustomBackgroundUpload]
+  );
 
   const handleUseSavedCustom = () => {
     if (initialCustomBackground) {
@@ -270,7 +276,8 @@ export default function EmojiSettingsDialog({
   const handleBackgroundSelect = (backgroundKey: ChatBackgroundSelection) => {
     if (backgroundKey !== "custom") {
       if (pendingUpload) {
-        maybeDeletePendingUpload().catch(() => {});
+        maybeDeletePendingUpload().catch(() => {
+        });
         setCurrentCustomBackground(initialCustomBackground);
       }
       setCurrentBackground(backgroundKey);
@@ -293,6 +300,7 @@ export default function EmojiSettingsDialog({
 
   const handleCancel = useCallback(async () => {
     await maybeDeletePendingUpload();
+    setIsUploadDialogOpen(false);
     setCurrentEmoji(initialEmoji);
     setCurrentBackground(initialBackground);
     setCurrentCustomBackground(initialCustomBackground);
@@ -340,7 +348,7 @@ export default function EmojiSettingsDialog({
 
   const customPreviewStyle = currentCustomBackground
     ? getChatBackgroundStyle("custom", currentCustomBackground.url)
-    : { backgroundColor: "rgba(255,255,255,0.04)" };
+    : {backgroundColor: "rgba(255,255,255,0.04)"};
 
   const customPreviewSx: Record<string, string | number> = {
     borderRadius: 8,
@@ -419,7 +427,7 @@ export default function EmojiSettingsDialog({
       <Dialog open={open} onClose={handleCancel} maxWidth="sm" fullWidth>
         <DialogContent>
           <Box display="flex" justifyContent="center" alignItems="center" p={4}>
-            <CircularProgress />
+            <CircularProgress/>
           </Box>
         </DialogContent>
       </Dialog>
@@ -434,63 +442,26 @@ export default function EmojiSettingsDialog({
             Appearance settings for {chatName}
           </Typography>
           <IconButton onClick={handleCancel} size="small">
-            <Close />
+            <Close/>
           </IconButton>
         </Box>
       </DialogTitle>
 
       <DialogContent>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        <Typography variant="body2" color="text.secondary" sx={{mb: 3}}>
           Choose the default emoji and background used in this{" "}
           {chatType === "chatroom"
             ? "chat room"
             : chatType === "encrypted"
-            ? "encrypted direct chat"
-            : "direct chat"}
+              ? "encrypted direct chat"
+              : "direct chat"}
           .
         </Typography>
-
-        <Paper variant="outlined" sx={{ p: 2, mb: 4 }}>
-          <Typography variant="subtitle2" gutterBottom>
-            Current selection
-          </Typography>
-          <Box display="flex" gap={2} flexWrap="wrap">
-            <Box display="flex" flexDirection="column" alignItems="center">
-              <Typography variant="caption" color="text.secondary">
-                Default emoji
-              </Typography>
-              <Box
-                sx={{
-                  fontSize: 36,
-                  borderRadius: 2,
-                  minWidth: 64,
-                  height: 64,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  border: "1px solid",
-                  borderColor: "rgba(255,255,255,0.12)",
-                }}
-              >
-                {currentEmoji}
-              </Box>
-            </Box>
-            <Box display="flex" flexDirection="column" alignItems="center">
-              <Typography variant="caption" color="text.secondary">
-                Background
-              </Typography>
-              <Box sx={topPreviewStyle} />
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                Current background preview
-              </Typography>
-            </Box>
-          </Box>
-        </Paper>
 
         <Typography variant="subtitle2" gutterBottom>
           Popular emojis
         </Typography>
-        <Grid container spacing={1} sx={{ mb: 3 }}>
+        <Grid container spacing={1} sx={{mb: 3}}>
           {POPULAR_EMOJIS.map((emoji) => (
             <Grid size="auto" key={emoji}>
               <Button
@@ -512,7 +483,7 @@ export default function EmojiSettingsDialog({
         <Typography variant="subtitle2" gutterBottom>
           Or choose any emoji
         </Typography>
-        <Box display="flex" justifyContent="center" sx={{ mb: 4 }}>
+        <Box display="flex" justifyContent="center" sx={{mb: 4}}>
           <EmojiPickerComponent
             onEmojiSelect={handleEmojiSelect}
             showQuickReact={false}
@@ -543,7 +514,7 @@ export default function EmojiSettingsDialog({
             }
 
             return (
-              <Grid key={option.key} size={{ xs: 12, sm: 6 }}>
+              <Grid key={option.key} size={{xs: 12, sm: 6}}>
                 <Paper
                   component="button"
                   type="button"
@@ -571,8 +542,8 @@ export default function EmojiSettingsDialog({
                     },
                   }}
                 >
-                  <Box sx={previewSx} />
-                  <Typography variant="subtitle2" sx={{ mt: 1 }}>
+                  <Box sx={previewSx}/>
+                  <Typography variant="subtitle2" sx={{mt: 1}}>
                     {option.label}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
@@ -583,7 +554,7 @@ export default function EmojiSettingsDialog({
             );
           })}
 
-          <Grid size={{ xs: 12, sm: 6 }}>
+          <Grid size={{xs: 12, sm: 6}}>
             <Paper
               variant="outlined"
               sx={{
@@ -613,21 +584,21 @@ export default function EmojiSettingsDialog({
                       backgroundColor: "rgba(0,0,0,0.35)",
                     }}
                   >
-                    <CircularProgress size={24} />
+                    <CircularProgress size={24}/>
                   </Box>
                 )}
               </Box>
-              <Typography variant="subtitle2" sx={{ mt: 1 }}>
+              <Typography variant="subtitle2" sx={{mt: 1}}>
                 Custom
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 {currentCustomBackground
                   ? "Using your uploaded background."
                   : initialCustomBackground
-                  ? "Restore your saved custom background or upload a new image."
-                  : "Upload an image to personalize this chat."}
+                    ? "Restore your saved custom background or upload a new image."
+                    : "Upload an image to personalize this chat."}
               </Typography>
-              <Box display="flex" flexWrap="wrap" gap={1.5} sx={{ mt: 2 }}>
+              <Box display="flex" flexWrap="wrap" gap={1.5} sx={{mt: 2}}>
                 <Button
                   variant="outlined"
                   size="small"
@@ -686,7 +657,7 @@ export default function EmojiSettingsDialog({
         >
           {isSaving ? (
             <>
-              <CircularProgress size={20} sx={{ mr: 1 }} />
+              <CircularProgress size={20} sx={{mr: 1}}/>
               Saving...
             </>
           ) : (
@@ -695,29 +666,12 @@ export default function EmojiSettingsDialog({
         </Button>
       </DialogActions>
 
-      <input
-        ref={customFileInputRef}
-        type="file"
-        hidden
-        accept="image/*"
-        onChange={handleCustomFileChange}
+      <CustomBackgroundUploadDialog
+        open={isUploadDialogOpen}
+        onClose={handleUploadDialogClose}
+        onConfirm={handleUploadDialogConfirm}
+        isUploading={isUploadingCustom}
       />
     </Dialog>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
