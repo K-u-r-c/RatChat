@@ -18,6 +18,8 @@ public class SetChatAppearanceValidator : AbstractValidator<SetChatAppearance.Co
         RuleFor(x => x.SetChatAppearanceDto)
             .Must(dto =>
                 !string.IsNullOrWhiteSpace(dto.BackgroundKey) ||
+                !string.IsNullOrWhiteSpace(dto.BackgroundCustomUrl) ||
+                !string.IsNullOrWhiteSpace(dto.BackgroundCustomPublicId) ||
                 !string.IsNullOrWhiteSpace(dto.DefaultEmoji))
             .WithMessage("At least one appearance property must be provided");
 
@@ -30,5 +32,28 @@ public class SetChatAppearanceValidator : AbstractValidator<SetChatAppearance.Co
             .MaximumLength(50)
             .When(x => !string.IsNullOrWhiteSpace(x.SetChatAppearanceDto.BackgroundKey))
             .WithMessage("Background key must be 50 characters or fewer");
+
+        RuleFor(x => x.SetChatAppearanceDto.BackgroundCustomUrl)
+            .MaximumLength(500)
+            .When(x => !string.IsNullOrWhiteSpace(x.SetChatAppearanceDto.BackgroundCustomUrl))
+            .WithMessage("Custom background URL must be 500 characters or fewer");
+
+        RuleFor(x => x.SetChatAppearanceDto.BackgroundCustomPublicId)
+            .MaximumLength(200)
+            .When(x => !string.IsNullOrWhiteSpace(x.SetChatAppearanceDto.BackgroundCustomPublicId))
+            .WithMessage("Custom background reference must be 200 characters or fewer");
+
+        RuleFor(x => x.SetChatAppearanceDto)
+            .Custom((dto, context) =>
+            {
+                if (string.Equals(dto.BackgroundKey?.Trim(), "custom", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    if (string.IsNullOrWhiteSpace(dto.BackgroundCustomUrl) ||
+                        string.IsNullOrWhiteSpace(dto.BackgroundCustomPublicId))
+                    {
+                        context.AddFailure("BackgroundCustomUrl", "Custom background requires an uploaded image.");
+                    }
+                }
+            });
     }
 }

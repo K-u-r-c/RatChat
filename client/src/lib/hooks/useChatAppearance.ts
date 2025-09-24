@@ -2,21 +2,25 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import agent from "../api/agent";
 import { toast } from "react-toastify";
 
-type ChatAppearance = {
+export type ChatAppearance = {
   id: string;
   chatType: string;
   chatId: string;
   defaultEmoji: string;
   backgroundKey: string;
+  backgroundCustomUrl?: string | null;
+  backgroundCustomPublicId?: string | null;
   updatedByUserId?: string;
   updatedAt: string;
 };
 
-type SetChatAppearanceRequest = {
+export type SetChatAppearanceRequest = {
   chatType: string;
   chatId: string;
   defaultEmoji?: string;
   backgroundKey?: string;
+  backgroundCustomUrl?: string | null;
+  backgroundCustomPublicId?: string | null;
 };
 
 export function useChatAppearance() {

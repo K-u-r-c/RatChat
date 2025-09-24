@@ -1,6 +1,8 @@
 using Application.ChatAppearances.DTOs;
 using Application.Core;
 using Application.Interfaces;
+using Application.Media.DTOs;
+using Application.Media.Helpers;
 using AutoMapper;
 using Domain;
 using MediatR;
@@ -20,6 +22,7 @@ public class SetChatAppearance
         AppDbContext context,
         IUserAccessor userAccessor,
         IMapper mapper,
+        IFileStorage fileStorage,
         IChatAppearanceNotificationService notificationService
     ) : IRequestHandler<Command, Result<ChatAppearanceDto>>
     {
@@ -51,21 +54,82 @@ public class SetChatAppearance
                 ChatId = dto.ChatId,
             };
 
+            var previousCustomPublicId = appearance.BackgroundCustomPublicId;
+            var customReplacedOrRemoved = false;
+
             var changed = false;
 
             if (!string.IsNullOrWhiteSpace(dto.DefaultEmoji) &&
-                dto.DefaultEmoji != appearance.DefaultEmoji)
+                !string.Equals(dto.DefaultEmoji, appearance.DefaultEmoji, System.StringComparison.Ordinal))
             {
                 appearance.DefaultEmoji = dto.DefaultEmoji;
                 changed = true;
             }
 
-            if (!string.IsNullOrWhiteSpace(dto.BackgroundKey) &&
-                dto.BackgroundKey != appearance.BackgroundKey)
+            var normalizedBackgroundKey = dto.BackgroundKey?.Trim();
+            var customDataProvided = !string.IsNullOrWhiteSpace(dto.BackgroundCustomUrl) ||
+                                     !string.IsNullOrWhiteSpace(dto.BackgroundCustomPublicId);
+
+            if (!string.IsNullOrWhiteSpace(normalizedBackgroundKey))
             {
-                appearance.BackgroundKey = dto.BackgroundKey;
+                var normalizedKeyValue = string.Equals(normalizedBackgroundKey, "custom", System.StringComparison.OrdinalIgnoreCase)
+                    ? "custom"
+                    : normalizedBackgroundKey!;
+
+                if (!string.Equals(normalizedKeyValue, appearance.BackgroundKey, System.StringComparison.Ordinal))
+                {
+                    appearance.BackgroundKey = normalizedKeyValue;
+                    changed = true;
+                }
+            }
+
+            if (customDataProvided &&
+                !string.Equals(appearance.BackgroundKey, "custom", System.StringComparison.OrdinalIgnoreCase))
+            {
+                appearance.BackgroundKey = "custom";
                 changed = true;
             }
+
+            if (!string.IsNullOrWhiteSpace(dto.BackgroundCustomUrl))
+            {
+                var trimmedUrl = dto.BackgroundCustomUrl.Trim();
+                if (!string.Equals(trimmedUrl, appearance.BackgroundCustomUrl, System.StringComparison.Ordinal))
+                {
+                    appearance.BackgroundCustomUrl = trimmedUrl;
+                    changed = true;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(dto.BackgroundCustomPublicId))
+            {
+                var trimmedPublicId = dto.BackgroundCustomPublicId.Trim();
+                if (!string.Equals(trimmedPublicId, appearance.BackgroundCustomPublicId, System.StringComparison.Ordinal))
+                {
+                    appearance.BackgroundCustomPublicId = trimmedPublicId;
+                    changed = true;
+                }
+            }
+
+            if (!customDataProvided &&
+                !string.Equals(appearance.BackgroundKey, "custom", System.StringComparison.OrdinalIgnoreCase) &&
+                (appearance.BackgroundCustomUrl != null || appearance.BackgroundCustomPublicId != null))
+            {
+                appearance.BackgroundCustomUrl = null;
+                appearance.BackgroundCustomPublicId = null;
+                changed = true;
+            }
+
+            if (string.Equals(appearance.BackgroundKey, "custom", System.StringComparison.OrdinalIgnoreCase) &&
+                string.IsNullOrWhiteSpace(appearance.BackgroundCustomUrl))
+            {
+                return Result<ChatAppearanceDto>.Failure(
+                    "Custom background requires an uploaded image.",
+                    400);
+            }
+
+            customReplacedOrRemoved =
+                !string.IsNullOrWhiteSpace(previousCustomPublicId) &&
+                !string.Equals(previousCustomPublicId, appearance.BackgroundCustomPublicId, System.StringComparison.Ordinal);
 
             if (!changed)
             {
@@ -91,7 +155,46 @@ public class SetChatAppearance
 
             await notificationService.NotifyAppearanceChanged(dto.ChatType, dto.ChatId, mapped, participantIds);
 
+            if (customReplacedOrRemoved && !string.IsNullOrWhiteSpace(previousCustomPublicId))
+            {
+                await TryDeleteCustomBackgroundAsync(previousCustomPublicId!, cancellationToken);
+            }
+
             return Result<ChatAppearanceDto>.Success(mapped);
+        }
+
+        private async Task TryDeleteCustomBackgroundAsync(string publicId, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var mediaFile = await context.MediaFiles
+                    .FirstOrDefaultAsync(m => m.PublicId == publicId, cancellationToken);
+
+                if (mediaFile == null)
+                {
+                    return;
+                }
+
+                var folderPath = MediaHelpers.GetFolderPath(
+                    MediaCategory.ChatBackground,
+                    mediaFile.UploadedById,
+                    mediaFile.ChatRoomId,
+                    mediaFile.ChannelId);
+
+                var deleteResult = await fileStorage.DeleteFileAsync(publicId, folderPath);
+
+                if (!deleteResult.IsSuccess)
+                {
+                    return;
+                }
+
+                context.MediaFiles.Remove(mediaFile);
+                await context.SaveChangesAsync(cancellationToken);
+            }
+            catch
+            {
+                // Ignore cleanup errors
+            }
         }
 
         private static async Task<bool> HasAccessAsync(

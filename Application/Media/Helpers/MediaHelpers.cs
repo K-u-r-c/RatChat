@@ -10,6 +10,9 @@ public static class MediaHelpers
         {
             MediaCategory.ProfileImage => $"users/{userId}/profile/images",
             MediaCategory.ProfileBackground => $"users/{userId}/profile/backgrounds",
+            MediaCategory.ChatBackground => string.IsNullOrEmpty(chatRoomId)
+                ? $"users/{userId}/chat-backgrounds"
+                : $"chatrooms/{chatRoomId}/backgrounds",
             MediaCategory.ChatRoomImage => GetChatRoomPath(chatRoomId, channelId, "images", userId),
             MediaCategory.ChatRoomVideo => GetChatRoomPath(chatRoomId, channelId, "videos", userId),
             MediaCategory.ChatRoomAudio => GetChatRoomPath(chatRoomId, channelId, "audio", userId),

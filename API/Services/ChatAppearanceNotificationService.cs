@@ -24,6 +24,8 @@ public class ChatAppearanceNotificationService(
             chatId,
             appearance.DefaultEmoji,
             appearance.BackgroundKey,
+            appearance.BackgroundCustomUrl,
+            appearance.BackgroundCustomPublicId,
             appearance.UpdatedByUserId,
             appearance.UpdatedAt,
         };

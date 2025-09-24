@@ -192,6 +192,8 @@ export const useDirectMessages = (directChatId?: string) => {
           chatId?: string;
           defaultEmoji?: string;
           backgroundKey?: string;
+          backgroundCustomUrl?: string | null;
+          backgroundCustomPublicId?: string | null;
           updatedAt?: string;
           updatedByUserId?: string;
         }) => {
@@ -211,6 +213,14 @@ export const useDirectMessages = (directChatId?: string) => {
                 payload.backgroundKey ??
                 (prev as { backgroundKey?: string })?.backgroundKey ??
                 "default",
+              backgroundCustomUrl:
+                payload.backgroundCustomUrl ??
+                (prev as { backgroundCustomUrl?: string | null })?.backgroundCustomUrl ??
+                null,
+              backgroundCustomPublicId:
+                payload.backgroundCustomPublicId ??
+                (prev as { backgroundCustomPublicId?: string | null })?.backgroundCustomPublicId ??
+                null,
               updatedAt: payload.updatedAt ?? new Date().toISOString(),
               updatedByUserId:
                 payload.updatedByUserId ??

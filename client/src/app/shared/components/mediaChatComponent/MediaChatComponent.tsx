@@ -103,7 +103,10 @@ const MediaChatComponent = observer(function MediaChatComponent({
 
   const chatBackgroundStyle = useMemo<CSSProperties>(() => {
     const base = getChatBackgroundStyle(
-      appearance?.backgroundKey ?? DEFAULT_CHAT_BACKGROUND_KEY
+      appearance?.backgroundKey ?? DEFAULT_CHAT_BACKGROUND_KEY,
+      appearance?.backgroundKey === "custom"
+        ? appearance?.backgroundCustomUrl ?? null
+        : undefined
     );
     const style: CSSProperties = { ...base };
     style.transition = "background 0.3s ease";
@@ -120,7 +123,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
       style.backgroundColor = "transparent";
     }
     return style;
-  }, [appearance?.backgroundKey]);
+  }, [appearance?.backgroundKey, appearance?.backgroundCustomUrl]);
 
   const defaultEmoji = appearance?.defaultEmoji || "\u{1F44D}";
 

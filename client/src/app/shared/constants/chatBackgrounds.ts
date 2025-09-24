@@ -21,6 +21,8 @@ export type ChatBackgroundOption = {
   previewStyle: ChatBackgroundStyle;
 };
 
+export type ChatBackgroundSelection = ChatBackgroundKey | "custom";
+
 export const DEFAULT_CHAT_BACKGROUND_KEY: ChatBackgroundKey = "default";
 
 export const CHAT_BACKGROUND_STYLES: Record<
@@ -91,9 +93,25 @@ export const CHAT_BACKGROUND_OPTIONS: ChatBackgroundOption[] = [
 ];
 
 export function getChatBackgroundStyle(
-  key: string | undefined
+  key: string | undefined,
+  customUrl?: string | null
 ): ChatBackgroundStyle {
   if (!key) return CHAT_BACKGROUND_STYLES[DEFAULT_CHAT_BACKGROUND_KEY];
+
+  if (key === "custom") {
+    if (customUrl) {
+      return {
+        backgroundImage: "url(" + customUrl + ")",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      };
+    }
+
+    return {
+      backgroundColor: "transparent",
+    };
+  }
+
   if (key in CHAT_BACKGROUND_STYLES) {
     return CHAT_BACKGROUND_STYLES[key as ChatBackgroundKey];
   }

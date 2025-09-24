@@ -445,6 +445,8 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
             x.Property(ca => ca.ChatId).IsRequired().HasMaxLength(50);
             x.Property(ca => ca.DefaultEmoji).IsRequired().HasMaxLength(10);
             x.Property(ca => ca.BackgroundKey).IsRequired().HasMaxLength(50);
+            x.Property(ca => ca.BackgroundCustomUrl).HasMaxLength(500);
+            x.Property(ca => ca.BackgroundCustomPublicId).HasMaxLength(200);
             x.Property(ca => ca.UpdatedAt).IsRequired();
 
             x.HasIndex(ca => new { ca.ChatType, ca.ChatId })

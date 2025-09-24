@@ -20,6 +20,8 @@ type ChatAppearanceUpdatedPayload = {
   chatId?: string;
   defaultEmoji?: string;
   backgroundKey?: string;
+  backgroundCustomUrl?: string | null;
+  backgroundCustomPublicId?: string | null;
   updatedAt?: string;
   updatedByUserId?: string;
 };
@@ -61,6 +63,8 @@ export function useMessagesHub() {
             chatId: string;
             defaultEmoji: string;
             backgroundKey: string;
+            backgroundCustomUrl?: string | null;
+            backgroundCustomPublicId?: string | null;
             updatedAt: string;
             updatedByUserId?: string;
           }
@@ -75,6 +79,10 @@ export function useMessagesHub() {
                 payload.defaultEmoji ?? prev?.defaultEmoji ?? "\u{1F44D}",
               backgroundKey:
                 payload.backgroundKey ?? prev?.backgroundKey ?? "default",
+              backgroundCustomUrl:
+                payload.backgroundCustomUrl ?? prev?.backgroundCustomUrl ?? null,
+              backgroundCustomPublicId:
+                payload.backgroundCustomPublicId ?? prev?.backgroundCustomPublicId ?? null,
               updatedAt: payload.updatedAt ?? new Date().toISOString(),
               updatedByUserId: payload.updatedByUserId ?? prev?.updatedByUserId,
             })
