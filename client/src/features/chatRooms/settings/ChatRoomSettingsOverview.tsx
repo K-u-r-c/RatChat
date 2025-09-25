@@ -102,7 +102,7 @@ export default function ChatRoomSettingsOverview({ chatRoomId }: Props) {
           <Button
             variant="outlined"
             onClick={() => setAppearanceDialogOpen(true)}
-            disabled={!chatRoom?.isAdmin}
+            disabled={!chatRoom?.isOwner}
           >
             Customize appearance
           </Button>
