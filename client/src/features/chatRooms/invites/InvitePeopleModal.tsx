@@ -127,9 +127,7 @@ export default function InvitePeopleModal({
                           <Button
                             variant={isBanned ? "outlined" : "contained"}
                             size="small"
-                            onClick={() =>
-                              !isBanned && handleInviteFriend(f.id)
-                            }
+                            onClick={isBanned ? undefined : () => handleInviteFriend(f.id)}
                             disabled={isBanned || isGeneratingInvite}
                             color={isBanned ? "inherit" : "primary"}
                           >
