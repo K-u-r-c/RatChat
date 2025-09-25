@@ -39,6 +39,11 @@ export default function InvitePeopleModal({
   const [maxUses, setMaxUses] = useState<string>("");
   const [expiresInMinutes, setExpiresInMinutes] = useState<string>("");
 
+  const bannedUserIds = useMemo(
+    () => new Set((chatRoom?.bans || []).map((b) => b.userId)),
+    [chatRoom?.bans]
+  );
+
   const availableFriends = useMemo(() => {
     const memberIds = new Set((chatRoom?.members || []).map((m) => m.id));
     return (friends || []).filter((f) => !memberIds.has(f.id));
@@ -113,26 +118,30 @@ export default function InvitePeopleModal({
             <Box>
               {availableFriends && availableFriends.length > 0 ? (
                 <List>
-                  {availableFriends.map((f) => (
-                    <ListItem
-                      key={f.id}
-                      secondaryAction={
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          onClick={() => handleInviteFriend(f.id)}
-                          disabled={isGeneratingInvite}
-                        >
-                          Invite
-                        </Button>
-                      }
-                    >
-                      <ListItemAvatar>
-                        <Avatar src={f.imageUrl}>{f.displayName[0]}</Avatar>
-                      </ListItemAvatar>
-                      <ListItemText primary={f.displayName} />
-                    </ListItem>
-                  ))}
+                  {availableFriends.map((f) => {
+                    const isBanned = bannedUserIds.has(f.id);
+                    return (
+                      <ListItem
+                        key={f.id}
+                        secondaryAction={
+                          <Button
+                            variant={isBanned ? "outlined" : "contained"}
+                            size="small"
+                            onClick={isBanned ? undefined : () => handleInviteFriend(f.id)}
+                            disabled={isBanned || isGeneratingInvite}
+                            color={isBanned ? "inherit" : "primary"}
+                          >
+                            {isBanned ? "Banned" : "Invite"}
+                          </Button>
+                        }
+                      >
+                        <ListItemAvatar>
+                          <Avatar src={f.imageUrl}>{f.displayName[0]}</Avatar>
+                        </ListItemAvatar>
+                        <ListItemText primary={f.displayName} />
+                      </ListItem>
+                    );
+                  })}
                 </List>
               ) : (
                 <Typography color="text.secondary">
@@ -146,4 +155,3 @@ export default function InvitePeopleModal({
     </Dialog>
   );
 }
-

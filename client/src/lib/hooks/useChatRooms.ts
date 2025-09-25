@@ -48,18 +48,18 @@ export const useChatRooms = (identifier?: string) => {
         pages: paged.pages.map((page) => ({
           ...page,
           items: page.items.map((chatRoom) => {
-            const admin = chatRoom.members.find(
-              (x) => x.id === chatRoom.adminId
+            const owner = chatRoom.members.find(
+              (x) => x.id === chatRoom.ownerId
             );
             return {
               ...chatRoom,
-              isAdmin: currentUser?.id === chatRoom.adminId,
+              isOwner: currentUser?.id === chatRoom.ownerId,
               isMember: chatRoom.members.some((x) => x.id === currentUser?.id),
-              adminImageUrl: admin?.imageUrl,
+              ownerImageUrl: owner?.imageUrl,
             } as ChatRoom & {
-              isAdmin: boolean;
+              isOwner: boolean;
               isMember: boolean;
-              adminImageUrl?: string;
+              ownerImageUrl?: string;
             };
           }),
         })),
@@ -76,12 +76,12 @@ export const useChatRooms = (identifier?: string) => {
     },
     enabled: !!identifier && !!currentUser,
     select: (dto) => {
-      const admin = dto.members.find((x) => x.id === dto.adminId);
+      const owner = dto.members.find((x) => x.id === dto.ownerId);
       return {
         ...dto,
-        isAdmin: currentUser?.id === dto.adminId,
+        isOwner: currentUser?.id === dto.ownerId,
         isMember: dto.members.some((x) => x.id === currentUser?.id),
-        adminImageUrl: admin?.imageUrl,
+        ownerImageUrl: owner?.imageUrl,
       };
     },
   });
@@ -145,15 +145,12 @@ export const useChatRooms = (identifier?: string) => {
       } = params;
 
       if (allowedUserId) {
-        const response = await agent.post<string>(
-          `/chatRooms/${id}/invites`,
-          {
-            allowedUserId,
-            maxUses,
-            expiresInMinutes,
-            sendToFriend,
-          }
-        );
+        const response = await agent.post<string>(`/chatRooms/${id}/invites`, {
+          allowedUserId,
+          maxUses,
+          expiresInMinutes,
+          sendToFriend,
+        });
 
         return { link: response.data, sentToFriend: sendToFriend };
       }

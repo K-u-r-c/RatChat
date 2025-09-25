@@ -31,7 +31,7 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
     public required DbSet<EncryptedDirectMessage> EncryptedDirectMessages { get; set; }
     public required DbSet<EncryptedDirectMessageReaction> EncryptedDirectMessageReactions { get; set; }
     public required DbSet<EncryptedDirectChatNotification> EncryptedDirectChatNotifications { get; set; }
-
+    public required DbSet<ChatRoomBan> ChatRoomBans { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -87,7 +87,7 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
             entity.HasOne(mr => mr.User)
                 .WithMany(u => u.AssignedRoles)
                 .HasForeignKey(mr => mr.UserId)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasOne(mr => mr.ChatRoom)
                 .WithMany()
@@ -122,6 +122,21 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
             entity.HasOne(rp => rp.Permission)
                 .WithMany(p => p.RolePermissions)
                 .HasForeignKey(rp => rp.PermissionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<ChatRoomBan>(entity =>
+        {
+            entity.HasKey(b => new { b.UserId, b.ChatRoomId });
+
+            entity.HasOne(b => b.User)
+                .WithMany(u => u.Bans)
+                .HasForeignKey(b => b.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(b => b.ChatRoom)
+                .WithMany(cr => cr.Bans)
+                .HasForeignKey(b => b.ChatRoomId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -161,23 +176,23 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
         });
 
         builder.Entity<DirectChat>(x =>
-       {
-           x.HasKey(dc => dc.Id);
+        {
+            x.HasKey(dc => dc.Id);
 
-           x.HasOne(dc => dc.User1)
-               .WithMany()
-               .HasForeignKey(dc => dc.User1Id)
-               .OnDelete(DeleteBehavior.NoAction);
+            x.HasOne(dc => dc.User1)
+                .WithMany()
+                .HasForeignKey(dc => dc.User1Id)
+                .OnDelete(DeleteBehavior.NoAction);
 
-           x.HasOne(dc => dc.User2)
-               .WithMany()
-               .HasForeignKey(dc => dc.User2Id)
-               .OnDelete(DeleteBehavior.NoAction);
+            x.HasOne(dc => dc.User2)
+                .WithMany()
+                .HasForeignKey(dc => dc.User2Id)
+                .OnDelete(DeleteBehavior.NoAction);
 
-           // Ensure no duplicate chats between same users
-           x.HasIndex(dc => new { dc.User1Id, dc.User2Id })
-               .IsUnique();
-       });
+            // Ensure no duplicate chats between same users
+            x.HasIndex(dc => new { dc.User1Id, dc.User2Id })
+                .IsUnique();
+        });
 
         builder.Entity<DirectMessage>(x =>
         {
@@ -501,19 +516,13 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
         });
 
         var dateTimeConverter = new ValueConverter<DateTime, DateTime>(
-                    v => v.ToUniversalTime(),
-                    v => DateTime.SpecifyKind(v, DateTimeKind.Utc)
-                );
+            v => v.ToUniversalTime(),
+            v => DateTime.SpecifyKind(v, DateTimeKind.Utc)
+        );
 
         foreach (var entityType in builder.Model.GetEntityTypes())
-        {
-            foreach (var property in entityType.GetProperties())
-            {
-                if (property.ClrType == typeof(DateTime))
-                {
-                    property.SetValueConverter(dateTimeConverter);
-                }
-            }
-        }
+        foreach (var property in entityType.GetProperties())
+            if (property.ClrType == typeof(DateTime))
+                property.SetValueConverter(dateTimeConverter);
     }
 }

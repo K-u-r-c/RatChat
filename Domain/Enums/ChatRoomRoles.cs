@@ -17,9 +17,15 @@ public class ChatRoomRoles
         [(Moderator, ChatRoomPermissions.ViewChatRoom)] = true,
         [(Moderator, ChatRoomPermissions.SendMessages)] = true,
         [(Moderator, ChatRoomPermissions.CreateInviteLinks)] = true,
+        [(Moderator, ChatRoomPermissions.KickFromChatRoom)] = true,
+        [(Moderator, ChatRoomPermissions.BanFromChatRoom)] = true,
+        [(Moderator, ChatRoomPermissions.UnbanFromChatRoom)] = true,
 
         [(Member, ChatRoomPermissions.ViewChatRoom)] = true,
         [(Member, ChatRoomPermissions.SendMessages)] = true,
         [(Member, ChatRoomPermissions.CreateInviteLinks)] = false,
+        [(Member, ChatRoomPermissions.KickFromChatRoom)] = false,
+        [(Member, ChatRoomPermissions.BanFromChatRoom)] = false,
+        [(Member, ChatRoomPermissions.UnbanFromChatRoom)] = false,
     };
 }

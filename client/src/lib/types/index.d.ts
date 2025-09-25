@@ -23,6 +23,13 @@ export type User = {
   lastSeen: Date;
 };
 
+export type ChatRoomBan = {
+  userId: string;
+  user: User?;
+  chatRoomId: string;
+  dateBanned: string;
+};
+
 export type ChatRoom = {
   id: string;
   slug: string;
@@ -30,10 +37,11 @@ export type ChatRoom = {
   imageUrl?: string;
   date: Date;
   members: Profile[];
-  isAdmin: boolean;
-  adminId: string;
-  adminDisplayName: string;
-  adminImageUrl?: string;
+  isOwner: boolean;
+  ownerId: string;
+  ownerDisplayName: string;
+  ownerImageUrl?: string;
+  bans: ChatRoomBan[];
 };
 
 export type ChatRoomIdentifier = {

@@ -27,11 +27,11 @@ public class MappingProfiles : Profile
 
         CreateMap<ChatRoom, ChatRoomDto>()
             .ForMember(
-                d => d.AdminDisplayName,
+                d => d.OwnerDisplayName,
                 o => o.MapFrom(s => s.Members.FirstOrDefault(x => x.IsOwner)!.User.DisplayName)
             )
             .ForMember(
-                d => d.AdminId,
+                d => d.OwnerId,
                 o => o.MapFrom(s => s.Members.FirstOrDefault(x => x.IsOwner)!.User.Id)
             );
 
@@ -196,5 +196,8 @@ public class MappingProfiles : Profile
         CreateMap<EncryptedDirectMessageReaction, MessageReactionDto>()
             .ForMember(d => d.MessageId, o => o.MapFrom(s => s.EncryptedDirectMessageId))
             .ForMember(d => d.DisplayName, o => o.MapFrom(s => s.User.DisplayName ?? string.Empty));
+
+        CreateMap<ChatRoomBanDto, ChatRoomBan>();
+        CreateMap<ChatRoomBan, ChatRoomBanDto>();
     }
 }

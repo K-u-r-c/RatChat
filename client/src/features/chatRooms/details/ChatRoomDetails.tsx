@@ -18,6 +18,7 @@ import { observer } from "mobx-react-lite";
 import { useAccount } from "../../../lib/hooks/useAccount";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ChatRoomMemberPopover from "./ChatRoomMemberPopover";
+import { useChatRoomModerationEventsRealtime } from "../../../lib/hooks/useChatRoomModerationEventsRealtime";
 
 const ChatRoomDetails = observer(function ChatRoomDetails() {
   const { slug } = useParams();
@@ -28,6 +29,8 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
     chatRoom?.id,
     currentUser?.id
   );
+
+  useChatRoomModerationEventsRealtime(chatRoom, currentUser?.id);
 
   useEffect(() => {
     if (chatRoom && slug && slug !== chatRoom.slug) {
@@ -120,6 +123,14 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
     document.body.style.cursor = "col-resize";
     (document.body.style as CSSStyleDeclaration).userSelect = "none";
   };
+
+  useEffect(() => {
+    if (!anchorEl) return;
+    const anchorGone = !document.body.contains(anchorEl);
+    if (anchorGone || !selectedMember) {
+      setAnchorEl(null);
+    }
+  }, [anchorEl, selectedMember]);
 
   if (isLoadingChatRoom) return <Typography>Loading...</Typography>;
   if (!chatRoom) return <Typography>Activity not found</Typography>;
@@ -308,6 +319,8 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
         onClose={() => setAnchorEl(null)}
         member={selectedMember}
         loadRoles={rolesStore.getUserRoles}
+        chatRoomId={chatRoom.id ?? ""}
+        ownerId={chatRoom.ownerId}
       />
     </Box>
   );

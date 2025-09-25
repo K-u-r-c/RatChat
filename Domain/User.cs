@@ -24,4 +24,5 @@ public class User : IdentityUser
 
     public ICollection<ChatRoom> OwnedChatRooms { get; set; } = [];
     public ICollection<ChatRoomMemberRole> AssignedRoles { get; set; } = [];
+    public ICollection<ChatRoomBan> Bans { get; set; } = [];
 }

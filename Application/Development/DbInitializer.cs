@@ -322,7 +322,7 @@ public class DbInitializer
 
             foreach (var user in users)
             {
-                await chatRoomRoleService.AssignMemberRoleAsync(user.Id, chatRoom.Id);
+                await chatRoomRoleService.AssignMemberRoleAsync(user.Id, chatRoom.Id, CancellationToken.None);
             }
         }
 

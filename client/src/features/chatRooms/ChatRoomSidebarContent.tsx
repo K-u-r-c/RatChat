@@ -51,8 +51,8 @@ export default function ChatRoomSidebarContent() {
   };
 
   const handleLeave = async () => {
-    const message = chatRoom?.isAdmin
-      ? "Are you sure you want to leave this chat room?\n\nAs the admin, leaving will transfer ownership to the oldest user or delete the room if you are the last member."
+    const message = chatRoom?.isOwner
+      ? "Are you sure you want to leave this chat room?\n\nAs the owner, leaving will transfer ownership to the oldest user or delete the room if you are the last member."
       : "Are you sure you want to leave this chat room?";
 
     if (window.confirm(message)) {
@@ -121,7 +121,7 @@ export default function ChatRoomSidebarContent() {
             },
           }}
         >
-          {(chatRoom.isAdmin ||
+          {(chatRoom.isOwner ||
             rolesStore.userPermissions[
               CHATROOM_PERMISSIONS.CreateInviteLinks
             ]) && (
@@ -154,7 +154,7 @@ export default function ChatRoomSidebarContent() {
             </ListItemIcon>
             Server settings
           </MenuItem>
-          {chatRoom.isAdmin ? (
+          {chatRoom.isOwner ? (
             <MenuItem
               onClick={async () => {
                 if (

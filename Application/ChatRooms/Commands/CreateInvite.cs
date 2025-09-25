@@ -38,6 +38,7 @@ public class CreateInvite
 
             var chatRoom = await context.ChatRooms
                 .AsNoTracking()
+                .Include(x => x.Bans)
                 .FirstOrDefaultAsync(x => x.Id == request.Id || x.Slug == request.Id, cancellationToken);
             if (chatRoom == null)
                 return Result<string>.Failure("Chat room not found", 404);
@@ -47,6 +48,14 @@ public class CreateInvite
             var expiresAt = effectiveExpiryMinutes > 0
                 ? DateTime.UtcNow.AddMinutes(effectiveExpiryMinutes)
                 : (DateTime?)null;
+
+            var ban = chatRoom.Bans.FirstOrDefault(
+                b => b.UserId == request.AllowedUserId && b.ChatRoomId == chatRoom.Id);
+
+            if (ban != null)
+            {
+                return Result<string>.Failure("That user is banned from this chat room", 401);
+            }
 
             var maxUses = string.IsNullOrEmpty(request.AllowedUserId) ? request.MaxUses : 1;
 

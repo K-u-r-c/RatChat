@@ -1,3 +1,4 @@
+using API.SignalR;
 using Application.ChatRooms.Commands;
 using Application.ChatRooms.DTOs;
 using Application.ChatRooms.Queries;
@@ -7,11 +8,14 @@ using Infrastructure.Security;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 
 namespace API.Controllers;
 
-public class ChatRoomsController : BaseApiController
+public class ChatRoomsController(IHubContext<ChatRoomModerationEventsHub> hubContext) : BaseApiController
 {
+    private readonly IHubContext<ChatRoomModerationEventsHub> _hubContext = hubContext;
+
     [HttpGet]
     public async Task<ActionResult<PagedList<ChatRoomDto, DateTime?>>> GetChatRooms(
         [FromQuery] ChatRoomParams chatRoomParams
@@ -43,7 +47,7 @@ public class ChatRoomsController : BaseApiController
     }
 
     [HttpPut("{id}")]
-    [Authorize(Policy = IsAdminStrings.IsChatRoomAdmin)]
+    [Authorize(Policy = IsOwnerStrings.IsChatRoomOwner)]
     public async Task<ActionResult<Unit>> UpdateChatRoom(string id, EditChatRoomDto chatRoomDto)
     {
         chatRoomDto.Id = id;
@@ -53,7 +57,7 @@ public class ChatRoomsController : BaseApiController
     }
 
     [HttpPut("{id}/image")]
-    [Authorize(Policy = IsAdminStrings.IsChatRoomAdmin)]
+    [Authorize(Policy = IsOwnerStrings.IsChatRoomOwner)]
     public async Task<ActionResult<Unit>> UpdateChatRoomImage(string id, SetChatRoomImageDto setChatRoomImageDto)
     {
         setChatRoomImageDto.Id = id;
@@ -65,7 +69,7 @@ public class ChatRoomsController : BaseApiController
     }
 
     [HttpDelete("{id}/image")]
-    [Authorize(Policy = IsAdminStrings.IsChatRoomAdmin)]
+    [Authorize(Policy = IsOwnerStrings.IsChatRoomOwner)]
     public async Task<ActionResult<Unit>> DeleteChatRoomImage(string id)
     {
         return HandleResult(
@@ -74,7 +78,7 @@ public class ChatRoomsController : BaseApiController
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Policy = IsAdminStrings.IsChatRoomAdmin)]
+    [Authorize(Policy = IsOwnerStrings.IsChatRoomOwner)]
     public async Task<ActionResult<Unit>> DeleteChatRoom(string id)
     {
         return HandleResult(await Mediator.Send(new DeleteChatRoom.Command { Id = id }));
@@ -114,4 +118,72 @@ public class ChatRoomsController : BaseApiController
         command.Id = id;
         return HandleResult(await Mediator.Send(command));
     }
+
+    [HttpPost("{id}/kick/{user_id}")]
+    [Authorize(Policy = ChatRoomPermissions.KickFromChatRoom)]
+    public async Task<ActionResult<string>> KickChatRoomUser(string id, string user_id)
+    {
+        var result = await Mediator.Send(
+            new KickUser.Command
+            {
+                ChatRoomId = id,
+                UserId = user_id
+            }
+        );
+
+        if (result.IsSuccess)
+        {
+            await _hubContext.Clients.Group(id).SendAsync("UserKicked", result.Value);
+        }
+
+        return HandleResult(result);
+    }
+
+    [HttpPost("{id}/ban/{user_id}")]
+    [Authorize(Policy = ChatRoomPermissions.BanFromChatRoom)]
+    public async Task<ActionResult<Unit>> BanChatRoomUser(string id, string user_id)
+    {
+        var result = await Mediator.Send(
+            new BanUser.Command
+            {
+                ChatRoomBanDto = new ChatRoomBanDto
+                {
+                    UserId = user_id,
+                    ChatRoomId = id,
+                    DateBanned = DateTime.UtcNow
+                }
+            }
+        );
+
+        if (result.IsSuccess)
+        {
+            await _hubContext.Clients.Group(id).SendAsync("UserBanned", result.Value);
+        }
+
+        return HandleResult(result);
+    }
+
+    [HttpPost("{id}/unban/{user_id}")]
+    [Authorize(Policy = ChatRoomPermissions.UnbanFromChatRoom)]
+    public async Task<ActionResult<Unit>> UnbanChatRoomUser(string id, string user_id)
+    {
+        var result = await Mediator.Send(
+            new UnbanUser.Command
+            {
+                ChatRoomBanDto = new ChatRoomBanDto
+                {
+                    UserId = user_id,
+                    ChatRoomId = id
+                }
+            }
+        );
+
+        if (result.IsSuccess)
+        {
+            await _hubContext.Clients.Group(id).SendAsync("UserUnbanned", result.Value);
+        }
+
+        return HandleResult(result);
+    }
+
 }

@@ -7,6 +7,9 @@ export const CHATROOM_PERMISSIONS = {
   SendMessages: "Send Messages",
   CreateInviteLinks: "Create invite links",
   ChangeChatRoomImage: "Change chat room image",
+  KickFromChatRoom: "Kick from chatroom",
+  BanFromChatRoom: "Ban from chatroom",
+  UnbanFromChatRoom: "Unban from chatroom",
 } as const;
 
 export type CHATROOM_PERMISSION =
