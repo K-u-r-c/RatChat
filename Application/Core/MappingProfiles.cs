@@ -1,4 +1,5 @@
-﻿using Application.ChatRooms.DTOs;
+using Application.ChatRooms.DTOs;
+using Application.ChatAppearances.DTOs;
 using Application.DirectChats.DTOs;
 using Application.EncryptedDirectChats.DTOs;
 using Application.EncryptedDirectMessages.DTOs;
@@ -146,6 +147,7 @@ public class MappingProfiles : Profile
             .ForMember(d => d.Status, o => o.MapFrom(s => s.Status.ToString()));
 
         CreateMap<EmojiPreference, EmojiPreferenceDto>();
+        CreateMap<ChatAppearance, ChatAppearanceDto>();
 
         CreateMap<MessageReaction, MessageReactionDto>()
             .ForMember(d => d.MessageId, o => o.MapFrom(s => s.MessageId))

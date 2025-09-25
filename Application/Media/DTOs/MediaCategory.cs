@@ -4,6 +4,7 @@ public enum MediaCategory
 {
     ProfileImage,
     ProfileBackground,
+    ChatBackground,
     ChatRoomImage,
     ChatRoomVideo,
     ChatRoomAudio,

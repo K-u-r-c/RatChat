@@ -60,6 +60,7 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
   const [selectedMemberId, setSelectedMemberId] = useState<string | undefined>(
     undefined
   );
+
   const selectedMember = useMemo(
     () => chatRoom?.members?.find((m) => m.id === selectedMemberId),
     [chatRoom?.members, selectedMemberId]
@@ -150,17 +151,21 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
             borderBottom: "1px solid",
             borderColor: "divider",
             p: 1,
+            gap: 1,
+            flexWrap: "wrap",
           }}
         >
-          <Typography variant="h6" fontWeight="bold">
-            # general
+          <Typography variant="h6" fontWeight="bold" noWrap>
+            {chatRoom.title}
           </Typography>
-          <TextField
-            size="small"
-            placeholder="Search (dummy)"
-            sx={{ width: 320 }}
-            disabled
-          />
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <TextField
+              size="small"
+              placeholder="Search (dummy)"
+              sx={{ width: 320 }}
+              disabled
+            />
+          </Box>
         </Box>
 
         {/* Chat */}

@@ -1,27 +1,18 @@
-import {
-  Box,
-  Button,
-  CircularProgress,
-  Chip,
-  Typography,
-  IconButton,
-  Paper,
-} from "@mui/material";
-import { ReplyOutlined } from "@mui/icons-material";
+import type {HubConnection} from "@microsoft/signalr";
+import {ReplyOutlined} from "@mui/icons-material";
+import {Box, Button, Chip, CircularProgress, IconButton, Paper, Typography,} from "@mui/material";
+import {runInAction} from "mobx";
+import React, {useRef} from "react";
+import {useAccount} from "../../../../../lib/hooks/useAccount";
+import type {BaseMessage, BaseMessageStore, MessageReaction} from "../../../../../lib/types";
+import {formatDate, timeAgo} from "../../../../../lib/util/util";
+import EmojiPickerComponent from "../../EmojiPicker";
 import MessageAvatar from "../../MessageAvatar";
 import GroupedMediaMessage from "../GroupedMediaMessage";
-import type { BaseMessage, BaseMessageStore } from "../../../../../lib/types";
-import EmojiPickerComponent from "../../EmojiPicker";
 import MessageReactions from "../MessageReactions";
-import { useAccount } from "../../../../../lib/hooks/useAccount";
-import type { HubConnection } from "@microsoft/signalr";
-import type { MessageReaction } from "../../../../../lib/types";
-import { runInAction } from "mobx";
-import React, { useRef } from "react";
-import { timeAgo, formatDate } from "../../../../../lib/util/util";
+import {buildRenderItems, type RenderItem} from "./buildRenderItems";
 import DateDivider from "./DateDivider";
 import SingleMessageRow from "./SingleMessageRow";
-import { buildRenderItems, type RenderItem } from "./buildRenderItems";
 
 interface ChatMessageListProps {
   messageStore: BaseMessageStore;
@@ -41,20 +32,20 @@ interface ChatMessageListProps {
 }
 
 export default function ChatMessageList({
-  messageStore,
-  showUserProfiles = true,
-  onImageClick,
-  onFileDownload,
-  loadMoreRef,
-  messagesEndRef,
-  onReplyClick,
-  onJumpToMessage,
-  chatRoomId,
-  defaultEmoji = "👍",
-  directChatId,
-  encryptedDirectChatId,
-}: ChatMessageListProps) {
-  const { currentUser } = useAccount();
+                                          messageStore,
+                                          showUserProfiles = true,
+                                          onImageClick,
+                                          onFileDownload,
+                                          loadMoreRef,
+                                          messagesEndRef,
+                                          onReplyClick,
+                                          onJumpToMessage,
+                                          chatRoomId,
+                                          defaultEmoji = "👍",
+                                          directChatId,
+                                          encryptedDirectChatId,
+                                        }: ChatMessageListProps) {
+  const {currentUser} = useAccount();
   const renderItems: RenderItem[] = buildRenderItems(
     messageStore.messages as BaseMessage[]
   );
@@ -134,7 +125,7 @@ export default function ChatMessageList({
       runInAction(() => {
         const current = (messageStore.messages as BaseMessage[])[
           idx
-        ] as BaseMessage & {
+          ] as BaseMessage & {
           reactions?: MessageReaction[];
         };
         const curList = current.reactions ? [...current.reactions] : [];
@@ -181,7 +172,7 @@ export default function ChatMessageList({
         >
           {/* While loading older messages show a spinner, otherwise a button */}
           {messageStore.isLoadingOlder ? (
-            <CircularProgress size={24} />
+            <CircularProgress size={24}/>
           ) : (
             <Button
               onClick={() => messageStore.loadOlderMessages()}
@@ -198,7 +189,7 @@ export default function ChatMessageList({
       {renderItems.map((item, idx) => {
         // Date divider: shows a centered date label between message groups
         if (item.kind === "date") {
-          return <DateDivider key={`date-${idx}`} date={item.date} />;
+          return <DateDivider key={`date-${idx}`} date={item.date}/>;
         }
 
         // Single message: an individual message row with avatar, content, actions, reactions
@@ -249,8 +240,8 @@ export default function ChatMessageList({
               py: 0.5,
               borderRadius: 1,
               transition: "background-color 0.15s",
-              "&:hover": { backgroundColor: "rgba(255,255,255,0.04)" },
-              "&:hover .actions": { opacity: 1 },
+              "&:hover": {backgroundColor: "rgba(255,255,255,0.04)"},
+              "&:hover .actions": {opacity: 1},
             }}
             title={formatDate(first.createdAt)}
           >
@@ -266,7 +257,7 @@ export default function ChatMessageList({
             <Box
               display="flex"
               flexDirection="column"
-              sx={{ flex: 1, alignItems: isOwn ? "flex-end" : "flex-start" }}
+              sx={{flex: 1, alignItems: isOwn ? "flex-end" : "flex-start"}}
             >
               {/* Header: sender name, timestamp, media type chip, inline actions (reply/emoji) */}
               <Box
@@ -280,7 +271,7 @@ export default function ChatMessageList({
               >
                 <Typography
                   variant="subtitle1"
-                  sx={{ fontWeight: "bold", textDecoration: "none" }}
+                  sx={{fontWeight: "bold", textDecoration: "none"}}
                 >
                   {displayName}
                 </Typography>
@@ -318,7 +309,7 @@ export default function ChatMessageList({
                       title="Reply"
                       onClick={() => onReplyClick(first.id)}
                     >
-                      <ReplyOutlined fontSize="small" />
+                      <ReplyOutlined fontSize="small"/>
                     </IconButton>
                   )}
 
@@ -336,13 +327,13 @@ export default function ChatMessageList({
                       defaultEmoji={defaultEmoji}
                       anchorOrigin={
                         isOwn
-                          ? { vertical: "bottom", horizontal: "right" }
-                          : { vertical: "bottom", horizontal: "left" }
+                          ? {vertical: "bottom", horizontal: "right"}
+                          : {vertical: "bottom", horizontal: "left"}
                       }
                       transformOrigin={
                         isOwn
-                          ? { vertical: "bottom", horizontal: "left" }
-                          : { vertical: "bottom", horizontal: "left" }
+                          ? {vertical: "bottom", horizontal: "left"}
+                          : {vertical: "bottom", horizontal: "left"}
                       }
                     />
                   )}
@@ -354,7 +345,7 @@ export default function ChatMessageList({
                 elevation={0}
                 sx={{
                   p: 1.25,
-                  bgcolor: isOwn ? "primary.main" : "action.hover",
+                  bgcolor: isOwn ? "primary.main" : "background.paper",
                   color: isOwn ? "#fff" : "inherit",
                   borderRadius: 2,
                   maxWidth: "75%",
@@ -382,7 +373,7 @@ export default function ChatMessageList({
                       onJumpToMessage(first.replyToMessageId!)
                     }
                   >
-                    <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                    <Typography variant="caption" sx={{fontWeight: 700}}>
                       Replying to {first.replyToDisplayName || "message"}
                     </Typography>
                     <Typography
@@ -397,9 +388,9 @@ export default function ChatMessageList({
                     >
                       {first.replyToType && first.replyToType !== "Text"
                         ? `📎 ${
-                            first.replyToMediaOriginalFileName ||
-                            first.replyToType
-                          }`
+                          first.replyToMediaOriginalFileName ||
+                          first.replyToType
+                        }`
                         : first.replyToBody || ""}
                     </Typography>
                   </Box>
@@ -407,7 +398,7 @@ export default function ChatMessageList({
               </Paper>
 
               {/* Reactions row for the grouped content (aligned left/right based on owner) */}
-              <Box sx={{ alignSelf: isOwn ? "flex-end" : "flex-start" }}>
+              <Box sx={{alignSelf: isOwn ? "flex-end" : "flex-start"}}>
                 <MessageReactions
                   reactions={
                     (first as BaseMessage).reactions as MessageReaction[]
@@ -424,7 +415,7 @@ export default function ChatMessageList({
       })}
 
       {/* End-of-list marker for scrolling / jumping to bottom */}
-      <div ref={messagesEndRef} />
+      <div ref={messagesEndRef}/>
     </>
   );
 }

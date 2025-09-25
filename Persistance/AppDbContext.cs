@@ -1,4 +1,4 @@
-﻿using Domain;
+using Domain;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
@@ -18,6 +18,7 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
     public required DbSet<DirectMessage> DirectMessages { get; set; }
     public required DbSet<DirectMessageReaction> DirectMessageReactions { get; set; }
     public required DbSet<EmojiPreference> EmojiPreferences { get; set; }
+    public required DbSet<ChatAppearance> ChatAppearances { get; set; }
     public required DbSet<MessageReaction> MessageReactions { get; set; }
     public required DbSet<ChatRoomRole> ChatRoomRoles { get; set; }
     public required DbSet<ChatRoomMemberRole> ChatRoomMemberRoles { get; set; }
@@ -437,6 +438,26 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        builder.Entity<ChatAppearance>(x =>
+        {
+            x.HasKey(ca => ca.Id);
+            x.Property(ca => ca.ChatType).IsRequired().HasMaxLength(20);
+            x.Property(ca => ca.ChatId).IsRequired().HasMaxLength(50);
+            x.Property(ca => ca.DefaultEmoji).IsRequired().HasMaxLength(10);
+            x.Property(ca => ca.BackgroundKey).IsRequired().HasMaxLength(50);
+            x.Property(ca => ca.BackgroundCustomUrl).HasMaxLength(500);
+            x.Property(ca => ca.BackgroundCustomPublicId).HasMaxLength(200);
+            x.Property(ca => ca.UpdatedAt).IsRequired();
+
+            x.HasIndex(ca => new { ca.ChatType, ca.ChatId })
+                .IsUnique();
+
+            x.HasOne(ca => ca.UpdatedByUser)
+                .WithMany()
+                .HasForeignKey(ca => ca.UpdatedByUserId)
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+
         builder.Entity<ChatRoomNotification>(entity =>
         {
             entity.HasKey(n => n.Id);
@@ -496,11 +517,3 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
         }
     }
 }
-
-
-
-
-
-
-
-

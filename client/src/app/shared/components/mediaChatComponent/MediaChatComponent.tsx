@@ -1,26 +1,23 @@
-import { Box, Typography, Fab, Tooltip, Badge } from "@mui/material";
-import { KeyboardArrowDown } from "@mui/icons-material";
-import { useState, useEffect, useRef } from "react";
-import { observer } from "mobx-react-lite";
-import { useInView } from "react-intersection-observer";
-import { type FieldValues } from "react-hook-form";
-import type {
-  MessageType,
-  MediaUploadResult,
-  BaseMessageStore,
-} from "../../../../lib/types";
-import DragOverlay from "./DragOverlay";
-import ChatMessageList from "./chatMessageList/ChatMessageList";
-import { FilePreview } from "./FilePreview";
-import MultiFilePreview from "./MultiFilePreview";
-import ChatInput from "./ChatInput";
-import ImageViewerDialog from "./ImageViewerDialog";
-import { useEmojiPreferences } from "../../../../lib/hooks/useEmojiPreferences";
-import { useScrollHandler } from "../../../../lib/hooks/useScrollHandler";
-import { useFileUpload } from "../../../../lib/hooks/useFileUpload";
+import {KeyboardArrowDown} from "@mui/icons-material";
+import {Badge, Box, Fab, Tooltip, Typography} from "@mui/material";
+import {observer} from "mobx-react-lite";
+import {type CSSProperties, useEffect, useMemo, useRef, useState,} from "react";
+import {type FieldValues} from "react-hook-form";
+import {useInView} from "react-intersection-observer";
+import {useChatAppearance} from "../../../../lib/hooks/useChatAppearance";
+import type {useChatRoomRolesRealtime} from "../../../../lib/hooks/useChatRoomRolesRealtime";
+import {useFileUpload} from "../../../../lib/hooks/useFileUpload";
+import {useScrollHandler} from "../../../../lib/hooks/useScrollHandler";
+import type {BaseMessageStore, MediaUploadResult, MessageType,} from "../../../../lib/types";
+import {CHATROOM_PERMISSIONS} from "../../../../lib/types/chatroomPermissions";
+import {DEFAULT_CHAT_BACKGROUND_KEY, getChatBackgroundStyle,} from "../../constants/chatBackgrounds";
 import EmojiSettingsDialog from "../EmojiSettingsDialog";
-import type { useChatRoomRolesRealtime } from "../../../../lib/hooks/useChatRoomRolesRealtime";
-import { CHATROOM_PERMISSIONS } from "../../../../lib/types/chatroomPermissions";
+import ChatInput from "./ChatInput";
+import ChatMessageList from "./chatMessageList/ChatMessageList";
+import DragOverlay from "./DragOverlay";
+import {FilePreview} from "./FilePreview";
+import ImageViewerDialog from "./ImageViewerDialog";
+import MultiFilePreview from "./MultiFilePreview";
 
 const MAX_JUMP_ATTEMPTS = 1000;
 const RETRY_DELAY_MS = 100;
@@ -45,16 +42,16 @@ interface MediaChatComponentProps {
 }
 
 const MediaChatComponent = observer(function MediaChatComponent({
-  title,
-  messageStore,
-  onSendMessage,
-  showUserProfiles = true,
-  chatRoomId,
-  directChatId,
-  encryptedDirectChatId,
-  userPermissions,
-  directCanSend,
-}: MediaChatComponentProps) {
+                                                                  title,
+                                                                  messageStore,
+                                                                  onSendMessage,
+                                                                  showUserProfiles = true,
+                                                                  chatRoomId,
+                                                                  directChatId,
+                                                                  encryptedDirectChatId,
+                                                                  userPermissions,
+                                                                  directCanSend,
+                                                                }: MediaChatComponentProps) {
   const [imageDialog, setImageDialog] = useState<{
     open: boolean;
     src: string | null;
@@ -68,11 +65,11 @@ const MediaChatComponent = observer(function MediaChatComponent({
   );
   const [replyPreview, setReplyPreview] = useState<
     | {
-        displayName?: string;
-        body?: string;
-        type?: MessageType;
-        mediaOriginalFileName?: string;
-      }
+    displayName?: string;
+    body?: string;
+    type?: MessageType;
+    mediaOriginalFileName?: string;
+  }
     | undefined
   >(undefined);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -80,27 +77,53 @@ const MediaChatComponent = observer(function MediaChatComponent({
   const backendChatType = chatRoomId
     ? "ChatRoom"
     : encryptedDirectChatId
-    ? "EncryptedDirectChat"
-    : "DirectChat";
+      ? "EncryptedDirectChat"
+      : "DirectChat";
   const chatId = chatRoomId ?? encryptedDirectChatId ?? directChatId ?? "";
   const settingsDialogChatType = chatRoomId
     ? "chatroom"
     : encryptedDirectChatId
-    ? "encrypted"
-    : "direct";
-  const { useEmojiPreference } = useEmojiPreferences();
-  const { data: emojiPreference } = useEmojiPreference(backendChatType, chatId);
-  const defaultEmoji = emojiPreference?.defaultEmoji || "\u{1F44D}";
+      ? "encrypted"
+      : "direct";
+  const {useAppearance} = useChatAppearance();
+  const {data: appearance} = useAppearance(backendChatType, chatId);
 
-  const scrollHandler = useScrollHandler({ messageStore });
+  const chatBackgroundStyle = useMemo<CSSProperties>(() => {
+    const base = getChatBackgroundStyle(
+      appearance?.backgroundKey ?? DEFAULT_CHAT_BACKGROUND_KEY,
+      appearance?.backgroundKey === "custom"
+        ? appearance?.backgroundCustomUrl ?? null
+        : undefined
+    );
+    const style: CSSProperties = {...base};
+    style.transition = "background 0.3s ease";
+    if (style.backgroundImage && !style.backgroundSize) {
+      style.backgroundSize = "cover";
+    }
+    if (style.backgroundImage && !style.backgroundPosition) {
+      style.backgroundPosition = "center";
+    }
+    if (style.backgroundImage && !style.backgroundRepeat) {
+      style.backgroundRepeat = base.backgroundSize ? "repeat" : "no-repeat";
+    }
+    if (!style.backgroundImage && !style.backgroundColor) {
+      style.backgroundColor = "transparent";
+    }
+    return style;
+  }, [appearance?.backgroundKey, appearance?.backgroundCustomUrl]);
+
+  const defaultEmoji = appearance?.defaultEmoji || "\u{1F44D}";
+
+  const scrollHandler = useScrollHandler({messageStore});
   const fileUpload = useFileUpload({
     chatRoomId,
     onUpload: async (body, type, mediaData) =>
       onSendMessage(body, type, mediaData, replyToMessageId),
-    onReset: () => {}, // Will be called from handleSubmit
+    onReset: () => {
+    }, // Will be called from handleSubmit
   });
 
-  const { ref: loadMoreRef, inView } = useInView({
+  const {ref: loadMoreRef, inView} = useInView({
     threshold: 0.1,
     rootMargin: "100px 0px 0px 0px",
   });
@@ -145,7 +168,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
   };
 
   const handleImageClick = (src: string) => {
-    setImageDialog({ open: true, src });
+    setImageDialog({open: true, src});
   };
 
   const handleFileDownload = (url: string, filename: string) => {
@@ -200,14 +223,14 @@ const MediaChatComponent = observer(function MediaChatComponent({
 
   const handleJumpToMessage = async (messageId: string) => {
     const highlight = (el: HTMLElement) => {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.scrollIntoView({behavior: "smooth", block: "center"});
       el.animate(
         [
-          { backgroundColor: "transparent" },
-          { backgroundColor: "rgba(255, 235, 59, 0.3)" },
-          { backgroundColor: "transparent" },
+          {backgroundColor: "transparent"},
+          {backgroundColor: "rgba(255, 235, 59, 0.3)"},
+          {backgroundColor: "transparent"},
         ],
-        { duration: 1200 }
+        {duration: 1200}
       );
     };
 
@@ -238,16 +261,18 @@ const MediaChatComponent = observer(function MediaChatComponent({
     <div
       {...fileUpload.dropzoneProps}
       style={{
+        position: "relative",
         height: "100%",
         display: "flex",
         flexDirection: "column",
         minHeight: 0,
+        ...chatBackgroundStyle,
       }}
     >
       <input {...fileUpload.inputProps} />
 
       {/* Drag overlay */}
-      <DragOverlay isDragActive={fileUpload.isDragActive} />
+      <DragOverlay isDragActive={fileUpload.isDragActive}/>
 
       <Box
         sx={{
@@ -266,7 +291,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
           }}
         >
           {/* Messages area wrapper */}
-          <Box sx={{ position: "relative", flex: 1, minHeight: 0 }}>
+          <Box sx={{position: "relative", flex: 1, minHeight: 0}}>
             {/* Messages container */}
             <Box
               ref={scrollHandler.messagesContainerRef}
@@ -312,7 +337,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
                     color="secondary"
                     badgeContent={scrollHandler.newMessageCount}
                     overlap="circular"
-                    anchorOrigin={{ vertical: "top", horizontal: "right" }}
+                    anchorOrigin={{vertical: "top", horizontal: "right"}}
                     sx={{
                       "& .MuiBadge-badge": {
                         right: -6,
@@ -326,7 +351,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
                       aria-label="Jump to newest messages"
                       onClick={scrollHandler.scrollToBottom}
                     >
-                      <KeyboardArrowDown />
+                      <KeyboardArrowDown/>
                     </Fab>
                   </Badge>
                 </Tooltip>
@@ -335,16 +360,16 @@ const MediaChatComponent = observer(function MediaChatComponent({
           </Box>
 
           {/* Message input area (non-scrollable, grows with content) */}
-          <Box sx={{ borderTop: "1px solid", borderColor: "divider" }}>
+          <Box sx={{borderColor: "divider", mt: 1}}>
             {/* Reply context */}
             {replyToMessageId && (
-              <Box sx={{ bgcolor: "action.hover" }}>
+              <Box sx={{bgcolor: "background.default"}}>
                 <Box>
                   <Box display="flex" alignItems="center" gap={1}>
-                    <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                    <Typography variant="caption" sx={{fontWeight: 700}}>
                       Replying to {replyPreview?.displayName}
                     </Typography>
-                    <Box flexGrow={1} />
+                    <Box flexGrow={1}/>
                     <Box
                       component="button"
                       onClick={() => {
@@ -373,14 +398,15 @@ const MediaChatComponent = observer(function MediaChatComponent({
                   >
                     {replyPreview?.type && replyPreview.type !== "Text"
                       ? `📎 ${
-                          replyPreview?.mediaOriginalFileName ||
-                          replyPreview?.type
-                        }`
+                        replyPreview?.mediaOriginalFileName ||
+                        replyPreview?.type
+                      }`
                       : replyPreview?.body}
                   </Typography>
                 </Box>
               </Box>
             )}
+            
             {/* File previews */}
             {fileUpload.pendingPaste.file &&
               fileUpload.pendingPaste.preview && (
@@ -409,17 +435,19 @@ const MediaChatComponent = observer(function MediaChatComponent({
                 onSubmit={handleSubmit}
                 onFileSelect={fileUpload.handleFileSelect}
                 defaultEmoji={defaultEmoji}
-                onEmojiSelect={() => {}}
-                onQuickReact={() => {}}
+                onEmojiSelect={() => {
+                }}
+                onQuickReact={() => {
+                }}
                 isSubmitting={false}
                 isUploading={fileUpload.isUploading}
                 hasPermission={
                   chatRoomId === undefined
                     ? directCanSend ?? true
                     : !!(
-                        userPermissions &&
-                        userPermissions[CHATROOM_PERMISSIONS.SendMessages]
-                      )
+                      userPermissions &&
+                      userPermissions[CHATROOM_PERMISSIONS.SendMessages]
+                    )
                 }
                 placeholder={
                   hasFileAttached
@@ -448,7 +476,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
       <ImageViewerDialog
         open={imageDialog.open}
         imageSrc={imageDialog.src}
-        onClose={() => setImageDialog({ open: false, src: null })}
+        onClose={() => setImageDialog({open: false, src: null})}
       />
 
       <EmojiSettingsDialog

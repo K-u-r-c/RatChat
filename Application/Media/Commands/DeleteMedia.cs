@@ -75,7 +75,14 @@ public class DeleteMedia
                     await userManager.UpdateAsync(user);
                 }
 
-                await context.SaveChangesAsync(cancellationToken);
+                try
+                {
+                    await context.SaveChangesAsync(cancellationToken);
+                }
+                catch (DbUpdateConcurrencyException)
+                {
+                    context.Entry(mediaFile).State = EntityState.Detached;
+                }
             }
             else
             {

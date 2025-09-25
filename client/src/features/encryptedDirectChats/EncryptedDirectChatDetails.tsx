@@ -693,7 +693,7 @@ const EncryptedDirectChatDetails = observer(
                   </Box>
                   <Box>
                     <Typography variant="subtitle2" color="text.secondary">
-                      Default Emoji
+                      Appearance
                     </Typography>
                     <Typography
                       variant="body2"
@@ -708,7 +708,7 @@ const EncryptedDirectChatDetails = observer(
                       sx={{ mt: 1.5 }}
                       onClick={() => setEmojiDialogOpen(true)}
                     >
-                      Change default emoji
+                      Customize appearance
                     </Button>
                   </Box>
                 </Box>

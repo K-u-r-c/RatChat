@@ -1,11 +1,5 @@
-import {
-  Box,
-  Typography,
-  IconButton,
-  Chip,
-  LinearProgress,
-} from "@mui/material";
-import { Close } from "@mui/icons-material";
+import {Close} from "@mui/icons-material";
+import {Box, Chip, IconButton, LinearProgress, Typography,} from "@mui/material";
 
 type PreviewItem = {
   id: string;
@@ -30,13 +24,14 @@ const formatFileSize = (bytes: number) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 };
 
-export default function MultiFilePreview({
-  items,
-  totalSize,
-  maxTotalSize,
-  onRemove,
-  onClearAll,
-}: Props) {
+export default function MultiFilePreview(
+  {
+    items,
+    totalSize,
+    maxTotalSize,
+    onRemove,
+    onClearAll,
+  }: Props) {
   const images = items.filter((i) => i.kind === "image");
   const videos = items.filter((i) => i.kind === "video");
   const others = items.filter((i) => i.kind !== "image" && i.kind !== "video");
@@ -46,29 +41,26 @@ export default function MultiFilePreview({
   return (
     <Box
       sx={{
-        mb: 2,
         p: 2,
-        border: "1px solid",
-        borderColor: "divider",
-        borderRadius: 2,
+        backgroundColor: "background.default",
       }}
     >
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+      <Box sx={{display: "flex", alignItems: "center", gap: 1, mb: 1}}>
         <Typography variant="body2" fontWeight={700}>
           Selected files: {items.length} ({formatFileSize(totalSize)} /{" "}
           {formatFileSize(maxTotalSize)})
         </Typography>
-        <Box sx={{ flex: 1 }} />
-        <Chip label="Clear all" size="small" onClick={onClearAll} />
+        <Box sx={{flex: 1}}/>
+        <Chip label="Clear all" size="small" onClick={onClearAll}/>
       </Box>
-      <LinearProgress variant="determinate" value={percent} sx={{ mb: 2 }} />
+      <LinearProgress variant="determinate" value={percent} sx={{mb: 2}}/>
 
       {images.length > 0 && (
-        <Box sx={{ mb: 2 }}>
+        <Box sx={{mb: 2}}>
           <Typography
             variant="caption"
             color="text.secondary"
-            sx={{ display: "block", mb: 1 }}
+            sx={{display: "block", mb: 1}}
           >
             Images
           </Typography>
@@ -80,7 +72,7 @@ export default function MultiFilePreview({
             }}
           >
             {images.map((i) => (
-              <Box key={i.id} sx={{ position: "relative" }}>
+              <Box key={i.id} sx={{position: "relative"}}>
                 <img
                   src={i.preview || ""}
                   alt={i.file.name}
@@ -102,7 +94,7 @@ export default function MultiFilePreview({
                     bgcolor: "background.paper",
                   }}
                 >
-                  <Close fontSize="small" />
+                  <Close fontSize="small"/>
                 </IconButton>
               </Box>
             ))}
@@ -111,11 +103,11 @@ export default function MultiFilePreview({
       )}
 
       {videos.length > 0 && (
-        <Box sx={{ mb: 2 }}>
+        <Box sx={{mb: 2}}>
           <Typography
             variant="caption"
             color="text.secondary"
-            sx={{ display: "block", mb: 1 }}
+            sx={{display: "block", mb: 1}}
           >
             Videos
           </Typography>
@@ -127,12 +119,12 @@ export default function MultiFilePreview({
             }}
           >
             {videos.map((i) => (
-              <Box key={i.id} sx={{ position: "relative" }}>
+              <Box key={i.id} sx={{position: "relative"}}>
                 <video
                   src={i.preview || ""}
                   muted
                   controls
-                  style={{ width: "100%", height: 100, borderRadius: 8 }}
+                  style={{width: "100%", height: 100, borderRadius: 8}}
                 />
                 <IconButton
                   size="small"
@@ -145,7 +137,7 @@ export default function MultiFilePreview({
                     bgcolor: "background.paper",
                   }}
                 >
-                  <Close fontSize="small" />
+                  <Close fontSize="small"/>
                 </IconButton>
               </Box>
             ))}
@@ -158,11 +150,11 @@ export default function MultiFilePreview({
           <Typography
             variant="caption"
             color="text.secondary"
-            sx={{ display: "block", mb: 1 }}
+            sx={{display: "block", mb: 1}}
           >
             Other files
           </Typography>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          <Box sx={{display: "flex", flexDirection: "column", gap: 1}}>
             {others.map((i) => (
               <Box
                 key={i.id}
@@ -176,7 +168,7 @@ export default function MultiFilePreview({
                   gap: 1,
                 }}
               >
-                <Typography variant="body2" sx={{ flex: 1 }}>
+                <Typography variant="body2" sx={{flex: 1}}>
                   {i.file.name} ({formatFileSize(i.file.size)})
                 </Typography>
                 <IconButton
@@ -185,7 +177,7 @@ export default function MultiFilePreview({
                   onClick={() => onRemove(i.id)}
                   title="Remove"
                 >
-                  <Close fontSize="small" />
+                  <Close fontSize="small"/>
                 </IconButton>
               </Box>
             ))}
@@ -196,7 +188,7 @@ export default function MultiFilePreview({
       <Typography
         variant="caption"
         color="text.secondary"
-        sx={{ display: "block", mt: 2 }}
+        sx={{display: "block", mt: 2}}
       >
         Add a message below and press Enter to send all.
       </Typography>

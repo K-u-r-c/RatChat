@@ -229,7 +229,7 @@ const DirectChatDetails = observer(function DirectChatDetails() {
               Conversation Options
             </Typography>
             <Button variant="outlined" onClick={() => setEmojiDialogOpen(true)}>
-              Change default emoji
+              Customize appearance
             </Button>
           </Box>
         </>

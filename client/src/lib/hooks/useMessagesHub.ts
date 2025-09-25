@@ -15,6 +15,17 @@ type DirectChatUpdatedPayload = {
   message?: DirectMessage;
 };
 
+type ChatAppearanceUpdatedPayload = {
+  chatType?: string;
+  chatId?: string;
+  defaultEmoji?: string;
+  backgroundKey?: string;
+  backgroundCustomUrl?: string | null;
+  backgroundCustomPublicId?: string | null;
+  updatedAt?: string;
+  updatedByUserId?: string;
+};
+
 type RegisteredHandler = {
   event: string;
   handler: (...args: unknown[]) => void;
@@ -42,6 +53,42 @@ export function useMessagesHub() {
         );
         handlersRef.current = [];
 
+        const appearanceHandler = (...args: unknown[]) => {
+          const payload = args[0] as ChatAppearanceUpdatedPayload | undefined;
+          if (!payload?.chatType || !payload?.chatId) return;
+
+          interface ChatAppearance {
+            id?: string;
+            chatType: string;
+            chatId: string;
+            defaultEmoji: string;
+            backgroundKey: string;
+            backgroundCustomUrl?: string | null;
+            backgroundCustomPublicId?: string | null;
+            updatedAt: string;
+            updatedByUserId?: string;
+          }
+
+          queryClient.setQueryData<ChatAppearance>(
+            ["chat-appearance", payload.chatType, payload.chatId],
+            (prev: ChatAppearance | undefined): ChatAppearance => ({
+              id: prev?.id ?? "",
+              chatType: payload.chatType!,
+              chatId: payload.chatId!,
+              defaultEmoji:
+                payload.defaultEmoji ?? prev?.defaultEmoji ?? "\u{1F44D}",
+              backgroundKey:
+                payload.backgroundKey ?? prev?.backgroundKey ?? "default",
+              backgroundCustomUrl:
+                payload.backgroundCustomUrl ?? prev?.backgroundCustomUrl ?? null,
+              backgroundCustomPublicId:
+                payload.backgroundCustomPublicId ?? prev?.backgroundCustomPublicId ?? null,
+              updatedAt: payload.updatedAt ?? new Date().toISOString(),
+              updatedByUserId: payload.updatedByUserId ?? prev?.updatedByUserId,
+            })
+          );
+        };
+
         const chatRoomHandler = (...args: unknown[]) => {
           const payload = args[0] as ChatRoomUpdatedPayload | undefined;
           queryClient.invalidateQueries({
@@ -63,6 +110,12 @@ export function useMessagesHub() {
         handlersRef.current.push({
           event: "ChatRoomUpdated",
           handler: chatRoomHandler,
+        });
+
+        on("ChatAppearanceUpdated", appearanceHandler);
+        handlersRef.current.push({
+          event: "ChatAppearanceUpdated",
+          handler: appearanceHandler,
         });
 
         const directChatHandler = (...args: unknown[]) => {
