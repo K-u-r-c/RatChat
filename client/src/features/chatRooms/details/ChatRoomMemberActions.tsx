@@ -33,12 +33,12 @@ export default function ChatRoomMemberActions({
   const userPermissions = rolesStore.userPermissions;
 
   const isCurrentUser = useMemo(
-    () => !member || member.id === currentUser?.id,
+    () => !!member && member.id === currentUser?.id,
     [member, currentUser]
   );
 
   const isChatRoomOwner = useMemo(
-    () => !member || member.isOwner === true,
+    () => !!member && member.isOwner === true,
     [member]
   );
 
