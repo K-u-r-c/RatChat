@@ -32,15 +32,24 @@ export default function ChatRoomMemberActions({
 
   const userPermissions = rolesStore.userPermissions;
 
-  const isProtected = useMemo(
-    () => !member || member.id === currentUser?.id || member.isOwner === true,
+  const isCurrentUser = useMemo(
+    () => !member || member.id === currentUser?.id,
     [member, currentUser]
   );
 
+  const isChatRoomOwner = useMemo(
+    () => !member || member.isOwner === true,
+    [member]
+  );
+
   const canKick =
-    !isProtected && !!userPermissions[CHATROOM_PERMISSIONS.KickFromChatRoom];
+    !isCurrentUser &&
+    !isChatRoomOwner &&
+    !!userPermissions[CHATROOM_PERMISSIONS.KickFromChatRoom];
   const canBan =
-    !isProtected && !!userPermissions[CHATROOM_PERMISSIONS.BanFromChatRoom];
+    !isCurrentUser &&
+    !isChatRoomOwner &&
+    !!userPermissions[CHATROOM_PERMISSIONS.BanFromChatRoom];
 
   useEffect(() => {
     if (!open || !anchorEl) return;
@@ -107,8 +116,10 @@ export default function ChatRoomMemberActions({
                 ? ""
                 : !member
                 ? "No user"
-                : isProtected
-                ? "Action not allowed on this user"
+                : isCurrentUser
+                ? "Cannot kick yourself"
+                : isChatRoomOwner
+                ? "Cannot kick chatroom owner"
                 : "No permission"
             }
             disableHoverListener={canKick}
@@ -136,8 +147,10 @@ export default function ChatRoomMemberActions({
                 ? ""
                 : !member
                 ? "No user"
-                : isProtected
-                ? "Action not allowed on this user"
+                : isCurrentUser
+                ? "Cannot ban yourself"
+                : isChatRoomOwner
+                ? "Cannot ban chatroom owner"
                 : "No permission"
             }
             disableHoverListener={canBan}
