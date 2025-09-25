@@ -38,7 +38,7 @@ export default function ChatRoomImageUpload({chatRoomId}: Props) {
   const {rolesStore} = useChatRoomRolesRealtime(chatRoomId, currentUser?.id);
   const userPermissions = rolesStore?.userPermissions || {};
   const canEdit =
-    chatRoom?.isAdmin ||
+    chatRoom?.isOwner ||
     !!userPermissions[CHATROOM_PERMISSIONS.ChangeChatRoomImage];
 
   const existingImage = chatRoom?.imageUrl || null;

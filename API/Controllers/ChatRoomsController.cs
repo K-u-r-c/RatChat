@@ -47,7 +47,7 @@ public class ChatRoomsController(IHubContext<ChatRoomModerationEventsHub> hubCon
     }
 
     [HttpPut("{id}")]
-    [Authorize(Policy = IsAdminStrings.IsChatRoomAdmin)]
+    [Authorize(Policy = IsOwnerStrings.IsChatRoomOwner)]
     public async Task<ActionResult<Unit>> UpdateChatRoom(string id, EditChatRoomDto chatRoomDto)
     {
         chatRoomDto.Id = id;
@@ -57,7 +57,7 @@ public class ChatRoomsController(IHubContext<ChatRoomModerationEventsHub> hubCon
     }
 
     [HttpPut("{id}/image")]
-    [Authorize(Policy = IsAdminStrings.IsChatRoomAdmin)]
+    [Authorize(Policy = IsOwnerStrings.IsChatRoomOwner)]
     public async Task<ActionResult<Unit>> UpdateChatRoomImage(string id, SetChatRoomImageDto setChatRoomImageDto)
     {
         setChatRoomImageDto.Id = id;
@@ -69,7 +69,7 @@ public class ChatRoomsController(IHubContext<ChatRoomModerationEventsHub> hubCon
     }
 
     [HttpDelete("{id}/image")]
-    [Authorize(Policy = IsAdminStrings.IsChatRoomAdmin)]
+    [Authorize(Policy = IsOwnerStrings.IsChatRoomOwner)]
     public async Task<ActionResult<Unit>> DeleteChatRoomImage(string id)
     {
         return HandleResult(
@@ -78,7 +78,7 @@ public class ChatRoomsController(IHubContext<ChatRoomModerationEventsHub> hubCon
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Policy = IsAdminStrings.IsChatRoomAdmin)]
+    [Authorize(Policy = IsOwnerStrings.IsChatRoomOwner)]
     public async Task<ActionResult<Unit>> DeleteChatRoom(string id)
     {
         return HandleResult(await Mediator.Send(new DeleteChatRoom.Command { Id = id }));

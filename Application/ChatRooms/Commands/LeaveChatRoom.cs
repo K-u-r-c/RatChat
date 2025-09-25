@@ -30,7 +30,7 @@ public class LeaveChatRoom
             if (membership == null)
                 return Result<Unit>.Failure("User is not a member of this chat room", 400);
 
-            var isAdmin = membership.IsOwner;
+            var isOwner = membership.IsOwner;
 
             chatRoom.Members.Remove(membership);
 
@@ -38,7 +38,7 @@ public class LeaveChatRoom
             {
                 context.ChatRooms.Remove(chatRoom);
             }
-            else if (isAdmin)
+            else if (isOwner)
             {
                 var oldestMember = chatRoom.Members
                     .OrderBy(x => x.DateJoined)

@@ -142,9 +142,9 @@ builder.Services.AddIdentityApiEndpoints<User>(opt =>
 .AddEntityFrameworkStores<AppDbContext>();
 builder.Services.AddAuthorization(opt =>
 {
-    opt.AddPolicy(IsAdminStrings.IsChatRoomAdmin, policy =>
+    opt.AddPolicy(IsOwnerStrings.IsChatRoomOwner, policy =>
     {
-        policy.Requirements.Add(new IsAdminRequirement());
+        policy.Requirements.Add(new IsOwnerRequirement());
     });
 
     foreach (var permissionName in ChatRoomPermissions.All.Keys)
@@ -156,7 +156,7 @@ builder.Services.AddAuthorization(opt =>
         });
     }
 });
-builder.Services.AddTransient<IAuthorizationHandler, IsAdminRequirementHandler>();
+builder.Services.AddTransient<IAuthorizationHandler, IsOwnerRequirementHandler>();
 builder.Services.AddTransient<IAuthorizationHandler, HasPermissionRequirementHandler>();
 MessageCrypto.Initialize(builder.Configuration);
 

@@ -37,10 +37,10 @@ export type ChatRoom = {
   imageUrl?: string;
   date: Date;
   members: Profile[];
-  isAdmin: boolean;
-  adminId: string;
-  adminDisplayName: string;
-  adminImageUrl?: string;
+  isOwner: boolean;
+  ownerId: string;
+  ownerDisplayName: string;
+  ownerImageUrl?: string;
   bans: ChatRoomBan[];
 };
 

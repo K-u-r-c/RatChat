@@ -320,7 +320,7 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
         member={selectedMember}
         loadRoles={rolesStore.getUserRoles}
         chatRoomId={chatRoom.id ?? ""}
-        ownerId={chatRoom.adminId}
+        ownerId={chatRoom.ownerId}
       />
     </Box>
   );
