@@ -11,6 +11,7 @@ using Application.Profiles.DTOs;
 using AutoMapper;
 using Domain;
 using Domain.Extensions;
+using System.Linq;
 
 namespace Application.Core;
 
@@ -25,6 +26,8 @@ public class MappingProfiles : Profile
         CreateMap<EditChatRoomDto, ChatRoom>();
         CreateMap<ChatRoom, UserChatRoomDto>();
 
+        CreateMap<ChatChannel, ChatChannelDto>()
+            .ForMember(d => d.Type, o => o.MapFrom(s => s.Type.ToString()));
         CreateMap<ChatRoom, ChatRoomDto>()
             .ForMember(
                 d => d.OwnerDisplayName,
@@ -33,6 +36,10 @@ public class MappingProfiles : Profile
             .ForMember(
                 d => d.OwnerId,
                 o => o.MapFrom(s => s.Members.FirstOrDefault(x => x.IsOwner)!.User.Id)
+            )
+            .ForMember(
+                d => d.Channels,
+                o => o.MapFrom(s => s.Channels.OrderBy(c => c.Position))
             );
 
         CreateMap<ChatRoomMember, UserProfileDto>()
@@ -201,3 +208,7 @@ public class MappingProfiles : Profile
         CreateMap<ChatRoomBan, ChatRoomBanDto>();
     }
 }
+
+
+
+

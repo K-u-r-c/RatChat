@@ -16,4 +16,5 @@ public class ChatRoom
     public ICollection<ChatRoomRole> Roles { get; set; } = [];
     public ICollection<ChatRoomInvite> Invites { get; set; } = [];
     public ICollection<ChatRoomBan> Bans { get; set; } = [];
+    public ICollection<ChatChannel> Channels { get; set; } = [];
 }

@@ -114,6 +114,7 @@ else
 }
 builder.Services.AddScoped<IFriendsNotificationService, FriendsNotificationService>();
 builder.Services.AddScoped<IUserStatusService, UserStatusService>();
+builder.Services.AddSingleton<IVoiceChannelPresenceService, VoiceChannelPresenceService>();
 builder.Services.AddScoped<IStatusNotificationService, StatusNotificationService>();
 builder.Services.AddScoped<IDirectMessagesNotificationService, DirectMessagesNotificationService>();
 builder.Services.AddScoped<IEncryptedDirectMessagesNotificationService, EncryptedDirectMessagesNotificationService>();
@@ -191,6 +192,7 @@ app.MapHub<StatusHub>("/status");
 app.MapHub<ChatRoomRolesHub>("/chatroom-roles");
 app.MapHub<ChatRoomsProfileUpdateHub>("/chatroom-image-update");
 app.MapHub<ChatRoomModerationEventsHub>("/chatroom-moderationevents");
+app.MapHub<VoiceChannelHub>("/voice");
 
 using var scope = app.Services.CreateScope();
 var services = scope.ServiceProvider;
@@ -213,3 +215,5 @@ catch (Exception ex)
     logger.LogError(ex, "An error occurred during migration");
 }
 app.Run();
+
+

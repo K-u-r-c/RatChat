@@ -56,6 +56,7 @@ export const useChatRooms = (identifier?: string) => {
               isOwner: currentUser?.id === chatRoom.ownerId,
               isMember: chatRoom.members.some((x) => x.id === currentUser?.id),
               ownerImageUrl: owner?.imageUrl,
+              channels: (chatRoom.channels ?? []).slice().sort((a, b) => a.position - b.position),
             } as ChatRoom & {
               isOwner: boolean;
               isMember: boolean;
@@ -82,6 +83,7 @@ export const useChatRooms = (identifier?: string) => {
         isOwner: currentUser?.id === dto.ownerId,
         isMember: dto.members.some((x) => x.id === currentUser?.id),
         ownerImageUrl: owner?.imageUrl,
+        channels: (dto.channels ?? []).slice().sort((a, b) => a.position - b.position),
       };
     },
   });
@@ -363,3 +365,7 @@ export const useChatRooms = (identifier?: string) => {
     deleteChatRoomImage,
   };
 };
+
+
+
+

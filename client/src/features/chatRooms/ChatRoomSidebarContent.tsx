@@ -1,4 +1,5 @@
 import {
+  Avatar,
   Box,
   Typography,
   List,
@@ -8,8 +9,10 @@ import {
   Menu,
   MenuItem,
   ListItemIcon,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
-import { useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import {
   People,
   Settings,
@@ -18,9 +21,11 @@ import {
   Chat,
   ExpandMore,
   ExpandLess,
+  CallEnd,
 } from "@mui/icons-material";
 import { useParams } from "react-router";
 import { useChatRooms } from "../../lib/hooks/useChatRooms";
+import { useVoiceChannel } from "../../lib/hooks/useVoiceChannel";
 import ChatRoomSettings from "./settings/ChatRoomSettings";
 import InvitePeopleModal from "./invites/InvitePeopleModal";
 import { useAccount } from "../../lib/hooks/useAccount";
@@ -41,6 +46,15 @@ export default function ChatRoomSidebarContent() {
   const [inviteOpen, setInviteOpen] = useState(false);
 
   const menuOpen = Boolean(menuAnchorEl);
+  const voiceChannels = useMemo(
+    () =>
+      (chatRoom?.channels ?? [])
+        .filter((channel) => channel.type === "Voice")
+        .sort((a, b) => a.position - b.position),
+    [chatRoom?.channels]
+  );
+
+  const voice = useVoiceChannel(chatRoom?.id);
 
   const handleServerNameClick = (event: React.MouseEvent<HTMLElement>) => {
     setMenuAnchorEl(event.currentTarget);
@@ -78,6 +92,14 @@ export default function ChatRoomSidebarContent() {
     );
   }
 
+  const handleVoiceChannelClick = (channelId: string) => {
+    if (voice.isJoining && voice.currentChannelId !== channelId) return;
+    if (voice.currentChannelId === channelId) {
+      void voice.leave();
+    } else {
+      void voice.join(channelId);
+    }
+  };
   return (
     <Box sx={{ width: "100%", p: 2 }}>
       {/* Server name and menu */}
@@ -217,26 +239,114 @@ export default function ChatRoomSidebarContent() {
       </List>
 
       <Divider sx={{ my: 2 }} />
-
       {/* Voice channels */}
       <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
         Voice Channels
       </Typography>
-      <List>
-        <ListItemButton>
-          <ListItemIcon>
-            <VolumeUp />
-          </ListItemIcon>
-          <ListItemText primary="General Voice" />
-        </ListItemButton>
-        <ListItemButton>
-          <ListItemIcon>
-            <VolumeUp />
-          </ListItemIcon>
-          <ListItemText primary="Gaming" />
-        </ListItemButton>
-      </List>
+      <List sx={{ listStyle: "none", pl: 0 }}>
+        {voiceChannels.length === 0 ? (
+          <Box component="li" sx={{ px: 2, py: 1, color: "text.secondary" }}>
+            <Typography variant="body2" color="text.secondary">
+              No voice channels yet.
+            </Typography>
+          </Box>
+        ) : (
+          voiceChannels.map((channel) => {
+            const isActive = voice.currentChannelId === channel.id;
+            const participants = isActive ? voice.participants : [];
+            const participantCount = isActive ? voice.allParticipants.length : 0;
 
+            return (
+              <Box component="li" key={channel.id} sx={{ mb: 0.5 }}>
+                <ListItemButton
+                  onClick={() => handleVoiceChannelClick(channel.id)}
+                  selected={isActive}
+                  disabled={voice.isJoining && !isActive}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    borderRadius: 1.5,
+                  }}
+                >
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <ListItemIcon sx={{ minWidth: 32 }}>
+                      <VolumeUp fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={channel.name}
+                      secondary={
+                        isActive
+                          ? voice.isJoining
+                            ? "Connecting..."
+                            : `${participantCount} connected`
+                          : undefined
+                      }
+                      primaryTypographyProps={{ fontSize: 14, fontWeight: 500 }}
+                      secondaryTypographyProps={{ fontSize: 12, color: "text.secondary" }}
+                    />
+                  </Box>
+                  {isActive && (
+                    <IconButton
+                      size="small"
+                      edge="end"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void voice.leave();
+                      }}
+                      sx={{ color: "error.main" }}
+                      aria-label="Leave channel"
+                    >
+                      <CallEnd fontSize="small" />
+                    </IconButton>
+                  )}
+                </ListItemButton>
+                {isActive && participants.length > 0 && (
+                  <Box
+                    sx={{
+                      pl: 6,
+                      pr: 2,
+                      pb: 1,
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 0.75,
+                    }}
+                  >
+                    {participants.map((participant) => {
+                      const isSelf = participant.userId === currentUser?.id;
+                      const initials = participant.displayName?.charAt(0) ?? "?";
+                      return (
+                        <Tooltip title={participant.displayName} arrow key={participant.userId}>
+                          <Avatar
+                            src={participant.imageUrl ?? undefined}
+                            sx={{
+                              width: 30,
+                              height: 30,
+                              fontSize: 14,
+                              bgcolor: isSelf ? "primary.main" : "#2f3136",
+                              border: isSelf ? "2px solid #5865f2" : "1px solid #3b3d43",
+                            }}
+                          >
+                            {participant.imageUrl ? null : initials.toUpperCase()}
+                          </Avatar>
+                        </Tooltip>
+                      );
+                    })}
+                  </Box>
+                )}
+              </Box>
+            );
+          })
+        )}
+      </List>
+      {voice.error && (
+        <Typography variant="caption" color="error" sx={{ display: "block", mt: 1 }}>
+          {voice.error}
+        </Typography>
+      )}
+      {voice.remoteStreams.map(({ connectionId, stream }) => (
+        <RemoteAudio key={connectionId} stream={stream} />
+      ))}
       {/* Chat room setting menu popup */}
       <ChatRoomSettings
         open={settingsOpen}
@@ -251,3 +361,24 @@ export default function ChatRoomSidebarContent() {
     </Box>
   );
 }
+
+
+
+
+
+
+
+
+
+function RemoteAudio({ stream }: { stream: MediaStream }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  useEffect(() => {
+    if (!audioRef.current) return;
+    audioRef.current.srcObject = stream;
+  }, [stream]);
+
+  return <audio ref={audioRef} autoPlay playsInline style={{ display: "none" }} />;
+}
+
+

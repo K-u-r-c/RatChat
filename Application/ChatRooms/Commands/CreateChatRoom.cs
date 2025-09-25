@@ -4,6 +4,7 @@ using Application.Core;
 using Application.Interfaces;
 using AutoMapper;
 using Domain;
+using Domain.Enums;
 using MediatR;
 using Persistance;
 
@@ -39,6 +40,14 @@ public class CreateChatRoom
             };
 
             chatRoom.Members.Add(member);
+
+            chatRoom.Channels.Add(new ChatChannel
+            {
+                ChatRoomId = chatRoom.Id,
+                Name = "General",
+                Type = ChatChannelType.Voice,
+                Position = 0
+            });
 
             var result = await context.SaveChangesAsync(cancellationToken) > 0;
 

@@ -3,6 +3,7 @@ using Application.ChatRooms.Helpers;
 using Application.Interfaces;
 using Application.Users.Helpers;
 using Domain;
+using Domain.Enums;
 using Microsoft.AspNetCore.Identity;
 using Persistance;
 
@@ -312,6 +313,21 @@ public class DbInitializer
             reservedSlugs.Add(chatRoom.Slug);
         }
 
+        foreach (var chatRoom in chatRooms)
+        {
+            chatRoom.Channels = new List<ChatChannel>
+            {
+                new()
+                {
+                    ChatRoomId = chatRoom.Id,
+                    Name = "General",
+                    Type = ChatChannelType.Voice,
+                    Position = 0,
+                    CreatedAt = now
+                }
+            };
+        }
+
         context.ChatRooms.AddRange(chatRooms);
 
         await rolePermissionService.InitializePermissionsAsync();
@@ -329,4 +345,7 @@ public class DbInitializer
         await context.SaveChangesAsync();
     }
 }
+
+
+
 

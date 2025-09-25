@@ -32,6 +32,7 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
     public required DbSet<EncryptedDirectMessageReaction> EncryptedDirectMessageReactions { get; set; }
     public required DbSet<EncryptedDirectChatNotification> EncryptedDirectChatNotifications { get; set; }
     public required DbSet<ChatRoomBan> ChatRoomBans { get; set; }
+    public required DbSet<ChatChannel> ChatChannels { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -62,6 +63,23 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
                 .WithMany(o => o.OwnedChatRooms)
                 .HasForeignKey(cr => cr.OwnerId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<ChatChannel>(entity =>
+        {
+            entity.HasKey(c => c.Id);
+
+            entity.Property(c => c.Name).IsRequired().HasMaxLength(100);
+            entity.Property(c => c.Position).IsRequired();
+            entity.Property(c => c.Type).IsRequired();
+            entity.Property(c => c.CreatedAt).IsRequired();
+
+            entity.HasOne(c => c.ChatRoom)
+                .WithMany(cr => cr.Channels)
+                .HasForeignKey(c => c.ChatRoomId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(c => new { c.ChatRoomId, c.Name }).IsUnique();
         });
 
         builder.Entity<ChatRoomRole>(entity =>
@@ -526,3 +544,5 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
                 property.SetValueConverter(dateTimeConverter);
     }
 }
+
+

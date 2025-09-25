@@ -15,4 +15,6 @@ public class ChatRoomDto
     // Navigation properties
     public ICollection<UserProfileDto> Members { get; set; } = [];
     public ICollection<ChatRoomBanDto> Bans { get; set; } = [];
+    public ICollection<ChatChannelDto> Channels { get; set; } = [];
 }
+
