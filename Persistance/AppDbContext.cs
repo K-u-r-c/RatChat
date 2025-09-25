@@ -31,7 +31,6 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
     public required DbSet<EncryptedDirectMessage> EncryptedDirectMessages { get; set; }
     public required DbSet<EncryptedDirectMessageReaction> EncryptedDirectMessageReactions { get; set; }
     public required DbSet<EncryptedDirectChatNotification> EncryptedDirectChatNotifications { get; set; }
-
     public required DbSet<ChatRoomBan> ChatRoomBans { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -177,23 +176,23 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
         });
 
         builder.Entity<DirectChat>(x =>
-       {
-           x.HasKey(dc => dc.Id);
+        {
+            x.HasKey(dc => dc.Id);
 
-           x.HasOne(dc => dc.User1)
-               .WithMany()
-               .HasForeignKey(dc => dc.User1Id)
-               .OnDelete(DeleteBehavior.NoAction);
+            x.HasOne(dc => dc.User1)
+                .WithMany()
+                .HasForeignKey(dc => dc.User1Id)
+                .OnDelete(DeleteBehavior.NoAction);
 
-           x.HasOne(dc => dc.User2)
-               .WithMany()
-               .HasForeignKey(dc => dc.User2Id)
-               .OnDelete(DeleteBehavior.NoAction);
+            x.HasOne(dc => dc.User2)
+                .WithMany()
+                .HasForeignKey(dc => dc.User2Id)
+                .OnDelete(DeleteBehavior.NoAction);
 
-           // Ensure no duplicate chats between same users
-           x.HasIndex(dc => new { dc.User1Id, dc.User2Id })
-               .IsUnique();
-       });
+            // Ensure no duplicate chats between same users
+            x.HasIndex(dc => new { dc.User1Id, dc.User2Id })
+                .IsUnique();
+        });
 
         builder.Entity<DirectMessage>(x =>
         {
@@ -374,10 +373,6 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
             x.HasIndex(mr => new { mr.MessageId, mr.CreatedAt });
         });
 
-        builder.HasSequence<int>("UserTagSequence", "dbo")
-            .StartsAt(1)
-            .IncrementsBy(1);
-
         builder.Entity<User>(x =>
         {
             x.Property(u => u.Slug)
@@ -521,19 +516,13 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
         });
 
         var dateTimeConverter = new ValueConverter<DateTime, DateTime>(
-                    v => v.ToUniversalTime(),
-                    v => DateTime.SpecifyKind(v, DateTimeKind.Utc)
-                );
+            v => v.ToUniversalTime(),
+            v => DateTime.SpecifyKind(v, DateTimeKind.Utc)
+        );
 
         foreach (var entityType in builder.Model.GetEntityTypes())
-        {
-            foreach (var property in entityType.GetProperties())
-            {
-                if (property.ClrType == typeof(DateTime))
-                {
-                    property.SetValueConverter(dateTimeConverter);
-                }
-            }
-        }
+        foreach (var property in entityType.GetProperties())
+            if (property.ClrType == typeof(DateTime))
+                property.SetValueConverter(dateTimeConverter);
     }
 }
