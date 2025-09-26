@@ -13,7 +13,7 @@ import {
     Tooltip,
     Typography,
 } from "@mui/material";
-import {useEffect, useMemo, useRef, useState} from "react";
+import {useMemo, useState} from "react";
 import {CallEnd, Chat, ExitToApp, ExpandLess, ExpandMore, People, Settings, VolumeUp,} from "@mui/icons-material";
 import {useParams} from "react-router";
 import {useChatRooms} from "../../lib/hooks/useChatRooms";
@@ -443,18 +443,6 @@ export default function ChatRoomSidebarContent() {
                     </>
                 )}
             </Menu>
-            {voice.remoteStreams.map(({connectionId, stream, userId}) => {
-                const volume = userId ? voice.participantVolumes[userId] ?? 1 : 1;
-                const muted = userId ? mutedParticipantIdsSet.has(userId) : false;
-                return (
-                    <RemoteAudio
-                        key={connectionId}
-                        stream={stream}
-                        volume={volume}
-                        muted={muted}
-                    />
-                );
-            })}
             {/* Chat room setting menu popup */}
             <ChatRoomSettings
                 open={settingsOpen}
@@ -471,30 +459,3 @@ export default function ChatRoomSidebarContent() {
 }
 
 
-function RemoteAudio({
-    stream,
-    volume,
-    muted,
-}: { stream: MediaStream; volume: number; muted: boolean }) {
-    const audioRef = useRef<HTMLAudioElement>(null);
-
-    useEffect(() => {
-        const audio = audioRef.current;
-        if (!audio) return;
-        audio.srcObject = stream;
-        const playPromise = audio.play();
-        if (playPromise) {
-            playPromise.catch(() => {
-            });
-        }
-    }, [stream]);
-
-    useEffect(() => {
-        const audio = audioRef.current;
-        if (!audio) return;
-        audio.volume = Math.min(Math.max(volume, 0), 1);
-        audio.muted = muted;
-    }, [muted, volume]);
-
-    return <audio ref={audioRef} autoPlay playsInline style={{display: "none"}}/>;
-}
