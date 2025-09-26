@@ -4,7 +4,6 @@ using Domain.Enums;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Persistance;
-using System.Linq;
 
 namespace API.SignalR;
 
@@ -14,10 +13,6 @@ public class VoiceChannelHub(
     IVoiceChannelPresenceService presenceService
 ) : Hub
 {
-    private readonly AppDbContext _context = context;
-    private readonly IVoiceChannelPresenceService _presenceService = presenceService;
-    private readonly IUserAccessor _userAccessor = userAccessor;
-
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         await LeaveChannel();
@@ -28,7 +23,7 @@ public class VoiceChannelHub(
     {
         await Groups.AddToGroupAsync(Context.ConnectionId, GetChatRoomGroupName(chatRoomId));
 
-        var voiceChannelIds = await _context.ChatChannels
+        var voiceChannelIds = await context.ChatChannels
             .AsNoTracking()
             .Where(x => x.ChatRoomId == chatRoomId && x.Type == ChatChannelType.Voice)
             .Select(x => x.Id)
@@ -38,7 +33,7 @@ public class VoiceChannelHub(
             .Select(channelId => new VoiceChannelPresenceDto
             {
                 ChannelId = channelId,
-                Participants = _presenceService
+                Participants = presenceService
                     .GetParticipants(channelId)
                     .Select(MapParticipant)
                     .ToList()
@@ -61,9 +56,9 @@ public class VoiceChannelHub(
     {
         await LeaveChannel();
 
-        var user = await _userAccessor.GetUserAsync();
+        var user = await userAccessor.GetUserAsync();
 
-        var channel = await _context.ChatChannels
+        var channel = await context.ChatChannels
             .AsNoTracking()
             .Where(x => x.Id == channelId)
             .Select(x => new
@@ -74,19 +69,13 @@ public class VoiceChannelHub(
             })
             .FirstOrDefaultAsync();
 
-        if (channel == null || channel.Type != ChatChannelType.Voice)
-        {
-            throw new HubException("Voice channel not found");
-        }
+        if (channel == null || channel.Type != ChatChannelType.Voice) throw new HubException("Voice channel not found");
 
-        var isMember = await _context.ChatRoomMembers
+        var isMember = await context.ChatRoomMembers
             .AsNoTracking()
             .AnyAsync(m => m.ChatRoomId == channel.ChatRoomId && m.UserId == user.Id);
 
-        if (!isMember)
-        {
-            throw new HubException("You are not a member of this chat room");
-        }
+        if (!isMember) throw new HubException("You are not a member of this chat room");
 
         var participant = new VoiceParticipantConnection
         {
@@ -99,7 +88,7 @@ public class VoiceChannelHub(
             ChannelId = channel.Id
         };
 
-        var joinResult = _presenceService.JoinChannel(channel.Id, participant);
+        var joinResult = presenceService.JoinChannel(channel.Id, participant);
 
         await Groups.AddToGroupAsync(Context.ConnectionId, GetGroupName(channel.Id));
 
@@ -125,11 +114,8 @@ public class VoiceChannelHub(
 
     public async Task LeaveChannel()
     {
-        var leaveResult = _presenceService.LeaveChannel(Context.ConnectionId);
-        if (leaveResult == null)
-        {
-            return;
-        }
+        var leaveResult = presenceService.LeaveChannel(Context.ConnectionId);
+        if (leaveResult == null) return;
 
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, GetGroupName(leaveResult.ChannelId));
 
@@ -188,7 +174,7 @@ public class VoiceChannelHub(
 
     private async Task NotifyChannelPresenceChanged(string chatRoomId, string channelId)
     {
-        var participants = _presenceService
+        var participants = presenceService
             .GetParticipants(channelId)
             .Select(MapParticipant)
             .ToList();
@@ -204,20 +190,14 @@ public class VoiceChannelHub(
 
     private string GetSharedChannelId(string targetConnectionId)
     {
-        if (!_presenceService.TryGetConnection(Context.ConnectionId, out var source))
-        {
+        if (!presenceService.TryGetConnection(Context.ConnectionId, out var source))
             throw new HubException("You are not connected to a voice channel");
-        }
 
-        if (!_presenceService.TryGetConnection(targetConnectionId, out var target))
-        {
+        if (!presenceService.TryGetConnection(targetConnectionId, out var target))
             throw new HubException("Target user is not connected");
-        }
 
         if (!string.Equals(source.ChannelId, target.ChannelId, StringComparison.Ordinal))
-        {
             throw new HubException("Target user is not connected to the same channel");
-        }
 
         return source.ChannelId;
     }
