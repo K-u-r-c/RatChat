@@ -9,9 +9,13 @@ import {
   sendOffer,
   startVoiceHub,
   stopVoiceHub,
+  unwatchChatRoom,
+  watchChatRoom,
   type IceCandidatePayload,
   type SessionDescriptionPayload,
   type VoiceChannelJoinResponse,
+  type VoiceChannelPresence,
+  type VoiceChannelPresenceSnapshot,
   type VoiceIceCandidateMessage,
   type VoiceParticipant,
   type VoicePeerUpdate,
@@ -30,6 +34,7 @@ export type VoiceChannelState = {
   currentChannelId: string | null;
   participants: VoiceParticipant[];
   allParticipants: VoiceParticipant[];
+  presenceByChannel: Record<string, VoiceParticipant[]>;
   remoteStreams: Array<{ connectionId: string; stream: MediaStream }>;
   isJoining: boolean;
   error: string | null;
@@ -44,9 +49,13 @@ export function useVoiceChannel(chatRoomId?: string): VoiceChannelState {
   const localStreamRef = useRef<MediaStream | null>(null);
   const selfConnectionIdRef = useRef<string | null>(null);
   const currentChannelRef = useRef<string | null>(null);
+  const channelPresenceRef = useRef(
+    new Map<string, Map<string, VoiceParticipant>>()
+  );
 
   const [participantsVersion, setParticipantsVersion] = useState(0);
   const [streamsVersion, setStreamsVersion] = useState(0);
+  const [channelPresenceVersion, setChannelPresenceVersion] = useState(0);
   const [currentChannelId, setCurrentChannelId] = useState<string | null>(null);
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +67,63 @@ export function useVoiceChannel(chatRoomId?: string): VoiceChannelState {
     remoteStreamsRef.current.delete(connectionId);
     setStreamsVersion((prev) => prev + 1);
   }, []);
+
+  const setChannelPresence = useCallback(
+    (channelId: string, participants: VoiceParticipant[]) => {
+      const connections = new Map<string, VoiceParticipant>();
+      for (const participant of participants) {
+        connections.set(participant.connectionId, participant);
+      }
+      channelPresenceRef.current.set(channelId, connections);
+      setChannelPresenceVersion((prev) => prev + 1);
+    },
+    []
+  );
+
+  const addPresenceParticipant = useCallback(
+    (channelId: string, participant: VoiceParticipant) => {
+      const channel = channelPresenceRef.current.get(channelId);
+      if (!channel) {
+        const connections = new Map<string, VoiceParticipant>();
+        connections.set(participant.connectionId, participant);
+        channelPresenceRef.current.set(channelId, connections);
+      } else {
+        channel.set(participant.connectionId, participant);
+      }
+      setChannelPresenceVersion((prev) => prev + 1);
+    },
+    []
+  );
+
+  const removePresenceParticipant = useCallback(
+    (channelId: string, connectionId: string) => {
+      const channel = channelPresenceRef.current.get(channelId);
+      if (!channel) return;
+      if (channel.delete(connectionId)) {
+        if (channel.size === 0) {
+          channelPresenceRef.current.delete(channelId);
+        }
+        setChannelPresenceVersion((prev) => prev + 1);
+      }
+    },
+    []
+  );
+
+  const applyPresenceSnapshot = useCallback(
+    (snapshot: VoiceChannelPresenceSnapshot) => {
+      const next = new Map<string, Map<string, VoiceParticipant>>();
+      for (const channel of snapshot.channels) {
+        const connections = new Map<string, VoiceParticipant>();
+        for (const participant of channel.participants) {
+          connections.set(participant.connectionId, participant);
+        }
+        next.set(channel.channelId, connections);
+      }
+      channelPresenceRef.current = next;
+      setChannelPresenceVersion((prev) => prev + 1);
+    },
+    []
+  );
 
   const cleanupConnection = useCallback(
     (connectionId: string, removeParticipant = false) => {
@@ -79,9 +145,12 @@ export function useVoiceChannel(chatRoomId?: string): VoiceChannelState {
         if (participantsRef.current.delete(connectionId)) {
           setParticipantsVersion((prev) => prev + 1);
         }
+        if (currentChannelRef.current) {
+          removePresenceParticipant(currentChannelRef.current, connectionId);
+        }
       }
     },
-    [removeRemoteStream]
+    [removeRemoteStream, removePresenceParticipant]
   );
 
   const releaseLocalStream = useCallback(() => {
@@ -92,6 +161,9 @@ export function useVoiceChannel(chatRoomId?: string): VoiceChannelState {
 
   const resetState = useCallback(
     (stopLocalStream: boolean) => {
+      const previousChannelId = currentChannelRef.current;
+      const previousConnectionId = selfConnectionIdRef.current;
+
       peerConnectionsRef.current.forEach((_, connectionId) =>
         cleanupConnection(connectionId, true)
       );
@@ -107,11 +179,15 @@ export function useVoiceChannel(chatRoomId?: string): VoiceChannelState {
       currentChannelRef.current = null;
       setCurrentChannelId(null);
 
+      if (previousChannelId && previousConnectionId) {
+        removePresenceParticipant(previousChannelId, previousConnectionId);
+      }
+
       if (stopLocalStream) {
         releaseLocalStream();
       }
     },
-    [cleanupConnection, releaseLocalStream]
+    [cleanupConnection, releaseLocalStream, removePresenceParticipant]
   );
 
   const ensureLocalStream = useCallback(async () => {
@@ -229,6 +305,7 @@ export function useVoiceChannel(chatRoomId?: string): VoiceChannelState {
         selfConnectionIdRef.current = response.selfConnectionId;
         currentChannelRef.current = response.channelId;
         setCurrentChannelId(response.channelId);
+        setChannelPresence(response.channelId, response.participants);
 
         for (const participant of response.participants) {
           if (participant.connectionId === response.selfConnectionId) continue;
@@ -255,7 +332,7 @@ export function useVoiceChannel(chatRoomId?: string): VoiceChannelState {
         setIsJoining(false);
       }
     },
-    [chatRoomId, createPeerConnection, ensureLocalStream, isJoining, leave]
+    [chatRoomId, createPeerConnection, ensureLocalStream, isJoining, leave, setChannelPresence]
   );
 
   useEffect(() => {
@@ -265,6 +342,10 @@ export function useVoiceChannel(chatRoomId?: string): VoiceChannelState {
     }
 
     let subscribed = false;
+    let hasWatched = false;
+
+    channelPresenceRef.current.clear();
+    setChannelPresenceVersion((prev) => prev + 1);
 
     const handlePeerJoined = (update: VoicePeerUpdate) => {
       if (update.channelId !== currentChannelRef.current) return;
@@ -273,6 +354,7 @@ export function useVoiceChannel(chatRoomId?: string): VoiceChannelState {
         update.participant.connectionId,
         update.participant
       );
+      addPresenceParticipant(update.channelId, update.participant);
       setParticipantsVersion((prev) => prev + 1);
     };
 
@@ -330,6 +412,10 @@ export function useVoiceChannel(chatRoomId?: string): VoiceChannelState {
       });
     };
 
+    const handleChannelPresenceUpdated = (update: VoiceChannelPresence) => {
+      setChannelPresence(update.channelId, update.participants);
+    };
+
     (async () => {
       try {
         await startVoiceHub();
@@ -338,10 +424,22 @@ export function useVoiceChannel(chatRoomId?: string): VoiceChannelState {
         on<VoiceSignalMessage>("ReceiveOffer", handleOffer);
         on<VoiceSignalMessage>("ReceiveAnswer", handleAnswer);
         on<VoiceIceCandidateMessage>("ReceiveIceCandidate", handleIceCandidate);
+        on<VoiceChannelPresence>("ChannelPresenceUpdated", handleChannelPresenceUpdated);
         subscribed = true;
       } catch (err) {
         setError("Failed to connect to the voice service");
         if (import.meta.env.DEV) console.error(err);
+        return;
+      }
+
+      try {
+        const snapshot = await watchChatRoom(chatRoomId);
+        applyPresenceSnapshot(snapshot);
+        hasWatched = true;
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.error("Failed to load voice presence snapshot", err);
+        }
       }
     })();
 
@@ -352,14 +450,29 @@ export function useVoiceChannel(chatRoomId?: string): VoiceChannelState {
         off("ReceiveOffer", handleOffer);
         off("ReceiveAnswer", handleAnswer);
         off("ReceiveIceCandidate", handleIceCandidate);
+        off("ChannelPresenceUpdated", handleChannelPresenceUpdated);
+      }
+      if (hasWatched) {
+        unwatchChatRoom(chatRoomId).catch(() => {});
       }
       void leave();
       void stopVoiceHub().catch(() => {});
     };
-  }, [chatRoomId, cleanupConnection, createPeerConnection, leave, resetState]);
+  }, [
+    chatRoomId,
+    addPresenceParticipant,
+    cleanupConnection,
+    createPeerConnection,
+    leave,
+    setChannelPresence,
+    applyPresenceSnapshot,
+  ]);
 
   const participantsList = useMemo(
-    () => Array.from(participantsRef.current.values()),
+    () => {
+      void participantsVersion;
+      return Array.from(participantsRef.current.values());
+    },
     [participantsVersion]
   );
 
@@ -374,18 +487,30 @@ export function useVoiceChannel(chatRoomId?: string): VoiceChannelState {
   }, [participantsList]);
 
   const remoteStreams = useMemo(
-    () =>
-      Array.from(remoteStreamsRef.current.entries()).map(([connectionId, stream]) => ({
+    () => {
+      void streamsVersion;
+      return Array.from(remoteStreamsRef.current.entries()).map(([connectionId, stream]) => ({
         connectionId,
         stream,
-      })),
+      }));
+    },
     [streamsVersion]
   );
+
+  const presenceByChannel = useMemo(() => {
+    void channelPresenceVersion;
+    const result: Record<string, VoiceParticipant[]> = {};
+    channelPresenceRef.current.forEach((connections, channelId) => {
+      result[channelId] = Array.from(connections.values());
+    });
+    return result;
+  }, [channelPresenceVersion]);
 
   return {
     currentChannelId,
     participants: uniqueParticipants,
     allParticipants: participantsList,
+    presenceByChannel,
     remoteStreams,
     isJoining,
     error,

@@ -51,3 +51,14 @@ public class VoiceIceCandidateMessageDto
     public required IceCandidateDto Candidate { get; set; }
 }
 
+public class VoiceChannelPresenceDto
+{
+    public required string ChannelId { get; set; }
+    public List<VoiceParticipantDto> Participants { get; set; } = [];
+}
+
+public class VoiceChannelPresenceSnapshotDto
+{
+    public required string ChatRoomId { get; set; }
+    public List<VoiceChannelPresenceDto> Channels { get; set; } = [];
+}

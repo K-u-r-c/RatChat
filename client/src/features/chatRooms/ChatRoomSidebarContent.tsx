@@ -17,11 +17,23 @@ import {CallEnd, Chat, ExitToApp, ExpandLess, ExpandMore, People, Settings, Volu
 import {useParams} from "react-router";
 import {useChatRooms} from "../../lib/hooks/useChatRooms";
 import {useVoiceChannel} from "../../lib/hooks/useVoiceChannel";
+import type {VoiceParticipant} from "../../lib/realtime/voiceHub";
 import ChatRoomSettings from "./settings/ChatRoomSettings";
 import InvitePeopleModal from "./invites/InvitePeopleModal";
 import {useAccount} from "../../lib/hooks/useAccount";
 import {useChatRoomRolesRealtime} from "../../lib/hooks/useChatRoomRolesRealtime";
 import {CHATROOM_PERMISSIONS} from "../../lib/types/chatroomPermissions";
+
+
+function uniqueVoiceParticipants(participants: VoiceParticipant[]): VoiceParticipant[] {
+    const unique = new Map<string, VoiceParticipant>();
+    for (const participant of participants) {
+        if (!unique.has(participant.userId)) {
+            unique.set(participant.userId, participant);
+        }
+    }
+    return Array.from(unique.values());
+}
 
 export default function ChatRoomSidebarContent() {
     const {slug} = useParams();
@@ -244,87 +256,109 @@ export default function ChatRoomSidebarContent() {
                 ) : (
                     voiceChannels.map((channel) => {
                         const isActive = voice.currentChannelId === channel.id;
-                        const participants = isActive ? voice.participants : [];
-                        const participantCount = isActive ? voice.allParticipants.length : 0;
+                        const channelPresence = voice.presenceByChannel[channel.id] ?? [];
+                        const uniqueChannelParticipants = uniqueVoiceParticipants(channelPresence);
+                        const participantCount = uniqueChannelParticipants.length;
+                        const secondaryText = isActive
+                            ? voice.isJoining
+                                ? "Connecting..."
+                                : participantCount > 0
+                                    ? participantCount + " connected"
+                                    : undefined
+                            : participantCount > 0
+                                ? participantCount + " connected"
+                                : undefined;
 
                         return (
-                            <Box component="li" key={channel.id} sx={{mb: 0.5}}>
-                                <ListItemButton
-                                    onClick={() => handleVoiceChannelClick(channel.id)}
-                                    selected={isActive}
-                                    disabled={voice.isJoining && !isActive}
+                            <Box component="li" key={channel.id} sx={{mb: 0.75}}>
+                                <Box
                                     sx={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "space-between",
                                         borderRadius: 1.5,
+                                        bgcolor: isActive ? "#2f3136" : "#1f2024",
+                                        border: isActive ? "1px solid #5865f2" : "1px solid transparent",
+                                        overflow: "hidden",
+                                        transition: "background-color 0.2s ease, border-color 0.2s ease",
                                     }}
                                 >
-                                    <Box sx={{display: "flex", alignItems: "center", gap: 1}}>
-                                        <ListItemIcon sx={{minWidth: 32}}>
-                                            <VolumeUp fontSize="small"/>
-                                        </ListItemIcon>
-                                        <ListItemText
-                                            primary={channel.name}
-                                            secondary={
-                                                isActive
-                                                    ? voice.isJoining
-                                                        ? "Connecting..."
-                                                        : `${participantCount} connected`
-                                                    : undefined
-                                            }
-                                            primaryTypographyProps={{fontSize: 14, fontWeight: 500}}
-                                            secondaryTypographyProps={{fontSize: 12, color: "text.secondary"}}
-                                        />
-                                    </Box>
-                                    {isActive && (
-                                        <IconButton
-                                            size="small"
-                                            edge="end"
-                                            onClick={(event) => {
-                                                event.stopPropagation();
-                                                void voice.leave();
-                                            }}
-                                            sx={{color: "error.main"}}
-                                            aria-label="Leave channel"
-                                        >
-                                            <CallEnd fontSize="small"/>
-                                        </IconButton>
-                                    )}
-                                </ListItemButton>
-                                {isActive && participants.length > 0 && (
-                                    <Box
+                                    <ListItemButton
+                                        onClick={() => handleVoiceChannelClick(channel.id)}
+                                        selected={isActive}
+                                        disabled={voice.isJoining && !isActive}
                                         sx={{
-                                            pl: 6,
-                                            pr: 2,
-                                            pb: 1,
-                                            display: "flex",
-                                            flexWrap: "wrap",
-                                            gap: 0.75,
+                                            alignItems: "center",
+                                            justifyContent: "space-between",
+                                            borderRadius: 1.5,
+                                            px: 2,
+                                            py: 1,
+                                            backgroundColor: "transparent",
+                                            "&.Mui-selected": {
+                                                backgroundColor: "transparent",
+                                            },
+                                            "&:hover": {
+                                                backgroundColor: isActive ? "#2f3136" : "#27292f",
+                                            },
                                         }}
                                     >
-                                        {participants.map((participant) => {
-                                            const isSelf = participant.userId === currentUser?.id;
-                                            const initials = participant.displayName?.charAt(0) ?? "?";
-                                            return (
-                                                <Tooltip title={participant.displayName} arrow key={participant.userId}>
-                                                    <Avatar
-                                                        src={participant.imageUrl ?? undefined}
-                                                        sx={{
-                                                            width: 30,
-                                                            height: 30,
-                                                            fontSize: 14,
-                                                            bgcolor: isSelf ? "primary.main" : "#2f3136",
-                                                            border: isSelf ? "2px solid #5865f2" : "1px solid #3b3d43",
-                                                        }}
-                                                    >
-                                                        {participant.imageUrl ? null : initials.toUpperCase()}
-                                                    </Avatar>
-                                                </Tooltip>
-                                            );
-                                        })}
-                                    </Box>
-                                )}
+                                        <Box sx={{display: "flex", alignItems: "center", gap: 1}}>
+                                            <ListItemIcon sx={{minWidth: 32}}>
+                                                <VolumeUp fontSize="small"/>
+                                            </ListItemIcon>
+                                            <ListItemText
+                                                primary={channel.name}
+                                                secondary={secondaryText}
+                                                primaryTypographyProps={{fontSize: 14, fontWeight: 500}}
+                                                secondaryTypographyProps={{fontSize: 12, color: "text.secondary"}}
+                                            />
+                                        </Box>
+                                        {isActive && (
+                                            <IconButton
+                                                size="small"
+                                                edge="end"
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    void voice.leave();
+                                                }}
+                                                sx={{color: "error.main"}}
+                                                aria-label="Leave channel"
+                                            >
+                                                <CallEnd fontSize="small"/>
+                                            </IconButton>
+                                        )}
+                                    </ListItemButton>
+                                    {participantCount > 0 && (
+                                        <Box
+                                            sx={{
+                                                px: 2,
+                                                pb: 1.5,
+                                                display: "flex",
+                                                flexWrap: "wrap",
+                                                gap: 0.75,
+                                            }}
+                                        >
+                                            {uniqueChannelParticipants.map((participant) => {
+                                                const isSelf = participant.userId === currentUser?.id;
+                                                const isSelfActive = isSelf && isActive;
+                                                const initials = participant.displayName?.charAt(0) ?? "?";
+                                                return (
+                                                    <Tooltip title={participant.displayName} arrow key={participant.userId}>
+                                                        <Avatar
+                                                            src={participant.imageUrl ?? undefined}
+                                                            sx={{
+                                                                width: 30,
+                                                                height: 30,
+                                                                fontSize: 14,
+                                                                bgcolor: isSelfActive ? "primary.main" : "#2f3136",
+                                                                border: isSelfActive ? "2px solid #5865f2" : "1px solid #3b3d43",
+                                                            }}
+                                                        >
+                                                            {participant.imageUrl ? null : initials.toUpperCase()}
+                                                        </Avatar>
+                                                    </Tooltip>
+                                                );
+                                            })}
+                                        </Box>
+                                    )}
+                                </Box>
                             </Box>
                         );
                     })

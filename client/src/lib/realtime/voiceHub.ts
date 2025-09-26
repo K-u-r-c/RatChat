@@ -42,6 +42,16 @@ export type VoiceIceCandidateMessage = {
     candidate: IceCandidatePayload;
 };
 
+export type VoiceChannelPresence = {
+    channelId: string;
+    participants: VoiceParticipant[];
+};
+
+export type VoiceChannelPresenceSnapshot = {
+    chatRoomId: string;
+    channels: VoiceChannelPresence[];
+};
+
 let hubConnection: HubConnection | null = null;
 let startPromise: Promise<void> | null = null;
 
@@ -111,6 +121,15 @@ export async function leaveVoiceChannel() {
     }
 }
 
+export async function watchChatRoom(chatRoomId: string): Promise<VoiceChannelPresenceSnapshot> {
+    const connection = ensureConnection();
+    return connection.invoke<VoiceChannelPresenceSnapshot>("WatchChatRoom", chatRoomId);
+}
+
+export async function unwatchChatRoom(chatRoomId: string) {
+    const connection = ensureConnection();
+    await connection.invoke("UnwatchChatRoom", chatRoomId);
+}
 export async function sendOffer(
     targetConnectionId: string,
     description: SessionDescriptionPayload
@@ -155,4 +174,3 @@ export function off<TPayload = unknown>(event: string, cb?: (payload: TPayload) 
 export function connection(): HubConnection | null {
     return hubConnection;
 }
-
