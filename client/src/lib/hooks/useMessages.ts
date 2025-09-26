@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useStore } from "./useStore";
 import notificationsApi from "../api/notifications";
 import type { ChatMessage, PagedList, MessageReaction } from "../types";
+import type { MessagesPayload } from "../types/messagesHook";
 import { runInAction } from "mobx";
 import { toast } from "react-toastify";
 import { calculatePageSizeForMessages } from "../util/util";
@@ -16,10 +17,6 @@ import {
   off as offEvent,
   loadMoreMessages as hubLoadMoreMessages,
 } from "../realtime/messagesHub";
-
-type MessagesPayload =
-  | { chatRoomId?: string; data?: PagedList<ChatMessage, Date> }
-  | PagedList<ChatMessage, Date>;
 
 const toPagedPayload = (payload: MessagesPayload) => {
   if (typeof payload === "object" && payload !== null && "data" in payload) {

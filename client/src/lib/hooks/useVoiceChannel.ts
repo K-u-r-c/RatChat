@@ -22,52 +22,14 @@ import {
   watchChatRoom,
 } from "../realtime/voiceHub";
 
-type LeaveOptions = {
-  keepLocalStream?: boolean;
-};
+import type { LeaveOptions, LocalSpeakingMonitor, SpeakingMonitor, VoiceChannelSnapshot, VoiceChannelState } from "../types/voiceChannel";
 
-type SpeakingMonitor = {
-  analyser: AnalyserNode;
-  source: MediaStreamAudioSourceNode;
-  rafId: number;
-  userId: string;
-};
+export type { VoiceChannelState } from "../types/voiceChannel";
 
-type LocalSpeakingMonitor = {
-  analyser: AnalyserNode;
-  source: MediaStreamAudioSourceNode;
-  rafId: number;
-  userId: string;
-};
 
 const ICE_SERVERS: RTCConfiguration["iceServers"] = [
   {urls: "stun:stun.l.google.com:19302"},
 ];
-
-type VoiceChannelSnapshot = {
-  currentChannelId: string | null;
-  currentChatRoomId: string | null;
-  participants: VoiceParticipant[];
-  allParticipants: VoiceParticipant[];
-  presenceByChannel: Record<string, VoiceParticipant[]>;
-  remoteStreams: Array<{
-    connectionId: string;
-    stream: MediaStream;
-    userId: string | null;
-  }>;
-  participantVolumes: Record<string, number>;
-  mutedParticipantIds: string[];
-  activeSpeakers: string[];
-  isJoining: boolean;
-  error: string | null;
-};
-
-export type VoiceChannelState = VoiceChannelSnapshot & {
-  setParticipantVolume: (userId: string, volume: number) => void;
-  toggleParticipantMute: (userId: string, muted?: boolean) => void;
-  join: (channelId: string) => Promise<void>;
-  leave: (options?: LeaveOptions) => Promise<void>;
-};
 
 class VoiceManager {
   private participants = new Map<string, VoiceParticipant>();

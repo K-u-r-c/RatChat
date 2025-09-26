@@ -2,32 +2,8 @@ import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "react-toastify";
 import { useMedia, MediaCategory } from "./useMedia";
-import type { MediaUploadResult, MessageType } from "../types";
-
-type SelectedItem = {
-  id: string;
-  file: File;
-  kind: "image" | "video" | "audio" | "other";
-  preview?: string | null;
-};
-
-interface FileUploadState {
-  selectedItems: SelectedItem[];
-  pendingPaste: {
-    file: File | null;
-    preview: string | null;
-  };
-}
-
-interface UseFileUploadProps {
-  chatRoomId?: string;
-  onUpload: (
-    body: string,
-    type: MessageType,
-    mediaData?: Partial<MediaUploadResult>
-  ) => Promise<void>;
-  onReset: () => void;
-}
+import type { MessageType } from "../types";
+import type { FileUploadState, SelectedItem, UseFileUploadProps } from "../types/fileUpload";
 
 export function useFileUpload({
   chatRoomId,
