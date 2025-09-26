@@ -46,6 +46,7 @@ const ICE_SERVERS: RTCConfiguration["iceServers"] = [
 
 type VoiceChannelSnapshot = {
     currentChannelId: string | null;
+    currentChatRoomId: string | null;
     participants: VoiceParticipant[];
     allParticipants: VoiceParticipant[];
     presenceByChannel: Record<string, VoiceParticipant[]>;
@@ -100,6 +101,7 @@ class VoiceManager {
     private _snapshotVersion = -1;
     private _cachedSnapshot: VoiceChannelSnapshot = {
         currentChannelId: null,
+        currentChatRoomId: null,
         participants: [],
         allParticipants: [],
         presenceByChannel: {},
@@ -122,6 +124,7 @@ class VoiceManager {
         if (this._snapshotVersion !== this._version) {
             this._cachedSnapshot = {
                 currentChannelId: this.currentChannelId,
+                currentChatRoomId: this.activeChatRoomId,
                 participants: this.getUniqueParticipants(),
                 allParticipants: Array.from(this.participants.values()),
                 presenceByChannel: this.buildPresenceMap(),
@@ -233,6 +236,7 @@ class VoiceManager {
             }
 
             this.currentChannelId = response.channelId;
+            this.activeChatRoomId = this.watchedChatRoomId;
             this.setChannelPresence(response.channelId, response.participants);
             this.emit();
 
@@ -661,6 +665,7 @@ class VoiceManager {
         this.participants.clear();
 
         this.currentChannelId = null;
+        this.activeChatRoomId = null;
 
         this.channelPresence.clear();
 
@@ -871,3 +876,4 @@ export function useVoiceChannel(
         leave: voiceManager.leave,
     };
 }
+

@@ -13,7 +13,7 @@ import {
     Tooltip,
     Typography,
 } from "@mui/material";
-import {useMemo, useState} from "react";
+import {useEffect, useMemo, useState} from "react";
 import {CallEnd, Chat, ExitToApp, ExpandLess, ExpandMore, People, Settings, VolumeUp,} from "@mui/icons-material";
 import {useParams} from "react-router";
 import {useChatRooms} from "../../lib/hooks/useChatRooms";
@@ -22,6 +22,7 @@ import type {VoiceParticipant} from "../../lib/realtime/voiceHub";
 import ChatRoomSettings from "./settings/ChatRoomSettings";
 import InvitePeopleModal from "./invites/InvitePeopleModal";
 import {useAccount} from "../../lib/hooks/useAccount";
+import {useStore} from "../../lib/hooks/useStore";
 import {useChatRoomRolesRealtime} from "../../lib/hooks/useChatRoomRolesRealtime";
 import {CHATROOM_PERMISSIONS} from "../../lib/types/chatroomPermissions";
 
@@ -45,12 +46,14 @@ export default function ChatRoomSidebarContent() {
         chatRoom?.id,
         currentUser?.id
     );
+    const {uiStore} = useStore();
     const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [inviteOpen, setInviteOpen] = useState(false);
     const [volumeMenu, setVolumeMenu] = useState<
         { anchor: { left: number; top: number }; participant: VoiceParticipant } | null
     >(null);
+    const [selectedTextChannel, setSelectedTextChannel] = useState<string>("general");
 
     const menuOpen = Boolean(menuAnchorEl);
     const voiceChannels = useMemo(
@@ -62,6 +65,8 @@ export default function ChatRoomSidebarContent() {
     );
 
     const voice = useVoiceChannel(chatRoom?.id, currentUser?.id);
+    const activeRoomView = chatRoom ? uiStore.getChatRoomView(chatRoom.id) : "chat";
+    const isChatView = activeRoomView === "chat";
     const mutedParticipantIdsSet = useMemo(
         () => new Set(voice.mutedParticipantIds),
         [voice.mutedParticipantIds]
@@ -70,6 +75,16 @@ export default function ChatRoomSidebarContent() {
         () => new Set(voice.activeSpeakers),
         [voice.activeSpeakers]
     );
+
+    useEffect(() => {
+        if (!chatRoom?.id) return;
+        const currentView = uiStore.getChatRoomView(chatRoom.id);
+        if (!voice.currentChannelId || voice.currentChatRoomId !== chatRoom.id) {
+            if (currentView !== "chat") {
+                uiStore.setChatRoomView(chatRoom.id, "chat");
+            }
+        }
+    }, [chatRoom?.id, uiStore, voice.currentChannelId, voice.currentChatRoomId]);
 
     const handleServerNameClick = (event: React.MouseEvent<HTMLElement>) => {
         setMenuAnchorEl(event.currentTarget);
@@ -108,12 +123,14 @@ export default function ChatRoomSidebarContent() {
     }
 
     const handleVoiceChannelClick = (channelId: string) => {
+        if (!chatRoom?.id) return;
         if (voice.isJoining && voice.currentChannelId !== channelId) return;
         if (voice.currentChannelId === channelId) {
-            void voice.leave();
-        } else {
-            void voice.join(channelId);
+            uiStore.setChatRoomView(chatRoom.id, "screen-share");
+            return;
         }
+        uiStore.setChatRoomView(chatRoom.id, "screen-share");
+        void voice.join(channelId);
     };
     return (
         <Box sx={{width: "100%", p: 2}}>
@@ -233,19 +250,43 @@ export default function ChatRoomSidebarContent() {
                 Text Channels
             </Typography>
             <List>
-                <ListItemButton>
+                <ListItemButton
+                    selected={isChatView && selectedTextChannel === "general"}
+                    onClick={() => {
+                        setSelectedTextChannel("general");
+                        if (chatRoom?.id) {
+                            uiStore.setChatRoomView(chatRoom.id, "chat");
+                        }
+                    }}
+                >
                     <ListItemIcon>
                         <Chat/>
                     </ListItemIcon>
                     <ListItemText primary="# general"/>
                 </ListItemButton>
-                <ListItemButton>
+                <ListItemButton
+                    selected={isChatView && selectedTextChannel === "memes"}
+                    onClick={() => {
+                        setSelectedTextChannel("memes");
+                        if (chatRoom?.id) {
+                            uiStore.setChatRoomView(chatRoom.id, "chat");
+                        }
+                    }}
+                >
                     <ListItemIcon>
                         <Chat/>
                     </ListItemIcon>
                     <ListItemText primary="# memes"/>
                 </ListItemButton>
-                <ListItemButton>
+                <ListItemButton
+                    selected={isChatView && selectedTextChannel === "tech-talk"}
+                    onClick={() => {
+                        setSelectedTextChannel("tech-talk");
+                        if (chatRoom?.id) {
+                            uiStore.setChatRoomView(chatRoom.id, "chat");
+                        }
+                    }}
+                >
                     <ListItemIcon>
                         <Chat/>
                     </ListItemIcon>
@@ -328,6 +369,9 @@ export default function ChatRoomSidebarContent() {
                                                 edge="end"
                                                 onClick={(event) => {
                                                     event.stopPropagation();
+                                                    if (chatRoom?.id) {
+                                                        uiStore.setChatRoomView(chatRoom.id, "chat");
+                                                    }
                                                     void voice.leave();
                                                 }}
                                                 sx={{color: "error.main"}}
@@ -457,5 +501,17 @@ export default function ChatRoomSidebarContent() {
         </Box>
     );
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 

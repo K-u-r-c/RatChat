@@ -147,7 +147,7 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
       {/* Main chat column */}
       <Box
         sx={{
-          flex: `1 1 calc(100% - ${rightPanelWidth}px)`,
+          flex: 1,
           display: "flex",
           flexDirection: "column",
           minWidth: 0,

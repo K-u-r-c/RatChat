@@ -277,6 +277,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
       <Box
         sx={{
           height: "100%",
+          width: "100%",
           display: "flex",
           flexDirection: "column",
           minHeight: 0,
@@ -406,7 +407,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
                 </Box>
               </Box>
             )}
-            
+
             {/* File previews */}
             {fileUpload.pendingPaste.file &&
               fileUpload.pendingPaste.preview && (
