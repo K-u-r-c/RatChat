@@ -268,29 +268,12 @@ export function useVoiceChannel(chatRoomId?: string): VoiceChannelState {
 
     const handlePeerJoined = (update: VoicePeerUpdate) => {
       if (update.channelId !== currentChannelRef.current) return;
+      cleanupConnection(update.participant.connectionId);
       participantsRef.current.set(
         update.participant.connectionId,
         update.participant
       );
       setParticipantsVersion((prev) => prev + 1);
-
-      (async () => {
-        try {
-          const pc = await createPeerConnection(
-            update.participant.connectionId
-          );
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-          await sendOffer(update.participant.connectionId, {
-            type: offer.type,
-            sdp: offer.sdp ?? "",
-          });
-        } catch (err) {
-          if (import.meta.env.DEV) {
-            console.error("Failed to negotiate with peer", err);
-          }
-        }
-      })();
     };
 
     const handlePeerLeft = (update: VoicePeerUpdate) => {
@@ -410,10 +393,3 @@ export function useVoiceChannel(chatRoomId?: string): VoiceChannelState {
     leave,
   };
 }
-
-
-
-
-
-
-
