@@ -4,6 +4,7 @@ import {
     Divider,
     IconButton,
     List,
+    Slider,
     ListItemButton,
     ListItemIcon,
     ListItemText,
@@ -47,6 +48,9 @@ export default function ChatRoomSidebarContent() {
     const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [inviteOpen, setInviteOpen] = useState(false);
+    const [volumeMenu, setVolumeMenu] = useState<
+        { anchor: { left: number; top: number }; participant: VoiceParticipant } | null
+    >(null);
 
     const menuOpen = Boolean(menuAnchorEl);
     const voiceChannels = useMemo(
@@ -57,7 +61,15 @@ export default function ChatRoomSidebarContent() {
         [chatRoom?.channels]
     );
 
-    const voice = useVoiceChannel(chatRoom?.id);
+    const voice = useVoiceChannel(chatRoom?.id, currentUser?.id);
+    const mutedParticipantIdsSet = useMemo(
+        () => new Set(voice.mutedParticipantIds),
+        [voice.mutedParticipantIds]
+    );
+    const activeSpeakersSet = useMemo(
+        () => new Set(voice.activeSpeakers),
+        [voice.activeSpeakers]
+    );
 
     const handleServerNameClick = (event: React.MouseEvent<HTMLElement>) => {
         setMenuAnchorEl(event.currentTarget);
@@ -338,17 +350,33 @@ export default function ChatRoomSidebarContent() {
                                             {uniqueChannelParticipants.map((participant) => {
                                                 const isSelf = participant.userId === currentUser?.id;
                                                 const isSelfActive = isSelf && isActive;
+                                                const isMuted = mutedParticipantIdsSet.has(participant.userId);
+                                                const isSpeaking = activeSpeakersSet.has(participant.userId);
                                                 const initials = participant.displayName?.charAt(0) ?? "?";
+                                                const handleParticipantContextMenu = (event: React.MouseEvent) => {
+                                                    event.preventDefault();
+                                                    setVolumeMenu({
+                                                        anchor: { left: event.clientX, top: event.clientY },
+                                                        participant,
+                                                    });
+                                                };
                                                 return (
                                                     <Tooltip title={participant.displayName} arrow key={participant.userId}>
                                                         <Avatar
                                                             src={participant.imageUrl ?? undefined}
+                                                            onContextMenu={handleParticipantContextMenu}
                                                             sx={{
                                                                 width: 30,
                                                                 height: 30,
                                                                 fontSize: 14,
                                                                 bgcolor: isSelfActive ? "primary.main" : "#2f3136",
-                                                                border: isSelfActive ? "2px solid #5865f2" : "1px solid #3b3d43",
+                                                                border: isSelfActive
+                                                                    ? `2px solid ${isSpeaking ? "#43b581" : "#5865f2"}`
+                                                                    : `1px solid ${isSpeaking ? "#43b581" : "#3b3d43"}`
+                                                                ,
+                                                                boxShadow: isSpeaking ? "0 0 0 2px rgba(67,181,129,0.35)" : "none",
+                                                                opacity: isMuted ? 0.6 : 1,
+                                                                transition: "box-shadow 0.2s ease, border-color 0.2s ease, opacity 0.2s ease",
                                                             }}
                                                         >
                                                             {participant.imageUrl ? null : initials.toUpperCase()}
@@ -369,9 +397,64 @@ export default function ChatRoomSidebarContent() {
                     {voice.error}
                 </Typography>
             )}
-            {voice.remoteStreams.map(({connectionId, stream}) => (
-                <RemoteAudio key={connectionId} stream={stream}/>
-            ))}
+            <Menu
+                open={Boolean(volumeMenu)}
+                onClose={() => setVolumeMenu(null)}
+                anchorReference="anchorPosition"
+                anchorPosition={volumeMenu ? { left: volumeMenu.anchor.left, top: volumeMenu.anchor.top } : undefined}
+                MenuListProps={{ disablePadding: true }}
+            >
+                {volumeMenu && (
+                    <>
+                        <Box sx={{px: 2, pt: 1.5, width: 220}}>
+                            <Typography variant="body2" sx={{fontWeight: 600, mb: 1}}>
+                                {volumeMenu.participant.displayName}
+                            </Typography>
+                            <Slider
+                                value={Math.round((voice.participantVolumes[volumeMenu.participant.userId] ?? 1) * 100)}
+                                onChange={(_, value) => {
+                                    const vol = Array.isArray(value) ? value[0] : value;
+                                    voice.setParticipantVolume(volumeMenu.participant.userId, vol / 100);
+                                    if (mutedParticipantIdsSet.has(volumeMenu.participant.userId) && vol > 0) {
+                                        voice.toggleParticipantMute(volumeMenu.participant.userId, false);
+                                    }
+                                }}
+                                onChangeCommitted={(_, value) => {
+                                    const vol = Array.isArray(value) ? value[0] : value;
+                                    voice.setParticipantVolume(volumeMenu.participant.userId, vol / 100);
+                                    if (mutedParticipantIdsSet.has(volumeMenu.participant.userId) && vol > 0) {
+                                        voice.toggleParticipantMute(volumeMenu.participant.userId, false);
+                                    }
+                                }}
+                                valueLabelDisplay="auto"
+                                min={0}
+                                max={100}
+                                sx={{mt: 1}}
+                            />
+                        </Box>
+                        <MenuItem
+                            onClick={() => {
+                                voice.toggleParticipantMute(volumeMenu.participant.userId);
+                                setVolumeMenu(null);
+                            }}
+                        >
+                            {mutedParticipantIdsSet.has(volumeMenu.participant.userId) ? "Unmute User" : "Mute User"}
+                        </MenuItem>
+                    </>
+                )}
+            </Menu>
+            {voice.remoteStreams.map(({connectionId, stream, userId}) => {
+                const volume = userId ? voice.participantVolumes[userId] ?? 1 : 1;
+                const muted = userId ? mutedParticipantIdsSet.has(userId) : false;
+                return (
+                    <RemoteAudio
+                        key={connectionId}
+                        stream={stream}
+                        volume={volume}
+                        muted={muted}
+                    />
+                );
+            })}
             {/* Chat room setting menu popup */}
             <ChatRoomSettings
                 open={settingsOpen}
@@ -388,7 +471,11 @@ export default function ChatRoomSidebarContent() {
 }
 
 
-function RemoteAudio({stream}: { stream: MediaStream }) {
+function RemoteAudio({
+    stream,
+    volume,
+    muted,
+}: { stream: MediaStream; volume: number; muted: boolean }) {
     const audioRef = useRef<HTMLAudioElement>(null);
 
     useEffect(() => {
@@ -401,6 +488,13 @@ function RemoteAudio({stream}: { stream: MediaStream }) {
             });
         }
     }, [stream]);
+
+    useEffect(() => {
+        const audio = audioRef.current;
+        if (!audio) return;
+        audio.volume = Math.min(Math.max(volume, 0), 1);
+        audio.muted = muted;
+    }, [muted, volume]);
 
     return <audio ref={audioRef} autoPlay playsInline style={{display: "none"}}/>;
 }

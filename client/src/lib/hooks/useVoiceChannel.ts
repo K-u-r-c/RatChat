@@ -26,6 +26,20 @@ type LeaveOptions = {
   keepLocalStream?: boolean;
 };
 
+type SpeakingMonitor = {
+  analyser: AnalyserNode;
+  source: MediaStreamAudioSourceNode;
+  rafId: number;
+  userId: string;
+};
+
+type LocalSpeakingMonitor = {
+  analyser: AnalyserNode;
+  source: MediaStreamAudioSourceNode;
+  rafId: number;
+  userId: string;
+};
+
 const ICE_SERVERS: RTCConfiguration["iceServers"] = [
   { urls: "stun:stun.l.google.com:19302" },
 ];
@@ -35,14 +49,22 @@ export type VoiceChannelState = {
   participants: VoiceParticipant[];
   allParticipants: VoiceParticipant[];
   presenceByChannel: Record<string, VoiceParticipant[]>;
-  remoteStreams: Array<{ connectionId: string; stream: MediaStream }>;
+  remoteStreams: Array<{ connectionId: string; stream: MediaStream; userId: string | null }>;
+  participantVolumes: Record<string, number>;
+  mutedParticipantIds: string[];
+  activeSpeakers: string[];
   isJoining: boolean;
   error: string | null;
+  setParticipantVolume: (userId: string, volume: number) => void;
+  toggleParticipantMute: (userId: string, muted?: boolean) => void;
   join: (channelId: string) => Promise<void>;
   leave: (options?: LeaveOptions) => Promise<void>;
 };
 
-export function useVoiceChannel(chatRoomId?: string): VoiceChannelState {
+export function useVoiceChannel(
+  chatRoomId?: string,
+  currentUserId?: string
+): VoiceChannelState {
   const participantsRef = useRef(new Map<string, VoiceParticipant>());
   const remoteStreamsRef = useRef(new Map<string, MediaStream>());
   const peerConnectionsRef = useRef(new Map<string, RTCPeerConnection>());
@@ -52,10 +74,19 @@ export function useVoiceChannel(chatRoomId?: string): VoiceChannelState {
   const channelPresenceRef = useRef(
     new Map<string, Map<string, VoiceParticipant>>()
   );
+  const participantVolumeRef = useRef(new Map<string, number>());
+  const participantMuteRef = useRef(new Set<string>());
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const speakingMonitorsRef = useRef(new Map<string, SpeakingMonitor>());
+  const localSpeakingMonitorRef = useRef<LocalSpeakingMonitor | null>(null);
+  const activeSpeakersRef = useRef(new Set<string>());
 
   const [participantsVersion, setParticipantsVersion] = useState(0);
   const [streamsVersion, setStreamsVersion] = useState(0);
   const [channelPresenceVersion, setChannelPresenceVersion] = useState(0);
+  const [volumeVersion, setVolumeVersion] = useState(0);
+  const [muteVersion, setMuteVersion] = useState(0);
+  const [speakingVersion, setSpeakingVersion] = useState(0);
   const [currentChannelId, setCurrentChannelId] = useState<string | null>(null);
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +98,150 @@ export function useVoiceChannel(chatRoomId?: string): VoiceChannelState {
     remoteStreamsRef.current.delete(connectionId);
     setStreamsVersion((prev) => prev + 1);
   }, []);
+
+  const ensureAudioContext = useCallback(() => {
+    if (!audioContextRef.current) {
+      audioContextRef.current = new AudioContext();
+    }
+    return audioContextRef.current;
+  }, []);
+
+  const updateActiveSpeaker = useCallback((userId: string, speaking: boolean) => {
+    const set = activeSpeakersRef.current;
+    let changed = false;
+    if (speaking) {
+      if (!set.has(userId)) {
+        set.add(userId);
+        changed = true;
+      }
+    } else if (set.delete(userId)) {
+      changed = true;
+    }
+    if (changed) {
+      setSpeakingVersion((prev) => prev + 1);
+    }
+  }, []);
+
+  const stopRemoteSpeakingMonitor = useCallback(
+    (connectionId: string) => {
+      const monitor = speakingMonitorsRef.current.get(connectionId);
+      if (!monitor) return;
+      cancelAnimationFrame(monitor.rafId);
+      monitor.source.disconnect();
+      speakingMonitorsRef.current.delete(connectionId);
+      updateActiveSpeaker(monitor.userId, false);
+    },
+    [updateActiveSpeaker]
+  );
+
+  const startRemoteSpeakingMonitor = useCallback(
+    (connectionId: string, stream: MediaStream) => {
+      const participant = participantsRef.current.get(connectionId);
+      if (!participant) return;
+
+      stopRemoteSpeakingMonitor(connectionId);
+      const audioContext = ensureAudioContext();
+      const source = audioContext.createMediaStreamSource(stream);
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      let monitor: SpeakingMonitor;
+      const detect = () => {
+        analyser.getByteTimeDomainData(data);
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) {
+          const value = (data[i] - 128) / 128;
+          sum += value * value;
+        }
+        const rms = Math.sqrt(sum / data.length);
+        updateActiveSpeaker(participant.userId, rms > 0.02);
+        monitor.rafId = window.requestAnimationFrame(detect);
+      };
+      monitor = {
+        analyser,
+        source,
+        rafId: window.requestAnimationFrame(detect),
+        userId: participant.userId,
+      };
+      speakingMonitorsRef.current.set(connectionId, monitor);
+      detect();
+    },
+    [ensureAudioContext, stopRemoteSpeakingMonitor, updateActiveSpeaker]
+  );
+
+  const stopLocalSpeakingMonitor = useCallback(() => {
+    const monitor = localSpeakingMonitorRef.current;
+    if (!monitor) return;
+    cancelAnimationFrame(monitor.rafId);
+    monitor.source.disconnect();
+    localSpeakingMonitorRef.current = null;
+    updateActiveSpeaker(monitor.userId, false);
+  }, [updateActiveSpeaker]);
+
+  const startLocalSpeakingMonitor = useCallback(
+    (stream: MediaStream) => {
+      if (!currentUserId) return;
+      stopLocalSpeakingMonitor();
+      const audioContext = ensureAudioContext();
+      const source = audioContext.createMediaStreamSource(stream);
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      let monitor: LocalSpeakingMonitor;
+      const detect = () => {
+        analyser.getByteTimeDomainData(data);
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) {
+          const value = (data[i] - 128) / 128;
+          sum += value * value;
+        }
+        const rms = Math.sqrt(sum / data.length);
+        updateActiveSpeaker(currentUserId, rms > 0.02);
+        monitor.rafId = window.requestAnimationFrame(detect);
+      };
+      monitor = {
+        analyser,
+        source,
+        rafId: window.requestAnimationFrame(detect),
+        userId: currentUserId,
+      };
+      localSpeakingMonitorRef.current = monitor;
+      detect();
+    },
+    [currentUserId, ensureAudioContext, stopLocalSpeakingMonitor, updateActiveSpeaker]
+  );
+
+
+  const releaseLocalStream = useCallback(() => {
+    stopLocalSpeakingMonitor();
+    if (!localStreamRef.current) return;
+    localStreamRef.current.getTracks().forEach((track) => track.stop());
+    localStreamRef.current = null;
+  }, [stopLocalSpeakingMonitor]);
+
+  const setParticipantVolume = useCallback((userId: string, volume: number) => {
+    const clamped = Math.min(Math.max(volume, 0), 1);
+    participantVolumeRef.current.set(userId, clamped);
+    setVolumeVersion((prev) => prev + 1);
+  }, []);
+
+  const toggleParticipantMute = useCallback(
+    (userId: string, muted?: boolean) => {
+      const set = participantMuteRef.current;
+      const nextMuted = muted ?? !set.has(userId);
+      if (nextMuted) {
+        if (!set.has(userId)) {
+          set.add(userId);
+          setMuteVersion((prev) => prev + 1);
+        }
+      } else if (set.delete(userId)) {
+        setMuteVersion((prev) => prev + 1);
+      }
+    },
+    []
+  );
 
   const setChannelPresence = useCallback(
     (channelId: string, participants: VoiceParticipant[]) => {
@@ -139,35 +314,50 @@ export function useVoiceChannel(chatRoomId?: string): VoiceChannelState {
         peerConnectionsRef.current.delete(connectionId);
       }
 
+      stopRemoteSpeakingMonitor(connectionId);
       removeRemoteStream(connectionId);
 
       if (removeParticipant) {
-        if (participantsRef.current.delete(connectionId)) {
+        const removed = participantsRef.current.delete(connectionId);
+        if (removed) {
           setParticipantsVersion((prev) => prev + 1);
         }
-        if (currentChannelRef.current) {
-          removePresenceParticipant(currentChannelRef.current, connectionId);
+
+        let channelId: string | null = null;
+        for (const [candidateChannelId, connections] of channelPresenceRef.current.entries()) {
+          if (connections.has(connectionId)) {
+            channelId = candidateChannelId;
+            break;
+          }
+        }
+
+        if (!channelId) {
+          channelId = currentChannelRef.current;
+        }
+
+        if (channelId) {
+          removePresenceParticipant(channelId, connectionId);
         }
       }
     },
-    [removeRemoteStream, removePresenceParticipant]
+    [removeRemoteStream, removePresenceParticipant, stopRemoteSpeakingMonitor]
   );
-
-  const releaseLocalStream = useCallback(() => {
-    if (!localStreamRef.current) return;
-    localStreamRef.current.getTracks().forEach((track) => track.stop());
-    localStreamRef.current = null;
-  }, []);
-
   const resetState = useCallback(
     (stopLocalStream: boolean) => {
-      const previousChannelId = currentChannelRef.current;
-      const previousConnectionId = selfConnectionIdRef.current;
-
       peerConnectionsRef.current.forEach((_, connectionId) =>
         cleanupConnection(connectionId, true)
       );
       peerConnectionsRef.current.clear();
+
+      speakingMonitorsRef.current.forEach((_, connectionId) => {
+        stopRemoteSpeakingMonitor(connectionId);
+      });
+      speakingMonitorsRef.current.clear();
+      if (currentUserId) {
+        updateActiveSpeaker(currentUserId, false);
+      }
+      activeSpeakersRef.current.clear();
+      setSpeakingVersion((prev) => prev + 1);
 
       remoteStreamsRef.current.clear();
       setStreamsVersion((prev) => prev + 1);
@@ -179,15 +369,20 @@ export function useVoiceChannel(chatRoomId?: string): VoiceChannelState {
       currentChannelRef.current = null;
       setCurrentChannelId(null);
 
-      if (previousChannelId && previousConnectionId) {
-        removePresenceParticipant(previousChannelId, previousConnectionId);
-      }
+      channelPresenceRef.current.clear();
+      setChannelPresenceVersion((prev) => prev + 1);
 
       if (stopLocalStream) {
         releaseLocalStream();
       }
     },
-    [cleanupConnection, releaseLocalStream, removePresenceParticipant]
+    [
+      cleanupConnection,
+      currentUserId,
+      releaseLocalStream,
+      stopRemoteSpeakingMonitor,
+      updateActiveSpeaker,
+    ]
   );
 
   const ensureLocalStream = useCallback(async () => {
@@ -201,12 +396,13 @@ export function useVoiceChannel(chatRoomId?: string): VoiceChannelState {
         },
       });
       localStreamRef.current = stream;
+      startLocalSpeakingMonitor(stream);
       return stream;
     } catch (err) {
       setError("Microphone access was denied");
       throw err;
     }
-  }, []);
+  }, [startLocalSpeakingMonitor]);
 
   const createPeerConnection = useCallback(
     async (connectionId: string): Promise<RTCPeerConnection> => {
@@ -230,10 +426,11 @@ export function useVoiceChannel(chatRoomId?: string): VoiceChannelState {
       };
 
       pc.ontrack = (event) => {
-        const [stream] = event.streams;
-        if (!stream) return;
-        remoteStreamsRef.current.set(connectionId, stream);
+        const [trackStream] = event.streams;
+        if (!trackStream) return;
+        remoteStreamsRef.current.set(connectionId, trackStream);
         setStreamsVersion((prev) => prev + 1);
+        startRemoteSpeakingMonitor(connectionId, trackStream);
       };
 
       pc.onconnectionstatechange = () => {
@@ -249,9 +446,8 @@ export function useVoiceChannel(chatRoomId?: string): VoiceChannelState {
       peerConnectionsRef.current.set(connectionId, pc);
       return pc;
     },
-    [cleanupConnection, ensureLocalStream]
+    [cleanupConnection, ensureLocalStream, startRemoteSpeakingMonitor]
   );
-
   const leave = useCallback(
     async (options: LeaveOptions = {}) => {
       const keepLocalStream = options.keepLocalStream ?? false;
@@ -332,7 +528,14 @@ export function useVoiceChannel(chatRoomId?: string): VoiceChannelState {
         setIsJoining(false);
       }
     },
-    [chatRoomId, createPeerConnection, ensureLocalStream, isJoining, leave, setChannelPresence]
+    [
+      chatRoomId,
+      createPeerConnection,
+      ensureLocalStream,
+      isJoining,
+      leave,
+      setChannelPresence,
+    ]
   );
 
   useEffect(() => {
@@ -469,10 +672,7 @@ export function useVoiceChannel(chatRoomId?: string): VoiceChannelState {
   ]);
 
   const participantsList = useMemo(
-    () => {
-      void participantsVersion;
-      return Array.from(participantsRef.current.values());
-    },
+    () => Array.from(participantsRef.current.values()),
     [participantsVersion]
   );
 
@@ -487,18 +687,18 @@ export function useVoiceChannel(chatRoomId?: string): VoiceChannelState {
   }, [participantsList]);
 
   const remoteStreams = useMemo(
-    () => {
-      void streamsVersion;
-      return Array.from(remoteStreamsRef.current.entries()).map(([connectionId, stream]) => ({
-        connectionId,
-        stream,
-      }));
-    },
-    [streamsVersion]
+    () =>
+      Array.from(remoteStreamsRef.current.entries()).map(
+        ([connectionId, stream]) => ({
+          connectionId,
+          stream,
+          userId: participantsRef.current.get(connectionId)?.userId ?? null,
+        })
+      ),
+    [streamsVersion, participantsVersion]
   );
 
   const presenceByChannel = useMemo(() => {
-    void channelPresenceVersion;
     const result: Record<string, VoiceParticipant[]> = {};
     channelPresenceRef.current.forEach((connections, channelId) => {
       result[channelId] = Array.from(connections.values());
@@ -506,14 +706,37 @@ export function useVoiceChannel(chatRoomId?: string): VoiceChannelState {
     return result;
   }, [channelPresenceVersion]);
 
+  const participantVolumes = useMemo(() => {
+    const result: Record<string, number> = {};
+    participantVolumeRef.current.forEach((volume, userId) => {
+      result[userId] = volume;
+    });
+    return result;
+  }, [volumeVersion]);
+
+  const mutedParticipantIds = useMemo(
+    () => Array.from(participantMuteRef.current),
+    [muteVersion]
+  );
+
+  const activeSpeakers = useMemo(
+    () => Array.from(activeSpeakersRef.current),
+    [speakingVersion]
+  );
+
   return {
     currentChannelId,
     participants: uniqueParticipants,
     allParticipants: participantsList,
     presenceByChannel,
     remoteStreams,
+    participantVolumes,
+    mutedParticipantIds,
+    activeSpeakers,
     isJoining,
     error,
+    setParticipantVolume,
+    toggleParticipantMute,
     join,
     leave,
   };
