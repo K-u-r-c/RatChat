@@ -1,17 +1,16 @@
-using Application.ChatRooms.DTOs;
 using Application.ChatAppearances.DTOs;
+using Application.ChatRooms.DTOs;
 using Application.DirectChats.DTOs;
-using Application.EncryptedDirectChats.DTOs;
-using Application.EncryptedDirectMessages.DTOs;
 using Application.DirectMessages.DTOs;
 using Application.EmojiPreferences.DTOs;
+using Application.EncryptedDirectChats.DTOs;
+using Application.EncryptedDirectMessages.DTOs;
 using Application.Friends.DTOs;
 using Application.Messages.DTOs;
 using Application.Profiles.DTOs;
 using AutoMapper;
 using Domain;
 using Domain.Extensions;
-using System.Linq;
 
 namespace Application.Core;
 
@@ -94,10 +93,13 @@ public class MappingProfiles : Profile
             .ForMember(d => d.MediaFileSize, o => o.MapFrom(s => s.MediaFileSize))
             .ForMember(d => d.MediaOriginalFileName, o => o.MapFrom(s => s.MediaOriginalFileName))
             .ForMember(d => d.ReplyToMessageId, o => o.MapFrom(s => s.ReplyToMessageId))
-            .ForMember(d => d.ReplyToDisplayName, o => o.MapFrom(s => s.ReplyToMessage != null ? s.ReplyToMessage.User.DisplayName : null))
+            .ForMember(d => d.ReplyToDisplayName,
+                o => o.MapFrom(s => s.ReplyToMessage != null ? s.ReplyToMessage.User.DisplayName : null))
             .ForMember(d => d.ReplyToBody, o => o.MapFrom(s => s.ReplyToMessage != null ? s.ReplyToMessage.Body : null))
-            .ForMember(d => d.ReplyToType, o => o.MapFrom(s => s.ReplyToMessage != null ? s.ReplyToMessage.Type.ToString() : null))
-            .ForMember(d => d.ReplyToMediaOriginalFileName, o => o.MapFrom(s => s.ReplyToMessage != null ? s.ReplyToMessage.MediaOriginalFileName : null))
+            .ForMember(d => d.ReplyToType,
+                o => o.MapFrom(s => s.ReplyToMessage != null ? s.ReplyToMessage.Type.ToString() : null))
+            .ForMember(d => d.ReplyToMediaOriginalFileName,
+                o => o.MapFrom(s => s.ReplyToMessage != null ? s.ReplyToMessage.MediaOriginalFileName : null))
             .ForMember(d => d.Reactions, o => o.MapFrom(s => s.Reactions));
 
         CreateMap<DirectChat, DirectChatDto>()
@@ -126,10 +128,15 @@ public class MappingProfiles : Profile
             .ForMember(d => d.MediaFileSize, o => o.MapFrom(s => s.MediaFileSize))
             .ForMember(d => d.MediaOriginalFileName, o => o.MapFrom(s => s.MediaOriginalFileName))
             .ForMember(d => d.ReplyToMessageId, o => o.MapFrom(s => s.ReplyToDirectMessageId))
-            .ForMember(d => d.ReplyToDisplayName, o => o.MapFrom(s => s.ReplyToDirectMessage != null ? s.ReplyToDirectMessage.Sender.DisplayName : null))
-            .ForMember(d => d.ReplyToBody, o => o.MapFrom(s => s.ReplyToDirectMessage != null ? s.ReplyToDirectMessage.Body : null))
-            .ForMember(d => d.ReplyToType, o => o.MapFrom(s => s.ReplyToDirectMessage != null ? s.ReplyToDirectMessage.Type.ToString() : null))
-            .ForMember(d => d.ReplyToMediaOriginalFileName, o => o.MapFrom(s => s.ReplyToDirectMessage != null ? s.ReplyToDirectMessage.MediaOriginalFileName : null))
+            .ForMember(d => d.ReplyToDisplayName,
+                o => o.MapFrom(s => s.ReplyToDirectMessage != null ? s.ReplyToDirectMessage.Sender.DisplayName : null))
+            .ForMember(d => d.ReplyToBody,
+                o => o.MapFrom(s => s.ReplyToDirectMessage != null ? s.ReplyToDirectMessage.Body : null))
+            .ForMember(d => d.ReplyToType,
+                o => o.MapFrom(s => s.ReplyToDirectMessage != null ? s.ReplyToDirectMessage.Type.ToString() : null))
+            .ForMember(d => d.ReplyToMediaOriginalFileName,
+                o => o.MapFrom(s =>
+                    s.ReplyToDirectMessage != null ? s.ReplyToDirectMessage.MediaOriginalFileName : null))
             .ForMember(d => d.Reactions, o => o.MapFrom(s => s.Reactions));
 
         CreateMap<UserFriend, FriendDto>()
@@ -193,11 +200,25 @@ public class MappingProfiles : Profile
             .ForMember(d => d.IsOwnMessage, o => o.MapFrom(s => s.SenderId == currentUserId))
             .ForMember(d => d.Type, o => o.MapFrom(s => s.Type.ToString()))
             .ForMember(d => d.ReplyToMessageId, o => o.MapFrom(s => s.ReplyToEncryptedDirectMessageId))
-            .ForMember(d => d.ReplyToCipherText, o => o.MapFrom(s => s.ReplyToEncryptedDirectMessage != null ? s.ReplyToEncryptedDirectMessage.CipherText : null))
-            .ForMember(d => d.ReplyToCipherTextMetadata, o => o.MapFrom(s => s.ReplyToEncryptedDirectMessage != null ? s.ReplyToEncryptedDirectMessage.CipherTextMetadata : null))
-            .ForMember(d => d.ReplyToVersion, o => o.MapFrom(s => s.ReplyToEncryptedDirectMessage != null ? s.ReplyToEncryptedDirectMessage.Version : null))
-            .ForMember(d => d.ReplyToSenderId, o => o.MapFrom(s => s.ReplyToEncryptedDirectMessage != null ? s.ReplyToEncryptedDirectMessage.SenderId : null))
-            .ForMember(d => d.ReplyToSenderDisplayName, o => o.MapFrom(s => s.ReplyToEncryptedDirectMessage != null ? s.ReplyToEncryptedDirectMessage.Sender.DisplayName : null))
+            .ForMember(d => d.ReplyToCipherText,
+                o => o.MapFrom(s =>
+                    s.ReplyToEncryptedDirectMessage != null ? s.ReplyToEncryptedDirectMessage.CipherText : null))
+            .ForMember(d => d.ReplyToCipherTextMetadata,
+                o => o.MapFrom(s =>
+                    s.ReplyToEncryptedDirectMessage != null
+                        ? s.ReplyToEncryptedDirectMessage.CipherTextMetadata
+                        : null))
+            .ForMember(d => d.ReplyToVersion,
+                o => o.MapFrom(s =>
+                    s.ReplyToEncryptedDirectMessage != null ? s.ReplyToEncryptedDirectMessage.Version : null))
+            .ForMember(d => d.ReplyToSenderId,
+                o => o.MapFrom(s =>
+                    s.ReplyToEncryptedDirectMessage != null ? s.ReplyToEncryptedDirectMessage.SenderId : null))
+            .ForMember(d => d.ReplyToSenderDisplayName,
+                o => o.MapFrom(s =>
+                    s.ReplyToEncryptedDirectMessage != null
+                        ? s.ReplyToEncryptedDirectMessage.Sender.DisplayName
+                        : null))
             .ForMember(d => d.Reactions, o => o.MapFrom(s => s.Reactions));
 
         CreateMap<EncryptedDirectMessageReaction, MessageReactionDto>()
@@ -208,7 +229,3 @@ public class MappingProfiles : Profile
         CreateMap<ChatRoomBan, ChatRoomBanDto>();
     }
 }
-
-
-
-

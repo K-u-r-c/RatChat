@@ -365,7 +365,3 @@ export const useChatRooms = (identifier?: string) => {
     deleteChatRoomImage,
   };
 };
-
-
-
-

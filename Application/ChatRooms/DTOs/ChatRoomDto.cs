@@ -17,4 +17,3 @@ public class ChatRoomDto
     public ICollection<ChatRoomBanDto> Bans { get; set; } = [];
     public ICollection<ChatChannelDto> Channels { get; set; } = [];
 }
-

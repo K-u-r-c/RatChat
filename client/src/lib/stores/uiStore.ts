@@ -1,11 +1,11 @@
-import { makeAutoObservable } from "mobx";
+import {makeAutoObservable} from "mobx";
 
 export class UiStore {
   isLoading = false;
-  private _suppressNextChatRoomForbiddenToast = false;
   createJoinModalOpen = false;
   createJoinModalStep: "choose" | "create" | "join" = "choose";
   chatRoomViews = new Map<string, "chat" | "screen-share">();
+  private _suppressNextChatRoomForbiddenToast = false;
 
   constructor() {
     makeAutoObservable(this);
@@ -74,4 +74,3 @@ export class UiStore {
     this.chatRoomViews.delete(chatRoomId);
   }
 }
-
