@@ -21,6 +21,14 @@ public class VoiceChannelHub(
 
     public async Task<VoiceChannelPresenceSnapshotDto> WatchChatRoom(string chatRoomId)
     {
+        var user = await userAccessor.GetUserAsync();
+
+        var isMember = await context.ChatRoomMembers
+            .AsNoTracking()
+            .AnyAsync(m => m.ChatRoomId == chatRoomId && m.UserId == user.Id);
+
+        if (!isMember) throw new HubException("You are not a member of this chat room");
+
         await Groups.AddToGroupAsync(Context.ConnectionId, GetChatRoomGroupName(chatRoomId));
 
         var voiceChannelIds = await context.ChatChannels
