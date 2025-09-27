@@ -1,4 +1,6 @@
 using API.SignalR;
+using Application.ChatRoomRoles.DTOs;
+using Application.ChatRoomRoles.Queries;
 using Application.ChatRooms.Commands;
 using Application.ChatRooms.DTOs;
 using Application.ChatRooms.Queries;
@@ -186,4 +188,43 @@ public class ChatRoomsController(IHubContext<ChatRoomModerationEventsHub> hubCon
         return HandleResult(result);
     }
 
+    [HttpGet("roles")]
+    [Authorize(Policy = ChatRoomPermissions.ViewChatRoom)]
+    public async Task<ActionResult<List<ChatRoomRoleDto>>> GetRoles(
+        [FromQuery] string chatRoomId)
+    {
+        var result = await Mediator.Send(
+            new GetChatRoomRoles.Query { ChatRoomId = chatRoomId });
+
+
+        return HandleResult(result);
+    }
+
+    [HttpGet("users-roles")]
+    [Authorize(Policy = ChatRoomPermissions.ViewChatRoom)]
+    public async Task<ActionResult<Dictionary<string, List<ChatRoomRoleDto>>>> GetUsersRoles(
+        [FromQuery] string chatRoomId)
+    {
+        var result = await Mediator.Send(
+            new GetUsersChatRoomRoles.Query { ChatRoomId = chatRoomId }
+        );
+
+        return HandleResult(result);
+    }
+
+    [HttpGet("user-permissions")]
+    [Authorize(Policy = ChatRoomPermissions.ViewChatRoom)]
+    public async Task<ActionResult<UserPermissionsDto>> GetUserPermissions(
+        [FromQuery] string chatRoomId,
+        [FromQuery] string userId)
+    {
+        var result = await Mediator.Send(
+            new GetUserPermissions.Query
+            {
+                ChatRoomId = chatRoomId,
+                UserId = userId
+            });
+
+        return HandleResult(result);
+    }
 }
