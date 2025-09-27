@@ -22,9 +22,15 @@ import {
   watchChatRoom,
 } from "../realtime/voiceHub";
 
-import type { LeaveOptions, LocalSpeakingMonitor, SpeakingMonitor, VoiceChannelSnapshot, VoiceChannelState } from "../types/voiceChannel";
+import type {
+  LeaveOptions,
+  LocalSpeakingMonitor,
+  SpeakingMonitor,
+  VoiceChannelSnapshot,
+  VoiceChannelState
+} from "../types/voiceChannel";
 
-export type { VoiceChannelState } from "../types/voiceChannel";
+export type {VoiceChannelState} from "../types/voiceChannel";
 
 
 const ICE_SERVERS: RTCConfiguration["iceServers"] = [
@@ -611,7 +617,7 @@ class VoiceManager {
     const currentUserId = this.currentUserId;
 
     this.peerConnections.forEach((_, connectionId) =>
-      this.cleanupConnection(connectionId, true)
+      this.cleanupConnection(connectionId)
     );
     this.peerConnections.clear();
 

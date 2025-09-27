@@ -15,6 +15,9 @@ export default function ChatRoomScreenSharePanel({chatRoomId}: Props) {
   return (
     <Box
       sx={{
+        flex: 1,
+        width: "100%",
+        minHeight: 0,
         height: "100%",
         bgcolor: "#0f1014",
         borderRadius: 1,
