@@ -13,9 +13,11 @@ import {
   Badge,
 } from "@mui/material";
 import ChatRoomDetailsChat from "./ChatRoomDetailsChat";
+import ChatRoomScreenSharePanel from "./ChatRoomScreenSharePanel";
 import { useChatRoomRolesRealtime } from "../../../lib/hooks/useChatRoomRolesRealtime";
 import { observer } from "mobx-react-lite";
 import { useAccount } from "../../../lib/hooks/useAccount";
+import { useStore } from "../../../lib/hooks/useStore";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ChatRoomMemberPopover from "./ChatRoomMemberPopover";
 import { useChatRoomModerationEventsRealtime } from "../../../lib/hooks/useChatRoomModerationEventsRealtime";
@@ -24,11 +26,15 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const { currentUser } = useAccount();
+  const { uiStore } = useStore();
   const { chatRoom, isLoadingChatRoom } = useChatRooms(slug);
   const { rolesStore } = useChatRoomRolesRealtime(
     chatRoom?.id,
     currentUser?.id
   );
+
+  const activeRoomView = chatRoom ? uiStore.getChatRoomView(chatRoom.id) : "chat";
+  const isScreenShareView = activeRoomView === "screen-share";
 
   useChatRoomModerationEventsRealtime(chatRoom, currentUser?.id);
 
@@ -179,13 +185,17 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
           </Box>
         </Box>
 
-        {/* Chat */}
-        <Box sx={{ flex: 1, minHeight: 0 }}>
-          <ChatRoomDetailsChat
-            chatRoomId={chatRoom.id}
-            userPermissions={rolesStore.userPermissions}
-          />
+        <Box sx={{ flex: 1, minHeight: 0, display: "flex" }}>
+          {isScreenShareView ? (
+            <ChatRoomScreenSharePanel chatRoomId={chatRoom.id} />
+          ) : (
+            <ChatRoomDetailsChat
+              chatRoomId={chatRoom.id}
+              userPermissions={rolesStore.userPermissions}
+            />
+          )}
         </Box>
+
       </Box>
 
       {/* Resize handle */}

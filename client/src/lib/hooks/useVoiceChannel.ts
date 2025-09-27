@@ -607,6 +607,9 @@ class VoiceManager {
   }
 
   private resetState(stopLocalStream: boolean) {
+    const previousChannelId = this.currentChannelId;
+    const currentUserId = this.currentUserId;
+
     this.peerConnections.forEach((_, connectionId) =>
       this.cleanupConnection(connectionId, true)
     );
@@ -617,17 +620,30 @@ class VoiceManager {
     });
     this.speakingMonitors.clear();
 
-    if (this.currentUserId) {
-      this.updateActiveSpeaker(this.currentUserId, false);
+    if (currentUserId) {
+      this.updateActiveSpeaker(currentUserId, false);
     }
     this.activeSpeakers.clear();
 
     this.remoteStreams.clear();
     this.participants.clear();
 
-    this.currentChannelId = null;
+    if (previousChannelId && currentUserId) {
+      const channel = this.channelPresence.get(previousChannelId);
+      if (channel) {
+        for (const [connectionId, participant] of channel) {
+          if (participant.userId === currentUserId) {
+            channel.delete(connectionId);
+            if (channel.size === 0) {
+              this.channelPresence.delete(previousChannelId);
+            }
+            break;
+          }
+        }
+      }
+    }
 
-    this.channelPresence.clear();
+    this.currentChannelId = null;
 
     if (stopLocalStream) {
       this.releaseLocalStream();
