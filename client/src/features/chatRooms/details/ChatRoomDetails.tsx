@@ -1,40 +1,46 @@
-import { useNavigate, useParams } from "react-router";
-import { useChatRooms } from "../../../lib/hooks/useChatRooms";
+import {useNavigate, useParams} from "react-router";
+import {useChatRooms} from "../../../lib/hooks/useChatRooms";
 import {
-  Box,
-  Typography,
-  TextField,
-  List,
-  ListItemButton,
-  ListItemAvatar,
   Avatar,
-  ListItemText,
-  Divider,
   Badge,
+  Box,
+  Divider,
+  List,
+  ListItemAvatar,
+  ListItemButton,
+  ListItemText,
+  TextField,
+  Typography,
 } from "@mui/material";
 import ChatRoomDetailsChat from "./ChatRoomDetailsChat";
-import { useChatRoomRolesRealtime } from "../../../lib/hooks/useChatRoomRolesRealtime";
-import { observer } from "mobx-react-lite";
-import { useAccount } from "../../../lib/hooks/useAccount";
-import { useEffect, useMemo, useRef, useState } from "react";
+import ChatRoomScreenSharePanel from "./ChatRoomScreenSharePanel";
+import {useChatRoomRolesRealtime} from "../../../lib/hooks/useChatRoomRolesRealtime";
+import {observer} from "mobx-react-lite";
+import {useAccount} from "../../../lib/hooks/useAccount";
+import {useStore} from "../../../lib/hooks/useStore";
+import {useEffect, useMemo, useRef, useState} from "react";
 import ChatRoomMemberPopover from "./ChatRoomMemberPopover";
-import { useChatRoomModerationEventsRealtime } from "../../../lib/hooks/useChatRoomModerationEventsRealtime";
+import {useChatRoomModerationEventsRealtime} from "../../../lib/hooks/useChatRoomModerationEventsRealtime";
 
 const ChatRoomDetails = observer(function ChatRoomDetails() {
-  const { slug } = useParams();
+  const {slug} = useParams();
   const navigate = useNavigate();
-  const { currentUser } = useAccount();
-  const { chatRoom, isLoadingChatRoom } = useChatRooms(slug);
-  const { rolesStore } = useChatRoomRolesRealtime(
+  const {currentUser} = useAccount();
+  const {uiStore} = useStore();
+  const {chatRoom, isLoadingChatRoom} = useChatRooms(slug);
+  const {rolesStore} = useChatRoomRolesRealtime(
     chatRoom?.id,
     currentUser?.id
   );
+
+  const activeRoomView = chatRoom ? uiStore.getChatRoomView(chatRoom.id) : "chat";
+  const isScreenShareView = activeRoomView === "screen-share";
 
   useChatRoomModerationEventsRealtime(chatRoom, currentUser?.id);
 
   useEffect(() => {
     if (chatRoom && slug && slug !== chatRoom.slug) {
-      navigate(`/chat-rooms/${chatRoom.slug}`, { replace: true });
+      navigate(`/chat-rooms/${chatRoom.slug}`, {replace: true});
     }
   }, [chatRoom, chatRoom?.slug, slug, navigate]);
 
@@ -100,7 +106,7 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
   };
 
   const startResize = (e: React.MouseEvent) => {
-    dragRef.current = { startX: e.clientX, startWidth: rightPanelWidth };
+    dragRef.current = {startX: e.clientX, startWidth: rightPanelWidth};
     const onMove = (ev: MouseEvent) => {
       if (!dragRef.current) return;
       const dx = dragRef.current.startX - ev.clientX;
@@ -147,7 +153,7 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
       {/* Main chat column */}
       <Box
         sx={{
-          flex: `1 1 calc(100% - ${rightPanelWidth}px)`,
+          flex: 1,
           display: "flex",
           flexDirection: "column",
           minWidth: 0,
@@ -169,23 +175,27 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
           <Typography variant="h6" fontWeight="bold" noWrap>
             {chatRoom.title}
           </Typography>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Box sx={{display: "flex", alignItems: "center", gap: 1}}>
             <TextField
               size="small"
               placeholder="Search (dummy)"
-              sx={{ width: 320 }}
+              sx={{width: 320}}
               disabled
             />
           </Box>
         </Box>
 
-        {/* Chat */}
-        <Box sx={{ flex: 1, minHeight: 0 }}>
-          <ChatRoomDetailsChat
-            chatRoomId={chatRoom.id}
-            userPermissions={rolesStore.userPermissions}
-          />
+        <Box sx={{flex: 1, minHeight: 0, display: "flex", flexDirection: "column"}}>
+          {isScreenShareView ? (
+            <ChatRoomScreenSharePanel chatRoomId={chatRoom.id}/>
+          ) : (
+            <ChatRoomDetailsChat
+              chatRoomId={chatRoom.id}
+              userPermissions={rolesStore.userPermissions}
+            />
+          )}
         </Box>
+
       </Box>
 
       {/* Resize handle */}
@@ -200,7 +210,7 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
           flex: "0 0 4px",
           alignSelf: "stretch",
           bgcolor: "divider",
-          "&:hover": { bgcolor: "action.hover" },
+          "&:hover": {bgcolor: "action.hover"},
         }}
       />
 
@@ -222,14 +232,14 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
       >
         <Typography
           variant="subtitle2"
-          sx={{ fontWeight: 700, px: 2, mb: 0.5 }}
+          sx={{fontWeight: 700, px: 2, mb: 0.5}}
         >
           Online - {onlineMembers.length}
         </Typography>
-        <Box sx={{ flex: 1, overflowY: "auto" }}>
+        <Box sx={{flex: 1, overflowY: "auto"}}>
           <List dense>
             {onlineMembers.length === 0 && (
-              <Typography variant="body2" color="text.secondary" sx={{ px: 2 }}>
+              <Typography variant="body2" color="text.secondary" sx={{px: 2}}>
                 No one is online right now
               </Typography>
             )}
@@ -245,7 +255,7 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
                   <Badge
                     variant="dot"
                     overlap="circular"
-                    anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                    anchorOrigin={{vertical: "bottom", horizontal: "right"}}
                     sx={{
                       "& .MuiBadge-badge": {
                         bgcolor: statusColor(m.status, m.isOnline),
@@ -267,11 +277,11 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
               </ListItemButton>
             ))}
           </List>
-          <Divider sx={{ my: 1 }} />
+          <Divider sx={{my: 1}}/>
 
           <Typography
             variant="subtitle2"
-            sx={{ fontWeight: 700, px: 2, mb: 0.5 }}
+            sx={{fontWeight: 700, px: 2, mb: 0.5}}
           >
             Offline - {offlineMembers.length}
           </Typography>
@@ -283,13 +293,13 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
                   setSelectedMemberId(m.id);
                   setAnchorEl(e.currentTarget);
                 }}
-                sx={{ opacity: 0.6 }}
+                sx={{opacity: 0.6}}
               >
                 <ListItemAvatar>
                   <Badge
                     variant="dot"
                     overlap="circular"
-                    anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                    anchorOrigin={{vertical: "bottom", horizontal: "right"}}
                     sx={{
                       "& .MuiBadge-badge": {
                         bgcolor: statusColor(m.status, m.isOnline),

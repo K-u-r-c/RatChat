@@ -1,9 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import type { BaseMessageStore } from "../types";
-
-interface UseScrollHandlerProps {
-  messageStore: BaseMessageStore;
-}
+import type { UseScrollHandlerProps } from "../types/scrollHandler";
 
 export function useScrollHandler({ messageStore }: UseScrollHandlerProps) {
   const [isAtBottom, setIsAtBottom] = useState(true);

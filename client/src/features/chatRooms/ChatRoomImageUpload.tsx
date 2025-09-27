@@ -14,7 +14,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import {type KeyboardEvent, useCallback, useEffect, useRef, useState,} from "react";
+import {type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState,} from "react";
 import Cropper, {type ReactCropperElement} from "react-cropper";
 import "cropperjs/dist/cropper.css";
 import {useDropzone} from "react-dropzone";
@@ -23,6 +23,7 @@ import {useChatRoomRolesRealtime} from "../../lib/hooks/useChatRoomRolesRealtime
 import {useChatRooms} from "../../lib/hooks/useChatRooms";
 import {MediaCategory, useMedia} from "../../lib/hooks/useMedia";
 import {CHATROOM_PERMISSIONS} from "../../lib/types/chatroomPermissions";
+import {appendGifCropToUrl, buildGifBackgroundStyles, type GifCropMeta, parseGifCropFromUrl,} from "./utils/gifCrop";
 
 type Props = {
   chatRoomId: string;
@@ -49,7 +50,17 @@ export default function ChatRoomImageUpload({chatRoomId}: Props) {
   const [preview, setPreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [croppedImage, setCroppedImage] = useState<string | null>(null);
+  const [gifCrop, setGifCrop] = useState<GifCropMeta | null>(null);
   const cropperRef = useRef<ReactCropperElement>(null);
+
+  const isGif = selectedFile?.type === "image/gif";
+
+  const existingGifCrop = useMemo(() => {
+    if (!existingImage) return null;
+    const lower = existingImage.toLowerCase();
+    if (!lower.includes(".gif")) return null;
+    return parseGifCropFromUrl(existingImage);
+  }, [existingImage]);
 
   const onDrop = useCallback((accepted: File[]) => {
     if (!accepted[0]) return;
@@ -58,6 +69,7 @@ export default function ChatRoomImageUpload({chatRoomId}: Props) {
     setSelectedFile(file);
     setPreview(url);
     setCroppedImage(null);
+    setGifCrop(null);
   }, []);
 
   useEffect(
@@ -75,12 +87,47 @@ export default function ChatRoomImageUpload({chatRoomId}: Props) {
     disabled: !canEdit,
   });
 
+  const computeGifCropMeta = (): GifCropMeta | null => {
+    const cropper = cropperRef.current?.cropper;
+    if (!cropper) return null;
+
+    const data = cropper.getData();
+    const imageData = cropper.getImageData();
+
+    if (!data || !imageData?.naturalWidth || !imageData?.naturalHeight)
+      return null;
+
+    const iw = imageData.naturalWidth;
+    const ih = imageData.naturalHeight;
+    const cw = Math.max(1, data.width);
+    const ch = Math.max(1, data.height);
+
+    const cx = ((data.x + cw / 2) / iw) * 100;
+    const cy = ((data.y + ch / 2) / ih) * 100;
+    const scale = iw / cw;
+
+    return {
+      cx: Math.max(0, Math.min(100, cx)),
+      cy: Math.max(0, Math.min(100, cy)),
+      scale: Math.max(1, scale),
+    };
+  };
+
   const handleCrop = () => {
-    const cropper = cropperRef.current;
-    if (cropper && cropper.cropper) {
-      const dataUrl = cropper.cropper.getCroppedCanvas().toDataURL();
-      setCroppedImage(dataUrl);
+    const cropper = cropperRef.current?.cropper;
+    if (!cropper) return;
+
+    if (isGif) {
+      const meta = computeGifCropMeta();
+      if (meta && preview && selectedFile) {
+        setGifCrop(meta);
+        setCroppedImage(preview);
+      }
+      return;
     }
+
+    const dataUrl = cropper.getCroppedCanvas().toDataURL();
+    setCroppedImage(dataUrl);
   };
 
   const resetAll = () => {
@@ -88,6 +135,7 @@ export default function ChatRoomImageUpload({chatRoomId}: Props) {
     setPreview(null);
     setSelectedFile(null);
     setCroppedImage(null);
+    setGifCrop(null);
   };
 
   const handleOpenDialog = () => {
@@ -109,6 +157,31 @@ export default function ChatRoomImageUpload({chatRoomId}: Props) {
   };
 
   const handleUpload = async () => {
+    if (isGif) {
+      if (!selectedFile) return;
+      try {
+        const uploadResult = await uploadMedia.mutateAsync({
+          file: selectedFile,
+          category: MediaCategory.ChatRoomImage,
+          chatRoomId,
+        });
+
+        const imageUrl = gifCrop
+          ? appendGifCropToUrl(uploadResult.url, gifCrop)
+          : uploadResult.url;
+
+        await setChatRoomImageMutation.mutateAsync({
+          id: chatRoomId,
+          imageUrl,
+        });
+
+        handleCloseDialog();
+      } catch (e) {
+        if (import.meta.env.DEV) console.error(e);
+      }
+      return;
+    }
+
     if (!croppedImage) return;
     try {
       const res = await fetch(croppedImage);
@@ -146,6 +219,19 @@ export default function ChatRoomImageUpload({chatRoomId}: Props) {
     setChatRoomImageMutation.isPending ||
     deleteChatRoomImageMutation.isPending;
 
+  const canUpload = isGif ? !!gifCrop : !!croppedImage;
+
+  const gifPreviewStyles = useMemo(() => {
+    if (!isGif || !preview) return undefined;
+    if (gifCrop) return buildGifBackgroundStyles(preview, gifCrop);
+    return {
+      backgroundImage: `url(${preview})`,
+      backgroundRepeat: "no-repeat",
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+    } as const;
+  }, [gifCrop, isGif, preview]);
+
   return (
     <Box sx={{width: "100%"}}>
       <Stack direction="row" spacing={2} alignItems="center">
@@ -167,68 +253,99 @@ export default function ChatRoomImageUpload({chatRoomId}: Props) {
               height: 128,
               borderRadius: 4,
               cursor: canEdit ? "pointer" : "default",
-              outline: "none",
-              "&:hover .editOverlay": {opacity: canEdit ? 1 : 0},
-              "&:focus-visible .editOverlay": {opacity: canEdit ? 1 : 0},
+              overflow: "hidden",
             }}
           >
-            <Avatar
-              src={existingImage ?? undefined}
-              variant="rounded"
-              sx={{
-                width: "100%",
-                height: "100%",
-                borderRadius: "inherit",
-                border: "1px solid #5865f2ff",
-                backgroundColor: "#ffffff14",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 12,
-                color: "text.secondary",
-              }}
-            >
-              {!existingImage && "No image"}
-            </Avatar>
-            {canEdit && (
-              <Box
-                className="editOverlay"
+            {existingImage ? (
+              existingGifCrop ? (
+                <Box
+                  sx={{
+                    width: "100%",
+                    height: "100%",
+                    borderRadius: 4,
+                    ...buildGifBackgroundStyles(existingImage, existingGifCrop),
+                  }}
+                />
+              ) : (
+                <Avatar
+                  src={existingImage}
+                  variant="rounded"
+                  sx={{width: 128, height: 128, borderRadius: 4}}
+                />
+              )
+            ) : (
+              <Paper
+                elevation={0}
                 sx={{
-                  position: "absolute",
-                  inset: 0,
+                  width: "100%",
+                  height: "100%",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  bgcolor: "rgba(0,0,0,0.55)",
-                  borderRadius: 4,
-                  opacity: 0,
-                  transition: "opacity 0.2s ease",
-                  pointerEvents: "none",
+                  bgcolor: "background.paper",
+                  color: "text.secondary",
                 }}
               >
-                <Edit sx={{color: "common.white", fontSize: 32}}/>
+                <Edit/>
+              </Paper>
+            )}
+            {canEdit && (
+              <Box
+                sx={{
+                  position: "absolute",
+                  inset: 0,
+                  bgcolor: "rgba(0,0,0,0.4)",
+                  opacity: 0,
+                  transition: "opacity 150ms ease-in-out",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#fff",
+                  fontWeight: 600,
+                  "&:hover": {opacity: 1},
+                }}
+              >
+                Change
               </Box>
             )}
           </Box>
         </Tooltip>
-        {canEdit && existingImage && (
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={handleDelete}
-            color="error"
-            disabled={deleteChatRoomImageMutation.isPending}
-            startIcon={
-              deleteChatRoomImageMutation.isPending ? (
-                <CircularProgress size={16}/>
-              ) : (
-                <Delete/>
-              )
-            }
-          >
-            Remove
-          </Button>
-        )}
+
+        <Stack spacing={1}>
+          <Typography variant="h6">Chat Room Image</Typography>
+          <Typography variant="body2" color="text.secondary">
+            Recommended 1:1 ratio, up to 5MB. Animated GIFs supported.
+          </Typography>
+          {existingImage && canEdit && (
+            <Stack direction="row" spacing={1}>
+              <Button
+                variant="contained"
+                size="small"
+                onClick={handleOpenDialog}
+                disabled={isUploading}
+                startIcon={<Edit/>}
+              >
+                Update
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                color="error"
+                onClick={handleDelete}
+                disabled={isUploading}
+                startIcon={
+                  deleteChatRoomImageMutation.isPending ? (
+                    <CircularProgress size={14}/>
+                  ) : (
+                    <Delete/>
+                  )
+                }
+              >
+                Remove
+              </Button>
+            </Stack>
+          )}
+        </Stack>
       </Stack>
 
       <Dialog
@@ -296,14 +413,40 @@ export default function ChatRoomImageUpload({chatRoomId}: Props) {
 
           {croppedImage && (
             <Box textAlign="center" mt={1}>
-              <Avatar
-                src={croppedImage}
-                variant="rounded"
-                sx={{width: 160, height: 160, mx: "auto"}}
-              />
+              {isGif && gifPreviewStyles ? (
+                <Box
+                  sx={{
+                    width: 160,
+                    height: 160,
+                    mx: "auto",
+                    borderRadius: 2,
+                    border: "1px solid",
+                    borderColor: "grey.700",
+                    overflow: "hidden",
+                    ...gifPreviewStyles,
+                  }}
+                />
+              ) : (
+                <Avatar
+                  src={croppedImage}
+                  variant="rounded"
+                  sx={{width: 160, height: 160, mx: "auto"}}
+                />
+              )}
               <Typography variant="body2" color="text.secondary" mt={2}>
                 Looks good? Upload to save changes.
               </Typography>
+              {isGif && (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  display="block"
+                  mt={1}
+                >
+                  Animated GIFs upload as-is. Crop is applied visually so the
+                  animation stays intact.
+                </Typography>
+              )}
             </Box>
           )}
         </DialogContent>
@@ -323,14 +466,14 @@ export default function ChatRoomImageUpload({chatRoomId}: Props) {
               startIcon={<Crop/>}
               disabled={isUploading}
             >
-              Crop
+              {isGif ? "Apply crop" : "Crop"}
             </Button>
           )}
-          {croppedImage && (
+          {canUpload && (
             <Button
               variant="contained"
               onClick={handleUpload}
-              disabled={isUploading}
+              disabled={isUploading || (isGif ? !gifCrop : !croppedImage)}
               startIcon={
                 isUploading ? <CircularProgress size={18}/> : <CloudUpload/>
               }

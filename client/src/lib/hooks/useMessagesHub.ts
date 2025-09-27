@@ -3,33 +3,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { startMessagesHub, on, off, connection } from "../realtime/messagesHub";
 import { useStore } from "./useStore";
 import { useAccount } from "./useAccount";
-import type { ChatMessage, DirectMessage } from "../types";
 
-type ChatRoomUpdatedPayload = {
-  chatRoomId?: string;
-  message?: ChatMessage;
-};
-
-type DirectChatUpdatedPayload = {
-  directChatId?: string;
-  message?: DirectMessage;
-};
-
-type ChatAppearanceUpdatedPayload = {
-  chatType?: string;
-  chatId?: string;
-  defaultEmoji?: string;
-  backgroundKey?: string;
-  backgroundCustomUrl?: string | null;
-  backgroundCustomPublicId?: string | null;
-  updatedAt?: string;
-  updatedByUserId?: string;
-};
-
-type RegisteredHandler = {
-  event: string;
-  handler: (...args: unknown[]) => void;
-};
+import type { ChatAppearanceUpdatedPayload, ChatRoomUpdatedPayload, DirectChatUpdatedPayload } from "../types/messagesHub";
+import type { RegisteredHandler } from "../types/hubHandlers";
 
 export function useMessagesHub() {
   const queryClient = useQueryClient();

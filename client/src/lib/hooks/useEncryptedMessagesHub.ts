@@ -8,17 +8,9 @@ import {
 } from "../realtime/encryptedMessagesHub";
 import { useStore } from "./useStore";
 import { useAccount } from "./useAccount";
-import type { EncryptedDirectMessage } from "../types";
 
-type EncryptedDirectChatUpdatedPayload = {
-  encryptedDirectChatId?: string;
-  message?: EncryptedDirectMessage;
-};
-
-type RegisteredHandler = {
-  event: string;
-  handler: (...args: unknown[]) => void;
-};
+import type { EncryptedDirectChatUpdatedPayload } from "../types/encryptedMessagesHub";
+import type { RegisteredHandler } from "../types/hubHandlers";
 
 export function useEncryptedMessagesHub() {
   const queryClient = useQueryClient();

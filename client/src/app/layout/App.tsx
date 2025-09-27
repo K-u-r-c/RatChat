@@ -8,6 +8,7 @@ import SecondarySidebar from "./SideNav/SecondarySidebar";
 import ChatRoomsProfileImageRealtimeProvider from "../shared/components/ChatRoomsProfileImageRealtimeProvider";
 import NewChatRoomModal from "../../features/chatRooms/create/NewChatRoomModal";
 import MessagesRealtimeProvider from "../shared/components/MessagesRealtimeProvider";
+import VoiceAudioLayer from "../shared/components/VoiceAudioLayer";
 
 function App() {
   const { currentUser } = useAccount();
@@ -22,6 +23,7 @@ function App() {
           <StatusRealtimeProvider />
           <ChatRoomsProfileImageRealtimeProvider />
           <MessagesRealtimeProvider />
+          <VoiceAudioLayer />
         </>
       )}
       <Box sx={{ display: "flex", minHeight: "100vh" }}>

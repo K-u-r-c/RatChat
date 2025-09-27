@@ -1,4 +1,4 @@
-﻿export type PagedList<T, TCursor> = {
+export type PagedList<T, TCursor> = {
   items: T[];
   nextCursor: TCursor;
 };
@@ -30,6 +30,14 @@ export type ChatRoomBan = {
   dateBanned: string;
 };
 
+export type ChatChannel = {
+  id: string;
+  name: string;
+  type: "Text" | "Voice";
+  position: number;
+  createdAt: Date;
+};
+
 export type ChatRoom = {
   id: string;
   slug: string;
@@ -42,6 +50,7 @@ export type ChatRoom = {
   ownerDisplayName: string;
   ownerImageUrl?: string;
   bans: ChatRoomBan[];
+  channels: ChatChannel[];
 };
 
 export type ChatRoomIdentifier = {
@@ -333,3 +342,7 @@ export type NotificationCounters = {
   directChats: Record<string, number>;
   encryptedDirectChats: Record<string, number>;
 };
+
+
+
+
