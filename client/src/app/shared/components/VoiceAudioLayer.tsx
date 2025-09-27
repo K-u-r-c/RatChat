@@ -1,6 +1,6 @@
-import {useEffect, useMemo, useRef} from "react";
-import {useVoiceChannel} from "../../../lib/hooks/useVoiceChannel";
-import {useAccount} from "../../../lib/hooks/useAccount";
+import { useEffect, useMemo, useRef } from "react";
+import { useVoiceChannel } from "../../../lib/hooks/useVoiceChannel";
+import { useAccount } from "../../../lib/hooks/useAccount";
 
 type RemoteAudioProps = {
   stream: MediaStream;
@@ -8,7 +8,7 @@ type RemoteAudioProps = {
   muted: boolean;
 };
 
-function RemoteAudio({stream, volume, muted}: RemoteAudioProps) {
+function RemoteAudio({ stream, volume, muted }: RemoteAudioProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
@@ -30,11 +30,13 @@ function RemoteAudio({stream, volume, muted}: RemoteAudioProps) {
     audio.muted = muted;
   }, [muted, volume]);
 
-  return <audio ref={audioRef} autoPlay playsInline style={{display: "none"}}/>;
+  return (
+    <audio ref={audioRef} autoPlay playsInline style={{ display: "none" }} />
+  );
 }
 
 export default function VoiceAudioLayer() {
-  const {currentUser} = useAccount();
+  const { currentUser } = useAccount();
   const voice = useVoiceChannel(undefined, currentUser?.id);
 
   const {
@@ -43,6 +45,7 @@ export default function VoiceAudioLayer() {
     mutedParticipantIds,
     participantVolumes,
     remoteStreams,
+    isSelfDeafened,
   } = voice;
 
   useEffect(() => {
@@ -58,9 +61,9 @@ export default function VoiceAudioLayer() {
 
   return (
     <>
-      {remoteStreams.map(({connectionId, stream, userId}) => {
+      {remoteStreams.map(({ connectionId, stream, userId }) => {
         const volume = userId ? participantVolumes[userId] ?? 1 : 1;
-        const muted = userId ? mutedSet.has(userId) : false;
+        const muted = isSelfDeafened || (userId ? mutedSet.has(userId) : false);
         return (
           <RemoteAudio
             key={connectionId}

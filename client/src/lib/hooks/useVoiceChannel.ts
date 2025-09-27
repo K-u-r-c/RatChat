@@ -1,4 +1,4 @@
-import {useEffect, useSyncExternalStore} from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import {
   type IceCandidatePayload,
   joinVoiceChannel as joinVoiceChannelHub,
@@ -27,14 +27,13 @@ import type {
   LocalSpeakingMonitor,
   SpeakingMonitor,
   VoiceChannelSnapshot,
-  VoiceChannelState
+  VoiceChannelState,
 } from "../types/voiceChannel";
 
-export type {VoiceChannelState} from "../types/voiceChannel";
-
+export type { VoiceChannelState } from "../types/voiceChannel";
 
 const ICE_SERVERS: RTCConfiguration["iceServers"] = [
-  {urls: "stun:stun.l.google.com:19302"},
+  { urls: "stun:stun.l.google.com:19302" },
 ];
 
 class VoiceManager {
@@ -53,6 +52,9 @@ class VoiceManager {
   private isJoining = false;
   private error: string | null = null;
   private currentUserId: string | null = null;
+  private selfMuted = false;
+  private selfDeafened = false;
+  private selfMutedBeforeDeafen: boolean | null = null;
 
   private listeners = new Set<() => void>();
 
@@ -79,6 +81,8 @@ class VoiceManager {
     activeSpeakers: [],
     isJoining: false,
     error: null,
+    isSelfMuted: false,
+    isSelfDeafened: false,
   };
 
   subscribe = (listener: () => void) => {
@@ -102,6 +106,8 @@ class VoiceManager {
         activeSpeakers: Array.from(this.activeSpeakers),
         isJoining: this.isJoining,
         error: this.error,
+        isSelfMuted: this.selfMuted,
+        isSelfDeafened: this.selfDeafened,
       };
       this._snapshotVersion = this._version;
     }
@@ -123,8 +129,7 @@ class VoiceManager {
   trackChatRoomPresence = (chatRoomId: string | null) => {
     if (!chatRoomId) {
       this.releasePresenceWatch();
-      return () => {
-      };
+      return () => {};
     }
 
     const id = chatRoomId;
@@ -173,6 +178,55 @@ class VoiceManager {
     }
   };
 
+  private applyLocalMuteState() {
+    if (!this.localStream) return;
+    const disable = this.selfMuted || this.selfDeafened;
+    this.localStream.getAudioTracks().forEach((track) => {
+      track.enabled = !disable;
+    });
+  }
+
+  setSelfMuted = (muted: boolean) => {
+    const next = Boolean(muted);
+    if (this.selfDeafened && !next) {
+      return;
+    }
+    if (this.selfMuted === next) return;
+    this.selfMuted = next;
+    if (!this.selfDeafened) {
+      this.selfMutedBeforeDeafen = null;
+    }
+    this.applyLocalMuteState();
+    this.emit();
+  };
+
+  toggleSelfMute = () => {
+    if (this.selfDeafened) return;
+    this.setSelfMuted(!this.selfMuted);
+  };
+
+  setSelfDeafened = (deafened: boolean) => {
+    const next = Boolean(deafened);
+    if (this.selfDeafened === next) return;
+    this.selfDeafened = next;
+    if (next) {
+      this.selfMutedBeforeDeafen = this.selfMuted;
+      if (!this.selfMuted) {
+        this.selfMuted = true;
+      }
+    } else {
+      const restore = this.selfMutedBeforeDeafen ?? false;
+      this.selfMuted = restore;
+      this.selfMutedBeforeDeafen = null;
+    }
+    this.applyLocalMuteState();
+    this.emit();
+  };
+
+  toggleSelfDeafened = () => {
+    this.setSelfDeafened(!this.selfDeafened);
+  };
+
   join = async (channelId: string) => {
     if (!this.watchedChatRoomId) {
       this.setError(
@@ -189,7 +243,7 @@ class VoiceManager {
 
     try {
       await this.ensureHub();
-      await this.leave({keepLocalStream: true});
+      await this.leave({ keepLocalStream: true });
 
       const stream = await this.ensureLocalStream();
       if (!stream) throw new Error("Unable to access microphone");
@@ -227,7 +281,7 @@ class VoiceManager {
     } catch (err) {
       if (import.meta.env.DEV) console.error(err);
       this.setError("Unable to join the voice channel");
-      await this.leave({keepLocalStream: false});
+      await this.leave({ keepLocalStream: false });
     } finally {
       this.isJoining = false;
       this.emit();
@@ -255,7 +309,7 @@ class VoiceManager {
   };
 
   forceDisconnect = async () => {
-    await this.leave({keepLocalStream: false});
+    await this.leave({ keepLocalStream: false });
     await this.stopHub();
   };
 
@@ -292,8 +346,7 @@ class VoiceManager {
       off("ChannelPresenceUpdated", this.handleChannelPresenceUpdated);
       this.hubHandlersAttached = false;
     }
-    await stopVoiceHub().catch(() => {
-    });
+    await stopVoiceHub().catch(() => {});
     this.hubStartPromise = null;
   }
 
@@ -333,8 +386,7 @@ class VoiceManager {
     this.presenceWatchToken = null;
     this.isWatchingChatRoom = false;
     if (chatRoomId) {
-      unwatchChatRoom(chatRoomId).catch(() => {
-      });
+      unwatchChatRoom(chatRoomId).catch(() => {});
     }
     this.channelPresence.clear();
     this.emit();
@@ -556,6 +608,7 @@ class VoiceManager {
       });
       this.localStream = stream;
       this.startLocalSpeakingMonitor(stream);
+      this.applyLocalMuteState();
       return stream;
     } catch (err) {
       this.setError("Microphone access was denied");
@@ -664,7 +717,7 @@ class VoiceManager {
 
     const stream = await this.ensureLocalStream();
 
-    const pc = new RTCPeerConnection({iceServers: ICE_SERVERS});
+    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 
     stream?.getAudioTracks().forEach((track) => pc.addTrack(track, stream));
 
@@ -675,8 +728,7 @@ class VoiceManager {
         sdpMid: event.candidate.sdpMid ?? null,
         sdpMLineIndex: event.candidate.sdpMLineIndex ?? null,
       };
-      sendIceCandidate(connectionId, payload).catch(() => {
-      });
+      sendIceCandidate(connectionId, payload).catch(() => {});
     };
 
     pc.ontrack = (event) => {
@@ -854,6 +906,10 @@ export function useVoiceChannel(
     ...snapshot,
     setParticipantVolume: voiceManager.setParticipantVolume,
     toggleParticipantMute: voiceManager.toggleParticipantMute,
+    setSelfMuted: voiceManager.setSelfMuted,
+    toggleSelfMute: voiceManager.toggleSelfMute,
+    setSelfDeafened: voiceManager.setSelfDeafened,
+    toggleSelfDeafened: voiceManager.toggleSelfDeafened,
     join: voiceManager.join,
     leave: voiceManager.leave,
   };

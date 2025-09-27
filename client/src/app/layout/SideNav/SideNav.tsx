@@ -2,13 +2,15 @@ import {Avatar, Badge, Box, CircularProgress, IconButton, Tooltip,} from "@mui/m
 import {Add, ExpandLess, ExpandMore, Forum} from "@mui/icons-material";
 import {NavLink} from "react-router";
 import {NAV_WIDTH} from "../../../lib/types/constants";
-import UserMenuIcon from "../UserMenuIcon";
 import {useEffect, useRef, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {useChatRooms} from "../../../lib/hooks/useChatRooms";
 import {useStore} from "../../../lib/hooks/useStore";
 import {useFriends} from "../../../lib/hooks/useFriends";
-import {buildGifBackgroundStyles, parseGifCropFromUrl} from "../../../features/chatRooms/utils/gifCrop";
+import {useAccount} from "../../../lib/hooks/useAccount";
+import {useVoiceChannel} from "../../../lib/hooks/useVoiceChannel";
+import {BASE_USER_ACTION_RIBBON_HEIGHT, VOICE_CARD_EXTRA_HEIGHT} from "../UserActionRibbon";
+import {buildGifBackgroundStyles, parseGifCropFromUrl,} from "../../../features/chatRooms/utils/gifCrop";
 
 const SideNav = observer(function SideNav() {
   const {
@@ -94,7 +96,12 @@ const SideNav = observer(function SideNav() {
     messagesNotificationsStore.totalEncryptedDirectUnread;
   const totalDirectBadgeCount = directUnreadCount + encryptedDirectUnreadCount;
   const {friendRequests} = useFriends();
+  const {currentUser} = useAccount();
+  const voice = useVoiceChannel(undefined, currentUser?.id);
+  const isVoiceConnected = Boolean(voice.currentChannelId);
+
   const friendInvitesCount = friendRequests?.received?.length || 0;
+  const navPaddingBottom = `${BASE_USER_ACTION_RIBBON_HEIGHT + (isVoiceConnected ? VOICE_CARD_EXTRA_HEIGHT : 0)}px`;
 
   return (
     <Box
@@ -111,7 +118,8 @@ const SideNav = observer(function SideNav() {
         flexDirection: "column",
         alignItems: "center",
         gap: 1,
-        py: 1.5,
+        pt: 1.5,
+        pb: navPaddingBottom,
       }}
     >
       {/* Direct Messages entry */}
@@ -220,7 +228,8 @@ const SideNav = observer(function SideNav() {
               const unreadCount =
                 messagesNotificationsStore.unreadByRoom.get(room.id) ?? 0;
               const imageUrl = room.imageUrl ?? null;
-              const isGifImage = imageUrl?.toLowerCase().includes(".gif") ?? false;
+              const isGifImage =
+                imageUrl?.toLowerCase().includes(".gif") ?? false;
               const gifCrop =
                 isGifImage && imageUrl ? parseGifCropFromUrl(imageUrl) : null;
               const hasGifCrop = Boolean(gifCrop && imageUrl);
@@ -274,13 +283,13 @@ const SideNav = observer(function SideNav() {
                           fontWeight: 700,
                           color: "#fff",
                           overflow: "hidden",
-                          ...(hasGifCrop && imageUrl)
+                          ...(hasGifCrop && imageUrl
                             ? {
                               ...buildGifBackgroundStyles(imageUrl, gifCrop!),
                               "& img": {display: "none"},
                               "& .MuiAvatar-fallback": {display: "none"},
                             }
-                            : {},
+                            : {}),
                         }}
                         src={hasGifCrop ? undefined : imageUrl ?? undefined}
                         alt={room.title}
@@ -333,13 +342,10 @@ const SideNav = observer(function SideNav() {
           </Box>
         )}
       </Box>
-
-      {/* Bottom user menu (Discord-like) */}
-      <Box sx={{pb: 0.5}}>
-        <UserMenuIcon/>
-      </Box>
     </Box>
   );
 });
 
 export default SideNav;
+
+

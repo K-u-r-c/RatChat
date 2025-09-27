@@ -361,7 +361,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
           </Box>
 
           {/* Message input area (non-scrollable, grows with content) */}
-          <Box sx={{borderColor: "divider", mt: 1}}>
+          <Box sx={{borderTop: "1px solid rgba(255,255,255,0.06)", mt: 1}}>
             {/* Reply context */}
             {replyToMessageId && (
               <Box sx={{bgcolor: "background.default"}}>

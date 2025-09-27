@@ -1,8 +1,10 @@
-import { Box } from "@mui/material";
-import { useLocation } from "react-router";
+import {Box} from "@mui/material";
+import {useLocation} from "react-router";
+import {useRef, useState} from "react";
 import DefaultSidebarContent from "./DefaultSidebarContent";
 import ChatRoomSidebarContent from "../../../features/chatRooms/ChatRoomSidebarContent";
-import { useRef, useState } from "react";
+import UserActionRibbon from "../UserActionRibbon";
+import {NAV_WIDTH} from "../../../lib/types/constants";
 
 export const DIRECT_SIDEBAR_WIDTH = 280;
 
@@ -15,6 +17,7 @@ export default function SecondarySidebar() {
     return Number.isFinite(saved) && saved > 0 ? saved : DIRECT_SIDEBAR_WIDTH;
   });
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
+  const ribbonTotalWidth = sidebarWidth + NAV_WIDTH;
 
   const resetToDefault = () => {
     setSidebarWidth(DIRECT_SIDEBAR_WIDTH);
@@ -22,7 +25,7 @@ export default function SecondarySidebar() {
   };
 
   const startResize = (e: React.MouseEvent) => {
-    dragRef.current = { startX: e.clientX, startWidth: sidebarWidth };
+    dragRef.current = {startX: e.clientX, startWidth: sidebarWidth};
     const onMove = (ev: MouseEvent) => {
       if (!dragRef.current) return;
       const dx = ev.clientX - dragRef.current.startX;
@@ -50,22 +53,42 @@ export default function SecondarySidebar() {
     <Box
       component="aside"
       sx={{
-        width: { xs: 0, sm: sidebarWidth },
-        flex: { xs: "0 0 0px", sm: `0 0 ${sidebarWidth}px` },
-        display: { xs: "none", sm: "flex" },
+        width: {xs: 0, sm: sidebarWidth},
+        flex: {xs: "0 0 0px", sm: `0 0 ${sidebarWidth}px`},
+        display: {xs: "none", sm: "flex"},
         flexDirection: "column",
         height: "100vh",
         position: "sticky",
         top: 0,
         bgcolor: "#1e1f24",
         borderRight: "1px solid rgba(255,255,255,0.08)",
+        overflow: "visible",
       }}
     >
-      {showDefaultContent ? (
-        <DefaultSidebarContent />
-      ) : (
-        <ChatRoomSidebarContent />
-      )}
+      <Box
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        {showDefaultContent ? (
+          <DefaultSidebarContent/>
+        ) : (
+          <ChatRoomSidebarContent/>
+        )}
+      </Box>
+      <Box
+        sx={{
+          width: {xs: "100%", sm: `${ribbonTotalWidth}px`},
+          ml: {xs: 0, sm: `-${NAV_WIDTH}px`},
+          alignSelf: {xs: "stretch", sm: "flex-start"},
+        }}
+      >
+        <UserActionRibbon/>
+      </Box>
       {/* Resize handle */}
       <Box
         role="separator"
@@ -80,7 +103,7 @@ export default function SecondarySidebar() {
           height: "100%",
           cursor: "col-resize",
           bgcolor: "rgba(255,255,255,0.06)",
-          "&:hover": { bgcolor: "rgba(255,255,255,0.12)" },
+          "&:hover": {bgcolor: "rgba(255,255,255,0.12)"},
         }}
       />
     </Box>
