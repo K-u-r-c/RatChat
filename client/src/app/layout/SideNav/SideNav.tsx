@@ -1,20 +1,14 @@
-import {
-  Box,
-  Avatar,
-  Badge,
-  CircularProgress,
-  IconButton,
-  Tooltip,
-} from "@mui/material";
-import { Forum, Add, ExpandLess, ExpandMore } from "@mui/icons-material";
-import { NavLink } from "react-router";
-import { NAV_WIDTH } from "../../../lib/types/constants";
+import {Avatar, Badge, Box, CircularProgress, IconButton, Tooltip,} from "@mui/material";
+import {Add, ExpandLess, ExpandMore, Forum} from "@mui/icons-material";
+import {NavLink} from "react-router";
+import {NAV_WIDTH} from "../../../lib/types/constants";
 import UserMenuIcon from "../UserMenuIcon";
-import { useEffect, useRef, useState } from "react";
-import { observer } from "mobx-react-lite";
-import { useChatRooms } from "../../../lib/hooks/useChatRooms";
-import { useStore } from "../../../lib/hooks/useStore";
-import { useFriends } from "../../../lib/hooks/useFriends";
+import {useEffect, useRef, useState} from "react";
+import {observer} from "mobx-react-lite";
+import {useChatRooms} from "../../../lib/hooks/useChatRooms";
+import {useStore} from "../../../lib/hooks/useStore";
+import {useFriends} from "../../../lib/hooks/useFriends";
+import {buildGifBackgroundStyles, parseGifCropFromUrl} from "../../../features/chatRooms/utils/gifCrop";
 
 const SideNav = observer(function SideNav() {
   const {
@@ -24,7 +18,7 @@ const SideNav = observer(function SideNav() {
     hasNextPage,
     isFetchingNextPage,
   } = useChatRooms();
-  const { uiStore, messagesNotificationsStore } = useStore();
+  const {uiStore, messagesNotificationsStore} = useStore();
   const listRef = useRef<HTMLDivElement | null>(null);
   const [hasAbove, setHasAbove] = useState(false);
   const [hasBelow, setHasBelow] = useState(false);
@@ -32,7 +26,7 @@ const SideNav = observer(function SideNav() {
   const updateScrollIndicators = () => {
     const el = listRef.current;
     if (!el) return;
-    const { scrollTop, clientHeight, scrollHeight } = el;
+    const {scrollTop, clientHeight, scrollHeight} = el;
     setHasAbove(scrollTop > 0);
     setHasBelow(scrollTop + clientHeight < scrollHeight - 1);
   };
@@ -55,7 +49,7 @@ const SideNav = observer(function SideNav() {
         hasNextPage &&
         !isFetchingNextPage &&
         el.clientHeight >= el.scrollHeight
-      ) {
+        ) {
         try {
           await fetchNextPage();
           await new Promise((r) => setTimeout(r, 50));
@@ -76,7 +70,7 @@ const SideNav = observer(function SideNav() {
   useEffect(() => {
     const handleScroll = () => {
       if (listRef.current) {
-        const { scrollTop, clientHeight, scrollHeight } = listRef.current;
+        const {scrollTop, clientHeight, scrollHeight} = listRef.current;
         if (scrollTop + clientHeight >= scrollHeight - 10 && hasNextPage) {
           fetchNextPage();
         }
@@ -99,7 +93,7 @@ const SideNav = observer(function SideNav() {
   const encryptedDirectUnreadCount =
     messagesNotificationsStore.totalEncryptedDirectUnread;
   const totalDirectBadgeCount = directUnreadCount + encryptedDirectUnreadCount;
-  const { friendRequests } = useFriends();
+  const {friendRequests} = useFriends();
   const friendInvitesCount = friendRequests?.received?.length || 0;
 
   return (
@@ -113,7 +107,7 @@ const SideNav = observer(function SideNav() {
         height: "100vh",
         position: "sticky",
         top: 0,
-        display: { xs: "none", sm: "flex" },
+        display: {xs: "none", sm: "flex"},
         flexDirection: "column",
         alignItems: "center",
         gap: 1,
@@ -141,7 +135,7 @@ const SideNav = observer(function SideNav() {
           <Badge
             color="success"
             overlap="rectangular"
-            anchorOrigin={{ vertical: "top", horizontal: "left" }}
+            anchorOrigin={{vertical: "top", horizontal: "left"}}
             badgeContent={friendInvitesCount}
             invisible={!friendInvitesCount}
             max={99}
@@ -172,17 +166,17 @@ const SideNav = observer(function SideNav() {
                 },
               }}
             >
-              <Forum />
+              <Forum/>
             </Badge>
           </Badge>
         </IconButton>
       </Tooltip>
 
       {/* Separator */}
-      <Box sx={{ width: 36, height: 2, bgcolor: "divider", my: 1 }} />
+      <Box sx={{width: 36, height: 2, bgcolor: "divider", my: 1}}/>
 
       {/* Chat rooms */}
-      <Box sx={{ position: "relative", width: "100%", flex: 1, minHeight: 0 }}>
+      <Box sx={{position: "relative", width: "100%", flex: 1, minHeight: 0}}>
         {hasAbove && (
           <Box
             sx={{
@@ -200,7 +194,7 @@ const SideNav = observer(function SideNav() {
               zIndex: 1,
             }}
           >
-            <ExpandLess sx={{ color: "#ffffff66", fontSize: 20 }} />
+            <ExpandLess sx={{color: "#ffffff66", fontSize: 20}}/>
           </Box>
         )}
 
@@ -220,11 +214,16 @@ const SideNav = observer(function SideNav() {
           }}
           className="rc-hide-scrollbar"
         >
-          {isLoading && <CircularProgress size={24} />}
+          {isLoading && <CircularProgress size={24}/>}
           {!isLoading &&
             chatRooms?.map((room) => {
               const unreadCount =
                 messagesNotificationsStore.unreadByRoom.get(room.id) ?? 0;
+              const imageUrl = room.imageUrl ?? null;
+              const isGifImage = imageUrl?.toLowerCase().includes(".gif") ?? false;
+              const gifCrop =
+                isGifImage && imageUrl ? parseGifCropFromUrl(imageUrl) : null;
+              const hasGifCrop = Boolean(gifCrop && imageUrl);
 
               return (
                 <Tooltip key={room.id} title={room.title} placement="right">
@@ -247,7 +246,7 @@ const SideNav = observer(function SideNav() {
                   >
                     <Badge
                       overlap="rectangular"
-                      anchorOrigin={{ vertical: "top", horizontal: "right" }}
+                      anchorOrigin={{vertical: "top", horizontal: "right"}}
                       color="error"
                       badgeContent={unreadCount}
                       invisible={!unreadCount}
@@ -274,11 +273,19 @@ const SideNav = observer(function SideNav() {
                           bgcolor: "#2f3136",
                           fontWeight: 700,
                           color: "#fff",
+                          overflow: "hidden",
+                          ...(hasGifCrop && imageUrl)
+                            ? {
+                              ...buildGifBackgroundStyles(imageUrl, gifCrop!),
+                              "& img": {display: "none"},
+                              "& .MuiAvatar-fallback": {display: "none"},
+                            }
+                            : {},
                         }}
-                        src={room.imageUrl}
+                        src={hasGifCrop ? undefined : imageUrl ?? undefined}
                         alt={room.title}
                       >
-                        {room.title?.charAt(0).toUpperCase()}
+                        {!imageUrl && room.title?.charAt(0).toUpperCase()}
                       </Avatar>
                     </Badge>
                   </IconButton>
@@ -296,11 +303,11 @@ const SideNav = observer(function SideNav() {
                 borderRadius: 2,
                 bgcolor: "#2f3136",
                 color: "#fff",
-                "&:hover": { bgcolor: "#3a3c43" },
+                "&:hover": {bgcolor: "#3a3c43"},
               }}
               className="rc-server-btn"
             >
-              <Add />
+              <Add/>
             </IconButton>
           </Tooltip>
         </Box>
@@ -322,18 +329,17 @@ const SideNav = observer(function SideNav() {
               zIndex: 1,
             }}
           >
-            <ExpandMore sx={{ color: "rgba(255,255,255,0.4)", fontSize: 20 }} />
+            <ExpandMore sx={{color: "rgba(255,255,255,0.4)", fontSize: 20}}/>
           </Box>
         )}
       </Box>
 
       {/* Bottom user menu (Discord-like) */}
-      <Box sx={{ pb: 0.5 }}>
-        <UserMenuIcon />
+      <Box sx={{pb: 0.5}}>
+        <UserMenuIcon/>
       </Box>
     </Box>
   );
 });
 
 export default SideNav;
-

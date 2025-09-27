@@ -6,17 +6,35 @@ import {
 } from "react-hook-form";
 import TextInput from "../../../app/shared/components/TextInput";
 import { useStore } from "../../../lib/hooks/useStore";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import Cropper, { type ReactCropperElement } from "react-cropper";
 import "cropperjs/dist/cropper.css";
+import {
+  buildGifBackgroundStyles,
+  type GifCropMeta,
+} from "../utils/gifCrop";
+
+export type CroppedChatRoomImage =
+  | {
+      kind: "gif";
+      file: File;
+      crop: GifCropMeta;
+      previewUrl: string;
+    }
+  | {
+      kind: "raster";
+      dataUrl: string;
+      name: string;
+      mime: string;
+    };
 
 interface CreateStepProps<T extends FieldValues = FieldValues> {
   createForm: UseFormReturn<T>;
   onCreate: React.FormEventHandler<HTMLFormElement>;
   submitError: string | null;
   isPending: boolean;
-  onCroppedImageChange?: (dataUrl: string | null) => void;
+  onCroppedImageChange?: (selection: CroppedChatRoomImage | null) => void;
 }
 
 const CreateStep = <T extends FieldValues>({
@@ -29,27 +47,34 @@ const CreateStep = <T extends FieldValues>({
   const { uiStore } = useStore();
 
   const [preview, setPreview] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [croppedImage, setCroppedImage] = useState<string | null>(null);
+  const [gifCrop, setGifCrop] = useState<GifCropMeta | null>(null);
+  const [selection, setSelection] = useState<CroppedChatRoomImage | null>(null);
   const cropperRef = useRef<ReactCropperElement>(null);
+
+  const isGif = selectedFile?.type === "image/gif";
 
   const onDrop = useCallback((accepted: File[]) => {
     if (!accepted[0]) return;
     const file = accepted[0];
     const url = URL.createObjectURL(file);
+    setSelectedFile(file);
     setPreview(url);
     setCroppedImage(null);
+    setGifCrop(null);
+    setSelection(null);
   }, []);
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    return () => {
       if (preview) URL.revokeObjectURL(preview);
-    },
-    [preview]
-  );
+    };
+  }, [preview]);
 
   useEffect(() => {
-    onCroppedImageChange?.(croppedImage);
-  }, [croppedImage, onCroppedImageChange]);
+    onCroppedImageChange?.(selection);
+  }, [selection, onCroppedImageChange]);
 
   const { getRootProps, getInputProps } = useDropzone({
     onDrop,
@@ -58,22 +83,79 @@ const CreateStep = <T extends FieldValues>({
     maxSize: 5 * 1024 * 1024,
   });
 
+  const computeGifCropMeta = (): GifCropMeta | null => {
+    const cropper = cropperRef.current?.cropper;
+    if (!cropper) return null;
+
+    const data = cropper.getData();
+    const imageData = cropper.getImageData();
+
+    if (!data || !imageData?.naturalWidth || !imageData?.naturalHeight)
+      return null;
+
+    const iw = imageData.naturalWidth;
+    const ih = imageData.naturalHeight;
+    const cw = Math.max(1, data.width);
+    const ch = Math.max(1, data.height);
+
+    const cx = ((data.x + cw / 2) / iw) * 100;
+    const cy = ((data.y + ch / 2) / ih) * 100;
+    const scale = iw / cw;
+
+    return {
+      cx: Math.max(0, Math.min(100, cx)),
+      cy: Math.max(0, Math.min(100, cy)),
+      scale: Math.max(1, scale),
+    };
+  };
+
   const handleCrop = () => {
-    const cropper = cropperRef.current;
-    if (cropper && cropper.cropper) {
-      const dataUrl = cropper.cropper
-        .getCroppedCanvas({ width: 256, height: 256 })
-        .toDataURL();
-      setCroppedImage(dataUrl);
+    const cropper = cropperRef.current?.cropper;
+    if (!cropper || !preview || !selectedFile) return;
+
+    if (isGif) {
+      const meta = computeGifCropMeta();
+      if (!meta) return;
+      setGifCrop(meta);
+      setCroppedImage(preview);
+      setSelection({ kind: "gif", file: selectedFile, crop: meta, previewUrl: preview });
+      return;
     }
+
+    const dataUrl = cropper
+      .getCroppedCanvas({ width: 256, height: 256 })
+      .toDataURL();
+    setCroppedImage(dataUrl);
+    setSelection({
+      kind: "raster",
+      dataUrl,
+      name: selectedFile.name ?? "chat-room-image.png",
+      mime: selectedFile.type || "image/png",
+    });
   };
 
   const handleReset = () => {
     if (preview) URL.revokeObjectURL(preview);
     setPreview(null);
-
+    setSelectedFile(null);
     setCroppedImage(null);
+    setGifCrop(null);
+    setSelection(null);
+    onCroppedImageChange?.(null);
   };
+
+  const gifPreviewStyles = useMemo(() => {
+    if (!isGif || !preview) return undefined;
+    if (gifCrop) return buildGifBackgroundStyles(preview, gifCrop);
+    return {
+      backgroundImage: `url(${preview})`,
+      backgroundRepeat: "no-repeat",
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+    } as const;
+  }, [gifCrop, isGif, preview]);
+
+  const hasPendingSelection = preview !== null && !selection;
 
   return (
     <FormProvider {...createForm}>
@@ -127,7 +209,20 @@ const CreateStep = <T extends FieldValues>({
             </Box>
           )}
           {croppedImage && (
-            <Avatar src={croppedImage} sx={{ width: 128, height: 128 }} />
+            isGif && gifPreviewStyles ? (
+              <Box
+                sx={{
+                  width: 128,
+                  height: 128,
+                  borderRadius: "50%",
+                  border: "2px solid rgba(255,255,255,0.15)",
+                  overflow: "hidden",
+                  ...gifPreviewStyles,
+                }}
+              />
+            ) : (
+              <Avatar src={croppedImage} sx={{ width: 128, height: 128 }} />
+            )
           )}
         </Box>
 
@@ -155,7 +250,7 @@ const CreateStep = <T extends FieldValues>({
                 onClick={handleCrop}
                 disabled={isPending}
               >
-                Crop
+                {isGif ? "Apply crop" : "Crop"}
               </Button>
               <Button
                 variant="outlined"
@@ -183,6 +278,15 @@ const CreateStep = <T extends FieldValues>({
             Please crop or cancel the selected image before creating.
           </Typography>
         )}
+        {isGif && croppedImage && (
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ mt: 0.5, display: "block" }}
+          >
+            Animated GIFs upload as-is. The crop is applied visually so the animation remains intact.
+          </Typography>
+        )}
         {submitError && (
           <Alert severity="error" sx={{ mt: 2 }}>
             {submitError}
@@ -196,7 +300,7 @@ const CreateStep = <T extends FieldValues>({
             type="submit"
             variant="contained"
             disableElevation
-            disabled={isPending || (preview !== null && !croppedImage)}
+            disabled={isPending || hasPendingSelection}
           >
             {isPending ? "Creating..." : "Create"}
           </Button>
