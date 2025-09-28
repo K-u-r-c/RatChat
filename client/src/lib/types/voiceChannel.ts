@@ -31,11 +31,18 @@ export type VoiceChannelSnapshot = {
   activeSpeakers: string[];
   isJoining: boolean;
   error: string | null;
+  isSelfMuted: boolean;
+  isSelfDeafened: boolean;
+  pingMs: number | null;
 };
 
 export type VoiceChannelState = VoiceChannelSnapshot & {
   setParticipantVolume: (userId: string, volume: number) => void;
   toggleParticipantMute: (userId: string, muted?: boolean) => void;
+  setSelfMuted: (muted: boolean) => void;
+  toggleSelfMute: () => void;
+  setSelfDeafened: (deafened: boolean) => void;
+  toggleSelfDeafened: () => void;
   join: (channelId: string) => Promise<void>;
   leave: (options?: LeaveOptions) => Promise<void>;
 };

@@ -379,12 +379,13 @@ export default function ChatRoomSidebarContent() {
                         <CallEnd fontSize="small"/>
                       </IconButton>
                     )}
+
                   </ListItemButton>
                   {participantCount > 0 && (
                     <Box
                       sx={{
                         px: 2,
-                        pb: 1.5,
+                        py: 1,
                         display: "flex",
                         flexWrap: "wrap",
                         gap: 0.75,

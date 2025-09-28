@@ -75,6 +75,7 @@ export default function ChatInput(
     <Box sx={{
       display: "flex", gap: 1, alignItems: "center",
       bgcolor: "background.default",
+      py: 0.35
     }}>
       {/* Attach file on the left */}
       <IconButton

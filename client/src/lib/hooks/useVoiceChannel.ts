@@ -27,15 +27,26 @@ import type {
   LocalSpeakingMonitor,
   SpeakingMonitor,
   VoiceChannelSnapshot,
-  VoiceChannelState
+  VoiceChannelState,
 } from "../types/voiceChannel";
 
 export type {VoiceChannelState} from "../types/voiceChannel";
 
-
 const ICE_SERVERS: RTCConfiguration["iceServers"] = [
   {urls: "stun:stun.l.google.com:19302"},
 ];
+const PING_REFRESH_INTERVAL_MS = 5000;
+const PING_HTTP_TIMEOUT_MS = 2000;
+
+type MaybeNetworkInformation = {
+  rtt?: number;
+};
+
+type NavigatorWithConnection = Navigator & {
+  connection?: MaybeNetworkInformation;
+  mozConnection?: MaybeNetworkInformation;
+  webkitConnection?: MaybeNetworkInformation;
+};
 
 class VoiceManager {
   private participants = new Map<string, VoiceParticipant>();
@@ -53,6 +64,14 @@ class VoiceManager {
   private isJoining = false;
   private error: string | null = null;
   private currentUserId: string | null = null;
+  private selfMuted = false;
+  private selfDeafened = false;
+  private selfMutedBeforeDeafen: boolean | null = null;
+  private pingUpdateInterval: number | null = null;
+  private pingMeasurementPromise: Promise<void> | null = null;
+  private pingHttpAbortController: AbortController | null = null;
+  private pingTargets: string[] | null = null;
+  private pingMs: number | null = null;
 
   private listeners = new Set<() => void>();
 
@@ -79,6 +98,9 @@ class VoiceManager {
     activeSpeakers: [],
     isJoining: false,
     error: null,
+    isSelfMuted: false,
+    isSelfDeafened: false,
+    pingMs: null,
   };
 
   subscribe = (listener: () => void) => {
@@ -102,6 +124,9 @@ class VoiceManager {
         activeSpeakers: Array.from(this.activeSpeakers),
         isJoining: this.isJoining,
         error: this.error,
+        isSelfMuted: this.selfMuted,
+        isSelfDeafened: this.selfDeafened,
+        pingMs: this.pingMs,
       };
       this._snapshotVersion = this._version;
     }
@@ -173,6 +198,47 @@ class VoiceManager {
     }
   };
 
+  setSelfMuted = (muted: boolean) => {
+    const next = Boolean(muted);
+    if (this.selfDeafened && !next) {
+      return;
+    }
+    if (this.selfMuted === next) return;
+    this.selfMuted = next;
+    if (!this.selfDeafened) {
+      this.selfMutedBeforeDeafen = null;
+    }
+    this.applyLocalMuteState();
+    this.emit();
+  };
+
+  toggleSelfMute = () => {
+    if (this.selfDeafened) return;
+    this.setSelfMuted(!this.selfMuted);
+  };
+
+  setSelfDeafened = (deafened: boolean) => {
+    const next = Boolean(deafened);
+    if (this.selfDeafened === next) return;
+    this.selfDeafened = next;
+    if (next) {
+      this.selfMutedBeforeDeafen = this.selfMuted;
+      if (!this.selfMuted) {
+        this.selfMuted = true;
+      }
+    } else {
+      const restore = this.selfMutedBeforeDeafen ?? false;
+      this.selfMuted = restore;
+      this.selfMutedBeforeDeafen = null;
+    }
+    this.applyLocalMuteState();
+    this.emit();
+  };
+
+  toggleSelfDeafened = () => {
+    this.setSelfDeafened(!this.selfDeafened);
+  };
+
   join = async (channelId: string) => {
     if (!this.watchedChatRoomId) {
       this.setError(
@@ -205,6 +271,7 @@ class VoiceManager {
 
       this.currentChannelId = response.channelId;
       this.setChannelPresence(response.channelId, response.participants);
+      this.ensurePingMonitor(true);
       this.emit();
 
       for (const participant of response.participants) {
@@ -258,6 +325,14 @@ class VoiceManager {
     await this.leave({keepLocalStream: false});
     await this.stopHub();
   };
+
+  private applyLocalMuteState() {
+    if (!this.localStream) return;
+    const disable = this.selfMuted || this.selfDeafened;
+    this.localStream.getAudioTracks().forEach((track) => {
+      track.enabled = !disable;
+    });
+  }
 
   private emit() {
     this._version++;
@@ -556,6 +631,7 @@ class VoiceManager {
       });
       this.localStream = stream;
       this.startLocalSpeakingMonitor(stream);
+      this.applyLocalMuteState();
       return stream;
     } catch (err) {
       this.setError("Microphone access was denied");
@@ -634,6 +710,9 @@ class VoiceManager {
     this.remoteStreams.clear();
     this.participants.clear();
 
+    this.stopPingMonitor();
+    this.pingMs = null;
+
     if (previousChannelId && currentUserId) {
       const channel = this.channelPresence.get(previousChannelId);
       if (channel) {
@@ -698,6 +777,7 @@ class VoiceManager {
     };
 
     this.peerConnections.set(connectionId, pc);
+    this.ensurePingMonitor();
     return pc;
   }
 
@@ -737,6 +817,274 @@ class VoiceManager {
       }
       this.emit();
     }
+  }
+
+  private ensurePingMonitor(immediate = false) {
+    if (typeof window === "undefined") return;
+    if (this.pingUpdateInterval == null) {
+      const run = () => {
+        void this.collectPingMeasurement();
+      };
+      this.pingUpdateInterval = window.setInterval(run, PING_REFRESH_INTERVAL_MS);
+    }
+    if (immediate) {
+      void this.collectPingMeasurement();
+    }
+  }
+
+  private stopPingMonitor() {
+    if (typeof window !== "undefined" && this.pingUpdateInterval != null) {
+      window.clearInterval(this.pingUpdateInterval);
+    }
+    this.pingUpdateInterval = null;
+    this.pingHttpAbortController?.abort();
+    this.pingHttpAbortController = null;
+    this.pingMeasurementPromise = null;
+  }
+
+  private collectPingMeasurement(): Promise<void> | undefined {
+    if (this.pingMeasurementPromise) {
+      return this.pingMeasurementPromise;
+    }
+
+    this.pingMeasurementPromise = (async () => {
+      const rtcPing = await this.measureRtcPing();
+      if (rtcPing != null) {
+        this.applyPingUpdate(rtcPing);
+        return;
+      }
+
+      const networkPing = this.measureNetworkInformation();
+      if (networkPing != null) {
+        this.applyPingUpdate(networkPing);
+        return;
+      }
+
+      const httpPing = await this.measureHttpPing();
+      if (httpPing != null) {
+        this.applyPingUpdate(httpPing);
+        return;
+      }
+
+      this.applyPingUpdate(null);
+    })()
+      .catch(() => {
+        this.applyPingUpdate(null);
+      })
+      .finally(() => {
+        this.pingMeasurementPromise = null;
+      });
+
+    return this.pingMeasurementPromise;
+  }
+
+  private async measureRtcPing(): Promise<number | null> {
+    if (this.peerConnections.size === 0) {
+      return null;
+    }
+
+    const pingValues: number[] = [];
+
+    await Promise.all(
+      Array.from(this.peerConnections.values()).map(async (pc) => {
+        try {
+          const stats = await pc.getStats();
+          stats.forEach((report) => {
+            if (report.type !== "candidate-pair") return;
+
+            const candidatePair = report as RTCIceCandidatePairStats & {
+              currentRoundTripTime?: number;
+              totalRoundTripTime?: number;
+              responsesReceived?: number;
+              nominated?: boolean;
+            };
+
+            if (candidatePair.nominated === false) {
+              return;
+            }
+
+            const state = candidatePair.state;
+            if (
+              state &&
+              state !== "succeeded" &&
+              state !== "in-progress"
+            ) {
+              return;
+            }
+
+            let rttSeconds =
+              typeof candidatePair.currentRoundTripTime === "number"
+                ? candidatePair.currentRoundTripTime
+                : undefined;
+
+            if (
+              (rttSeconds == null || rttSeconds <= 0) &&
+              typeof candidatePair.totalRoundTripTime === "number" &&
+              typeof candidatePair.responsesReceived === "number" &&
+              candidatePair.responsesReceived > 0
+            ) {
+              rttSeconds =
+                candidatePair.totalRoundTripTime /
+                candidatePair.responsesReceived;
+            }
+
+            if (
+              typeof rttSeconds === "number" &&
+              isFinite(rttSeconds) &&
+              rttSeconds > 0
+            ) {
+              pingValues.push(rttSeconds * 1000);
+            }
+          });
+        } catch {
+          // Ignore statistics collection errors.
+        }
+      })
+    );
+
+    if (pingValues.length === 0) {
+      return null;
+    }
+
+    const average =
+      pingValues.reduce((sum, value) => sum + value, 0) / pingValues.length;
+    return Math.max(0, Math.round(average));
+  }
+
+  private measureNetworkInformation(): number | null {
+    if (typeof navigator === "undefined") return null;
+    const nav = navigator as NavigatorWithConnection;
+    const connection =
+      nav.connection ?? nav.mozConnection ?? nav.webkitConnection;
+
+    if (!connection) return null;
+
+    const rtt = connection.rtt;
+    if (typeof rtt === "number" && isFinite(rtt) && rtt > 0) {
+      return Math.round(rtt);
+    }
+    return null;
+  }
+
+  private async measureHttpPing(): Promise<number | null> {
+    if (typeof fetch !== "function") return null;
+
+    const targets = this.getPingTargets();
+    for (const target of targets) {
+      const measurement = await this.measureHttpPingForTarget(target);
+      if (measurement != null) {
+        return measurement;
+      }
+    }
+
+    return null;
+  }
+
+  private getPingTargets(): string[] {
+    if (this.pingTargets) {
+      return this.pingTargets;
+    }
+
+    const targets = new Set<string>();
+
+    if (typeof window !== "undefined") {
+      targets.add(new URL("/", window.location.origin).toString());
+    }
+
+    const explicitTarget = import.meta.env.VITE_PING_URL as string | undefined;
+    if (explicitTarget) {
+      try {
+        const resolved = new URL(explicitTarget, typeof window !== "undefined" ? window.location.origin : undefined);
+        resolved.hash = "";
+        targets.add(resolved.toString());
+      } catch {
+        // If the configured value is invalid, fall back to default target.
+      }
+    }
+
+    this.pingTargets = Array.from(targets);
+    return this.pingTargets;
+  }
+
+  private async measureHttpPingForTarget(target: string): Promise<number | null> {
+    if (typeof window === "undefined") return null;
+
+    const attempt = async (
+      method: "HEAD" | "GET"
+    ): Promise<{ value: number | null; retry?: boolean }> => {
+      this.pingHttpAbortController?.abort();
+      const controller = new AbortController();
+      this.pingHttpAbortController = controller;
+
+      let url: URL;
+      try {
+        url = new URL(target);
+      } catch {
+        if (typeof window === "undefined") return {value: null};
+        try {
+          url = new URL(target, window.location.origin);
+        } catch {
+          return {value: null};
+        }
+      }
+
+      url.searchParams.set(
+        "_ping",
+        `${Date.now().toString(36)}-${method}`
+      );
+
+      const start = performance.now();
+      const timeoutId = window.setTimeout(
+        () => controller.abort(),
+        PING_HTTP_TIMEOUT_MS
+      );
+
+      try {
+        const response = await fetch(url.toString(), {
+          method,
+          credentials: "include",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const end = performance.now();
+
+        if (!response.ok) {
+          if (
+            method === "HEAD" &&
+            (response.status === 405 || response.status === 501)
+          ) {
+            return {value: null, retry: true};
+          }
+          return {value: null};
+        }
+
+        return {value: Math.max(0, Math.round(end - start))};
+      } catch (error) {
+        if ((error as DOMException)?.name === "AbortError") {
+          return {value: null};
+        }
+        return {value: null};
+      } finally {
+        window.clearTimeout(timeoutId);
+        if (this.pingHttpAbortController === controller) {
+          this.pingHttpAbortController = null;
+        }
+      }
+    };
+
+    const headResult = await attempt("HEAD");
+    if (headResult.retry) {
+      const getResult = await attempt("GET");
+      return getResult.value;
+    }
+
+    return headResult.value;
+  }
+
+  private applyPingUpdate(value: number | null) {
+    if (this.pingMs === value) return;
+    this.pingMs = value;
+    this.emit();
   }
 
   private handlePeerJoined = (update: VoicePeerUpdate) => {
@@ -854,6 +1202,10 @@ export function useVoiceChannel(
     ...snapshot,
     setParticipantVolume: voiceManager.setParticipantVolume,
     toggleParticipantMute: voiceManager.toggleParticipantMute,
+    setSelfMuted: voiceManager.setSelfMuted,
+    toggleSelfMute: voiceManager.toggleSelfMute,
+    setSelfDeafened: voiceManager.setSelfDeafened,
+    toggleSelfDeafened: voiceManager.toggleSelfDeafened,
     join: voiceManager.join,
     leave: voiceManager.leave,
   };
