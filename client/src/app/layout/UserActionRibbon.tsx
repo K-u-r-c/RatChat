@@ -8,6 +8,8 @@ import {
   Mic,
   MicOff,
   ScreenShareRounded,
+  StopScreenShareRounded,
+  VideocamOffRounded,
   VideocamRounded,
   WifiRounded,
 } from "@mui/icons-material";
@@ -40,6 +42,7 @@ export default function UserActionRibbon() {
 
   const {isSelfMuted, isSelfDeafened, toggleSelfMute, toggleSelfDeafened} =
     voice;
+  const {isCameraEnabled, isScreenSharing, toggleCamera, toggleScreenShare} = voice;
 
   const statusLine = useMemo(() => {
     if (!currentUser) return "";
@@ -248,17 +251,67 @@ export default function UserActionRibbon() {
           </Box>
 
           <Box sx={{display: "flex", gap: 1}}>
-            <Tooltip title="Turn on camera">
-              <IconButton size="small" sx={quickActionButtonSx} onClick={() => {
-              }}>
-                <VideocamRounded fontSize="small"/>
-              </IconButton>
+            <Tooltip
+              title={
+                isCameraEnabled ? "Turn off camera" : "Turn on camera"
+              }
+            >
+              <span>
+                <IconButton
+                  size="small"
+                  sx={{
+                    ...quickActionButtonSx,
+                    ...(isCameraEnabled
+                      ? {
+                        color: theme.palette.primary.light,
+                        bgcolor: alpha(theme.palette.primary.main, 0.24),
+                      }
+                      : {}),
+                  }}
+                  onClick={() => {
+                    void toggleCamera();
+                  }}
+                  disabled={!isVoiceConnected || voice.isJoining}
+                >
+                  {isCameraEnabled ? (
+                    <VideocamOffRounded fontSize="small"/>
+                  ) : (
+                    <VideocamRounded fontSize="small"/>
+                  )}
+                </IconButton>
+              </span>
             </Tooltip>
-            <Tooltip title="Share your screen">
-              <IconButton size="small" sx={quickActionButtonSx} onClick={() => {
-              }}>
-                <ScreenShareRounded fontSize="small"/>
-              </IconButton>
+            <Tooltip
+              title={
+                isScreenSharing
+                  ? "Stop sharing screen"
+                  : "Share your screen"
+              }
+            >
+              <span>
+                <IconButton
+                  size="small"
+                  sx={{
+                    ...quickActionButtonSx,
+                    ...(isScreenSharing
+                      ? {
+                        color: theme.palette.success.light,
+                        bgcolor: alpha(theme.palette.success.main, 0.24),
+                      }
+                      : {}),
+                  }}
+                  onClick={() => {
+                    void toggleScreenShare();
+                  }}
+                  disabled={!isVoiceConnected || voice.isJoining}
+                >
+                  {isScreenSharing ? (
+                    <StopScreenShareRounded fontSize="small"/>
+                  ) : (
+                    <ScreenShareRounded fontSize="small"/>
+                  )}
+                </IconButton>
+              </span>
             </Tooltip>
           </Box>
         </Box>

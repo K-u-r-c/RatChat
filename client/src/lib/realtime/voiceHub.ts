@@ -6,6 +6,14 @@ export type VoiceParticipant = {
     displayName: string;
     slug: string;
     imageUrl?: string;
+    isCameraEnabled?: boolean;
+    isScreenSharing?: boolean;
+};
+
+export type VoiceMediaState = {
+    connectionId: string;
+    isCameraEnabled: boolean;
+    isScreenSharing: boolean;
 };
 
 export type VoiceChannelJoinResponse = {
@@ -152,6 +160,14 @@ export async function sendIceCandidate(
 ) {
     const connection = ensureConnection();
     await connection.invoke("SendIceCandidate", targetConnectionId, candidate);
+}
+
+export async function updateMediaState(state: {
+    isCameraEnabled: boolean;
+    isScreenSharing: boolean;
+}) {
+    const connection = ensureConnection();
+    await connection.invoke("UpdateMediaState", state);
 }
 
 export function on<TPayload = unknown>(

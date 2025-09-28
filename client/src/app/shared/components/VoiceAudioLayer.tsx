@@ -44,7 +44,7 @@ export default function VoiceAudioLayer() {
     currentChannelId,
     mutedParticipantIds,
     participantVolumes,
-    remoteStreams,
+    remoteAudioStreams,
     isSelfDeafened,
   } = voice;
 
@@ -61,7 +61,7 @@ export default function VoiceAudioLayer() {
 
   return (
     <>
-      {remoteStreams.map(({ connectionId, stream, userId }) => {
+      {remoteAudioStreams.map(({ connectionId, stream, userId }) => {
         const volume = userId ? participantVolumes[userId] ?? 1 : 1;
         const muted = isSelfDeafened || (userId ? mutedSet.has(userId) : false);
         return (

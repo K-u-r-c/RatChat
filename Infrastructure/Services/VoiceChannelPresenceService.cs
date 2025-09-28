@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Application.Interfaces;
+using Application.VoiceChannels.Models;
 
 namespace Infrastructure.Services;
 
@@ -9,6 +10,21 @@ public class VoiceChannelPresenceService : IVoiceChannelPresenceService
         new();
 
     private readonly ConcurrentDictionary<string, VoiceParticipantConnection> _connections = new();
+
+    public void UpdateMediaState(string connectionId, bool isCameraEnabled, bool isScreenSharing)
+    {
+        if (!_connections.TryGetValue(connectionId, out var participant)) return;
+
+        participant.IsCameraEnabled = isCameraEnabled;
+        participant.IsScreenSharing = isScreenSharing;
+
+        if (_channels.TryGetValue(participant.ChannelId, out var channel) &&
+            channel.TryGetValue(connectionId, out var channelParticipant))
+        {
+            channelParticipant.IsCameraEnabled = isCameraEnabled;
+            channelParticipant.IsScreenSharing = isScreenSharing;
+        }
+    }
 
     public VoiceChannelJoinResult JoinChannel(string channelId, VoiceParticipantConnection participant)
     {

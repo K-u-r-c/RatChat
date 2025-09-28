@@ -1,5 +1,6 @@
 using API.DTOs.Voice;
 using Application.Interfaces;
+using Application.VoiceChannels.Models;
 using Domain.Enums;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -178,6 +179,28 @@ public class VoiceChannelHub(
                 FromConnectionId = Context.ConnectionId,
                 Candidate = candidate
             });
+    }
+
+    public async Task UpdateMediaState(VoiceMediaStateUpdateDto state)
+    {
+        if (!presenceService.TryGetConnection(Context.ConnectionId, out var participant))
+            throw new HubException("You are not connected to a voice channel");
+
+        presenceService.UpdateMediaState(Context.ConnectionId, state.IsCameraEnabled, state.IsScreenSharing);
+
+        var payload = new VoiceMediaStateDto
+        {
+            ConnectionId = Context.ConnectionId,
+            IsCameraEnabled = state.IsCameraEnabled,
+            IsScreenSharing = state.IsScreenSharing
+        };
+
+        await Clients.Group(GetGroupName(participant.ChannelId)).SendAsync(
+            "PeerMediaStateChanged",
+            payload
+        );
+
+        await NotifyChannelPresenceChanged(participant.ChatRoomId, participant.ChannelId);
     }
 
     private async Task NotifyChannelPresenceChanged(string chatRoomId, string channelId)
