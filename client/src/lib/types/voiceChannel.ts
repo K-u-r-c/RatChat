@@ -33,6 +33,7 @@ export type VoiceChannelSnapshot = {
   error: string | null;
   isSelfMuted: boolean;
   isSelfDeafened: boolean;
+  pingMs: number | null;
 };
 
 export type VoiceChannelState = VoiceChannelSnapshot & {

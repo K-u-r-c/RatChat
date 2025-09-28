@@ -137,6 +137,26 @@ export default function UserActionRibbon() {
     },
   } as const;
 
+  let pingColor = alpha("#ffffff", 0.6);
+  let pingTooltip = "Voice connection inactive";
+
+  if (isVoiceConnected) {
+    const ping = voice.pingMs;
+    if (typeof ping === "number") {
+      pingTooltip = `Ping: ${ping} ms`;
+      if (ping <= 60) {
+        pingColor = theme.palette.success.light;
+      } else if (ping <= 120) {
+        pingColor = theme.palette.warning.light;
+      } else {
+        pingColor = theme.palette.error.light;
+      }
+    } else {
+      pingColor = alpha("#ffffff", 0.7);
+      pingTooltip = "Measuring ping...";
+    }
+  }
+
   return (
     <Box
       sx={{
@@ -170,12 +190,14 @@ export default function UserActionRibbon() {
             }}
           >
             <Box sx={{display: "flex", alignItems: "center", gap: 1}}>
-              <WifiRounded sx={{color: theme.palette.success.light}} fontSize="small"/>
+              <Tooltip title={pingTooltip}>
+                <WifiRounded sx={{color: pingColor}} fontSize="small"/>
+              </Tooltip>
               <Box sx={{minWidth: 0}}>
                 <Typography
                   variant="caption"
                   fontWeight={700}
-                  color={theme.palette.success.light}
+                  color={pingColor}
                   sx={{letterSpacing: 0.3, textTransform: "uppercase"}}
                 >
                   Voice Connected
