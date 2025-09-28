@@ -54,6 +54,7 @@ class VoiceManager {
   private participants = new Map<string, VoiceParticipant>();
   private remoteAudioStreams = new Map<string, MediaStream>();
   private remoteVideoStreams = new Map<string, Map<"camera" | "screen", MediaStream>>();
+  private remoteVideoStreamTypes = new Map<string, "camera" | "screen">();
   private peerConnections = new Map<string, RTCPeerConnection>();
   private localMicrophoneStream: MediaStream | null = null;
   private localCameraStream: MediaStream | null = null;
@@ -739,6 +740,12 @@ class VoiceManager {
     this.stopRemoteSpeakingMonitor(connectionId);
 
     this.remoteAudioStreams.delete(connectionId);
+    const videoStreams = this.remoteVideoStreams.get(connectionId);
+    if (videoStreams) {
+      videoStreams.forEach((videoStream) => {
+        this.remoteVideoStreamTypes.delete(videoStream.id);
+      });
+    }
     this.remoteVideoStreams.delete(connectionId);
     this.videoSenders.delete(connectionId);
     this.applyParticipantMediaState(connectionId, {
@@ -799,6 +806,7 @@ class VoiceManager {
 
     this.remoteAudioStreams.clear();
     this.remoteVideoStreams.clear();
+    this.remoteVideoStreamTypes.clear();
     this.participants.clear();
 
     this.isCameraEnabled = false;
@@ -937,9 +945,57 @@ class VoiceManager {
       streams = new Map();
       this.remoteVideoStreams.set(connectionId, streams);
     }
-    const existing = streams.get(mediaType);
-    if (existing && existing.id === stream.id) return;
-    streams.set(mediaType, stream);
+
+    const participant = this.participants.get(connectionId);
+    const hasScreenStream = streams.has("screen");
+    const hasCameraStream = streams.has("camera");
+    let resolvedType: "camera" | "screen" = mediaType;
+
+    if (mediaType === "camera") {
+      if (
+        participant?.isScreenSharing &&
+        !participant?.isCameraEnabled &&
+        !hasScreenStream
+      ) {
+        resolvedType = "screen";
+      } else if (
+        participant?.isScreenSharing &&
+        participant?.isCameraEnabled &&
+        hasCameraStream &&
+        !hasScreenStream
+      ) {
+        const existingCamera = streams.get("camera");
+        if (existingCamera && existingCamera.id !== stream.id) {
+          streams.set("screen", existingCamera);
+          this.remoteVideoStreamTypes.set(existingCamera.id, "screen");
+        }
+      }
+    } else if (mediaType === "screen") {
+      if (
+        !participant?.isScreenSharing &&
+        participant?.isCameraEnabled &&
+        !hasCameraStream
+      ) {
+        resolvedType = "camera";
+      }
+    }
+
+    if (resolvedType !== mediaType) {
+      const misclassified = streams.get(mediaType);
+      if (misclassified && misclassified.id === stream.id) {
+        streams.delete(mediaType);
+        this.remoteVideoStreamTypes.delete(misclassified.id);
+      }
+    }
+
+    const current = streams.get(resolvedType);
+    if (current && current.id === stream.id) {
+      this.remoteVideoStreamTypes.set(stream.id, resolvedType);
+      return;
+    }
+
+    streams.set(resolvedType, stream);
+    this.remoteVideoStreamTypes.set(stream.id, resolvedType);
     this.emit();
   }
 
@@ -950,13 +1006,27 @@ class VoiceManager {
   ) {
     const streams = this.remoteVideoStreams.get(connectionId);
     if (!streams) return;
-    const current = streams.get(mediaType);
-    if (!current) return;
-    if (streamId && current.id !== streamId) return;
-    streams.delete(mediaType);
+
+    const resolvedType =
+      streamId != null
+        ? this.remoteVideoStreamTypes.get(streamId) ?? mediaType
+        : mediaType;
+
+    if (streamId) {
+      const target = streams.get(resolvedType);
+      if (!target || target.id !== streamId) return;
+    }
+
+    if (!streams.delete(resolvedType)) return;
+
+    if (streamId != null) {
+      this.remoteVideoStreamTypes.delete(streamId);
+    }
+
     if (streams.size === 0) {
       this.remoteVideoStreams.delete(connectionId);
     }
+
     this.emit();
   }
 

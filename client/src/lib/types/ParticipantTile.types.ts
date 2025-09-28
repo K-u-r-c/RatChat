@@ -1,10 +1,12 @@
-import type {VoiceParticipant} from "../realtime/voiceHub.ts";
+import type { VoiceParticipant } from "../realtime/voiceHub.ts";
 
 export type ParticipantTileData = {
   id: string;
   participant: VoiceParticipant | null;
   stream: MediaStream | null;
   videoType?: "camera" | "screen";
+  cameraStream?: MediaStream | null;
+  screenStream?: MediaStream | null;
   connectionId?: string;
   userId: string | null;
   displayName: string;
