@@ -1382,6 +1382,13 @@ class VoiceManager {
       if (currentlyEnabled) return;
       if (!this.currentChannelId) return;
 
+      const otherType = type === "camera" ? "screen" : "camera";
+      const otherEnabled =
+        otherType === "camera" ? this.isCameraEnabled : this.isScreenSharing;
+      if (otherEnabled) {
+        await this.setLocalVideoEnabled(otherType, false, notify);
+      }
+
       let stream: MediaStream | null = null;
 
       try {

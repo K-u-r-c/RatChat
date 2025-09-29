@@ -1,12 +1,4 @@
-import {
-  type PointerEvent as ReactPointerEvent,
-  type KeyboardEvent as ReactKeyboardEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import {useCallback, useEffect, useMemo, useRef, useState,} from "react";
 import {
   Avatar,
   Box,
@@ -20,39 +12,39 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { alpha, useTheme } from "@mui/material/styles";
+import {alpha, useTheme} from "@mui/material/styles";
 import {
   CallEndRounded,
+  Check,
   Fullscreen,
   FullscreenExit,
   Mic,
   MicOff,
-  Check,
   ScreenShareRounded,
   StopScreenShareRounded,
   VideocamOffRounded,
   VideocamRounded,
 } from "@mui/icons-material";
-import { useAccount } from "../../../lib/hooks/useAccount";
-import { useVoiceChannel } from "../../../lib/hooks/useVoiceChannel";
-import { useChatRooms } from "../../../lib/hooks/useChatRooms";
-import { useDominantColor } from "../../../lib/hooks/useDominantColor";
+import {useAccount} from "../../../lib/hooks/useAccount";
+import {useVoiceChannel} from "../../../lib/hooks/useVoiceChannel";
+import {useChatRooms} from "../../../lib/hooks/useChatRooms";
+import {useDominantColor} from "../../../lib/hooks/useDominantColor";
 import MediaStreamVideo from "../../../app/shared/components/MediaStreamVideo";
 import ScreenShareSettingsDialog from "../../../app/shared/components/ScreenShareSettingsDialog";
 import ParticipantTile from "./ParticipantTile";
-import type { VoiceParticipant } from "../../../lib/realtime/voiceHub";
-import { hasActiveVideoTrack } from "../../../lib/util/videoTrackUtils.ts";
-import type { ParticipantTileData } from "../../../lib/types/ParticipantTile.types.ts";
-import type { ScreenShareConstraints } from "../../../lib/types/voiceChannel";
+import type {VoiceParticipant} from "../../../lib/realtime/voiceHub";
+import {hasActiveVideoTrack} from "../../../lib/util/videoTrackUtils.ts";
+import type {ParticipantTileData} from "../../../lib/types/ParticipantTile.types.ts";
+import type {ScreenShareConstraints} from "../../../lib/types/voiceChannel";
 import {
-  SCREEN_FRAME_RATE_OPTIONS,
-  SCREEN_RESOLUTION_OPTIONS,
   getFrameRateOptionForConstraints,
   getResolutionOptionForConstraints,
+  SCREEN_FRAME_RATE_OPTIONS,
+  SCREEN_RESOLUTION_OPTIONS,
   type ScreenFrameRateOption,
   type ScreenResolutionOption,
 } from "../../../lib/constants/screenShare";
-import { toast } from "react-toastify";
+import {toast} from "react-toastify";
 
 type Props = {
   chatRoomId: string;
@@ -70,31 +62,12 @@ const formatPossessive = (name?: string | null) => {
   return `${trimmed}'s Screen`;
 };
 
-export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
+export default function ChatRoomScreenSharePanel({chatRoomId}: Props) {
   const theme = useTheme();
   const panelRef = useRef<HTMLDivElement | null>(null);
   const uiHideTimerRef = useRef<number | null>(null);
-  const screenContentRef = useRef<HTMLDivElement | null>(null);
-  const pipRef = useRef<HTMLDivElement | null>(null);
-  const pipDragStateRef = useRef({
-    isDragging: false,
-    hasMoved: false,
-    startX: 0,
-    startY: 0,
-    offsetX: 0,
-    offsetY: 0,
-  });
-  const activePointerIdRef = useRef<number | null>(null);
-  const [pipPosition, setPipPosition] = useState<{
-    left: number;
-    top: number;
-  } | null>(null);
-  const [isPipDragging, setIsPipDragging] = useState(false);
-  const lastSecondaryStreamIdRef = useRef<string | null>(null);
-  const lastPrimaryTileIdRef = useRef<string | null>(null);
-  const [primaryMediaMode, setPrimaryMediaMode] = useState<
-    "screen" | "camera" | null
-  >(null);
+  const userSelectedTileRef = useRef(false);
+  const lastAutoSelectedScreenRef = useRef<string | null>(null);
   const [resolutionMenuAnchor, setResolutionMenuAnchor] =
     useState<HTMLElement | null>(null);
   const [frameRateMenuAnchor, setFrameRateMenuAnchor] =
@@ -102,9 +75,9 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
   const [isScreenShareDialogOpen, setIsScreenShareDialogOpen] = useState(false);
   const [isStartingScreenShare, setIsStartingScreenShare] = useState(false);
 
-  const { currentUser } = useAccount();
+  const {currentUser} = useAccount();
   const voice = useVoiceChannel(chatRoomId, currentUser?.id);
-  const { chatRooms } = useChatRooms();
+  const {chatRooms} = useChatRooms();
 
   const {
     localCameraStream,
@@ -224,8 +197,8 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
       }
     >();
     voice.remoteVideoStreams.forEach(
-      ({ connectionId, mediaType, stream, userId }) => {
-        const entry = map.get(connectionId) ?? { userId: userId ?? null };
+      ({connectionId, mediaType, stream, userId}) => {
+        const entry = map.get(connectionId) ?? {userId: userId ?? null};
         entry[mediaType] = stream;
         if (userId != null) {
           entry.userId = userId;
@@ -257,8 +230,8 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
       const videoType = screenStream
         ? "screen"
         : cameraStream
-        ? "camera"
-        : undefined;
+          ? "camera"
+          : undefined;
 
       push({
         id,
@@ -288,8 +261,8 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
       const videoType = screenStream
         ? "screen"
         : cameraStream
-        ? "camera"
-        : undefined;
+          ? "camera"
+          : undefined;
 
       if (seen.has(id)) {
         if (!stream) return;
@@ -347,8 +320,8 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
       const videoType = localScreen
         ? "screen"
         : localCamera
-        ? "camera"
-        : undefined;
+          ? "camera"
+          : undefined;
 
       if (index >= 0) {
         items[index] = {
@@ -402,26 +375,50 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
   }, [screenTiles]);
 
   useEffect(() => {
-    const current = selectedTileId
-      ? tiles.find((tile) => tile.id === selectedTileId) ?? null
-      : null;
+    const current =
+      selectedTileId != null
+        ? tiles.find((tile) => tile.id === selectedTileId) ?? null
+        : null;
 
-    if (primaryScreenTile) {
-      if (!current || current.id !== primaryScreenTile.id) {
-        setSelectedTileId(primaryScreenTile.id);
-      }
-      return;
+    if (!current && selectedTileId !== null) {
+      userSelectedTileRef.current = false;
     }
 
-    if (tiles.length === 0) {
-      if (selectedTileId !== null) {
-        setSelectedTileId(null);
+    if (primaryScreenTile) {
+      const screenId = primaryScreenTile.id;
+      const screenChanged = lastAutoSelectedScreenRef.current !== screenId;
+
+      if (screenChanged) {
+        lastAutoSelectedScreenRef.current = screenId;
+        userSelectedTileRef.current = false;
       }
-      return;
+
+      if (
+        !userSelectedTileRef.current &&
+        (!current || current.id !== screenId)
+      ) {
+        if (selectedTileId !== screenId) {
+          userSelectedTileRef.current = false;
+          setSelectedTileId(screenId);
+        }
+        return;
+      }
+    } else if (lastAutoSelectedScreenRef.current !== null) {
+      lastAutoSelectedScreenRef.current = null;
+      userSelectedTileRef.current = false;
     }
 
     if (!current) {
-      setSelectedTileId(tiles[0].id);
+      const fallback = tiles[0] ?? null;
+      if (fallback) {
+        if (selectedTileId !== fallback.id) {
+          userSelectedTileRef.current = false;
+          setSelectedTileId(fallback.id);
+        }
+      } else if (selectedTileId !== null) {
+        userSelectedTileRef.current = false;
+        setSelectedTileId(null);
+      }
     }
   }, [tiles, selectedTileId, primaryScreenTile]);
 
@@ -430,143 +427,49 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
     [tiles, selectedTileId]
   );
 
-  const hasAnyScreenTile = screenTiles.length > 0;
-
   const handleTileSelect = useCallback(
     (tile: ParticipantTileData) => {
-      if (hasAnyScreenTile && tile.videoType !== "screen") {
-        return;
-      }
+      userSelectedTileRef.current = true;
       setSelectedTileId(tile.id);
     },
-    [hasAnyScreenTile]
+    []
   );
 
-  const screenStream = selectedTile?.screenStream ?? null;
-  const cameraStream = selectedTile?.cameraStream ?? null;
-  const activeScreenStream =
-    screenStream && hasActiveVideoTrack(screenStream) ? screenStream : null;
-  const activeCameraStream =
-    cameraStream && hasActiveVideoTrack(cameraStream) ? cameraStream : null;
-  const fallbackPrimaryStream =
-    selectedTile?.stream && hasActiveVideoTrack(selectedTile.stream)
-      ? selectedTile.stream
-      : null;
-
-  const effectivePrimaryMode: "screen" | "camera" | null =
-    primaryMediaMode ??
-    (activeScreenStream
-      ? "screen"
-      : activeCameraStream
-      ? "camera"
-      : selectedTile?.videoType === "screen"
-      ? "screen"
-      : selectedTile?.videoType === "camera"
-      ? "camera"
-      : null);
-
-  const primaryStream =
-    effectivePrimaryMode === "screen"
-      ? activeScreenStream ?? fallbackPrimaryStream
-      : effectivePrimaryMode === "camera"
-      ? activeCameraStream ?? fallbackPrimaryStream
-      : fallbackPrimaryStream;
-
-  const secondaryStreamInfo = useMemo(() => {
-    if (!selectedTile) return null;
-
-    if (effectivePrimaryMode === "screen") {
-      return activeCameraStream
-        ? { stream: activeCameraStream, type: "camera" as const }
-        : null;
+  const selectedStreamInfo = useMemo(() => {
+    if (!selectedTile) {
+      return {stream: null, type: null};
     }
 
-    if (effectivePrimaryMode === "camera") {
-      return activeScreenStream
-        ? { stream: activeScreenStream, type: "screen" as const }
-        : null;
+    const {screenStream, cameraStream, stream, videoType} = selectedTile;
+
+    if (screenStream && hasActiveVideoTrack(screenStream)) {
+      return {stream: screenStream, type: "screen" as const};
     }
 
-    if (activeScreenStream && activeCameraStream) {
-      return { stream: activeCameraStream, type: "camera" as const };
+    if (cameraStream && hasActiveVideoTrack(cameraStream)) {
+      return {stream: cameraStream, type: "camera" as const};
     }
 
-    return null;
-  }, [
-    selectedTile,
-    effectivePrimaryMode,
-    activeCameraStream,
-    activeScreenStream,
-  ]);
+    if (stream && hasActiveVideoTrack(stream)) {
+      const normalized: "screen" | "camera" | null =
+        videoType === "screen" || videoType === "camera" ? videoType : null;
+      return {stream, type: normalized};
+    }
 
-  const isScreenView = effectivePrimaryMode === "screen";
-  const shouldShowSecondaryVideo = Boolean(secondaryStreamInfo);
-  const canSwapPrimarySecondary = Boolean(
-    activeScreenStream && activeCameraStream
-  );
+    return {stream: null, type: null};
+  }, [selectedTile]);
+
+  const activeStream = selectedStreamInfo.stream;
+  const activeStreamType = selectedStreamInfo.type;
+  const isScreenView = activeStreamType === "screen";
 
   useEffect(() => {
-    const tileId = selectedTile?.id ?? null;
-    const hasScreen = Boolean(activeScreenStream);
-    const hasCamera = Boolean(activeCameraStream);
-
-    if (!tileId) {
-      lastPrimaryTileIdRef.current = null;
-      setPrimaryMediaMode(null);
-      return;
-    }
-
-    setPrimaryMediaMode((prev) => {
-      if (lastPrimaryTileIdRef.current !== tileId) {
-        lastPrimaryTileIdRef.current = tileId;
-        if (hasScreen) return "screen";
-        if (hasCamera) return "camera";
-        return null;
-      }
-
-      if (prev === "screen" && !hasScreen) {
-        return hasCamera ? "camera" : null;
-      }
-
-      if (prev === "camera" && !hasCamera) {
-        return hasScreen ? "screen" : null;
-      }
-
-      if (prev == null) {
-        if (hasScreen) return "screen";
-        if (hasCamera) return "camera";
-      }
-
-      return prev;
-    });
-  }, [selectedTile?.id, activeScreenStream, activeCameraStream]);
-
-  const dominantColor = useDominantColor(
-    selectedTile?.avatarUrl,
-    selectedTile?.userId ?? selectedTile?.id ?? ""
-  );
-
-  const activeSpeakers = useMemo(
-    () => new Set(voice.activeSpeakers),
-    [voice.activeSpeakers]
-  );
-
-  const mutedParticipants = useMemo(
-    () => new Set(voice.mutedParticipantIds),
-    [voice.mutedParticipantIds]
-  );
-
-  useEffect(() => {
-    if (
-      !primaryStream ||
-      !hasActiveVideoTrack(primaryStream) ||
-      effectivePrimaryMode !== "screen"
-    ) {
+    if (!activeStream || !hasActiveVideoTrack(activeStream) || !isScreenView) {
       setVideoInfo(null);
       return;
     }
 
-    const stream = primaryStream;
+    const stream = activeStream;
     const update = () => {
       const [track] = stream.getVideoTracks();
       if (!track) {
@@ -588,35 +491,22 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
     update();
     const intervalId = window.setInterval(update, 4000);
     return () => window.clearInterval(intervalId);
-  }, [primaryStream, effectivePrimaryMode]);
+  }, [activeStream, isScreenView]);
 
-  const togglePrimaryMediaMode = useCallback(() => {
-    if (!canSwapPrimarySecondary) return;
-    setPrimaryMediaMode((prev) => (prev === "camera" ? "screen" : "camera"));
-  }, [canSwapPrimarySecondary]);
+  const dominantColor = useDominantColor(
+    selectedTile?.avatarUrl,
+    selectedTile?.userId ?? selectedTile?.id ?? ""
+  );
 
-  useEffect(() => {
-    const resetDragState = () => {
-      pipDragStateRef.current.isDragging = false;
-      pipDragStateRef.current.hasMoved = false;
-      activePointerIdRef.current = null;
-      setIsPipDragging(false);
-    };
+  const activeSpeakers = useMemo(
+    () => new Set(voice.activeSpeakers),
+    [voice.activeSpeakers]
+  );
 
-    const currentId = secondaryStreamInfo?.stream.id ?? null;
-    if (!secondaryStreamInfo) {
-      resetDragState();
-      lastSecondaryStreamIdRef.current = null;
-      setPipPosition(null);
-      return;
-    }
-
-    if (currentId !== lastSecondaryStreamIdRef.current) {
-      resetDragState();
-      lastSecondaryStreamIdRef.current = currentId;
-      setPipPosition(null);
-    }
-  }, [secondaryStreamInfo, selectedTile?.id]);
+  const mutedParticipants = useMemo(
+    () => new Set(voice.mutedParticipantIds),
+    [voice.mutedParticipantIds]
+  );
 
   const hideUiAfterDelay = useCallback(() => {
     if (uiHideTimerRef.current) window.clearTimeout(uiHideTimerRef.current);
@@ -641,131 +531,6 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
       if (uiHideTimerRef.current) window.clearTimeout(uiHideTimerRef.current);
     };
   }, [handlePointerActivity]);
-
-  const updatePipPosition = useCallback((clientX: number, clientY: number) => {
-    const container = screenContentRef.current;
-    const floating = pipRef.current;
-    if (!container || !floating) return;
-
-    const containerRect = container.getBoundingClientRect();
-    const pipRect = floating.getBoundingClientRect();
-
-    const maxLeft = Math.max(containerRect.width - pipRect.width, 0);
-    const maxTop = Math.max(containerRect.height - pipRect.height, 0);
-
-    const rawLeft =
-      clientX - containerRect.left - pipDragStateRef.current.offsetX;
-    const rawTop =
-      clientY - containerRect.top - pipDragStateRef.current.offsetY;
-
-    const nextLeft = Math.min(Math.max(rawLeft, 0), maxLeft);
-    const nextTop = Math.min(Math.max(rawTop, 0), maxTop);
-
-    setPipPosition({ left: nextLeft, top: nextTop });
-  }, []);
-
-  const handlePipPointerDown = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (!shouldShowSecondaryVideo) return;
-      if (!screenContentRef.current || !pipRef.current) return;
-
-      event.preventDefault();
-      event.stopPropagation();
-      handlePointerActivity();
-
-      const rect = pipRef.current.getBoundingClientRect();
-      const state = pipDragStateRef.current;
-      state.isDragging = true;
-      state.hasMoved = false;
-      state.startX = event.clientX;
-      state.startY = event.clientY;
-      state.offsetX = event.clientX - rect.left;
-      state.offsetY = event.clientY - rect.top;
-
-      activePointerIdRef.current = event.pointerId;
-      setIsPipDragging(true);
-      pipRef.current.setPointerCapture?.(event.pointerId);
-    },
-    [handlePointerActivity, shouldShowSecondaryVideo]
-  );
-
-  const handlePipPointerMove = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      const state = pipDragStateRef.current;
-      if (!state.isDragging) return;
-      if (activePointerIdRef.current !== event.pointerId) return;
-
-      const deltaX = Math.abs(event.clientX - state.startX);
-      const deltaY = Math.abs(event.clientY - state.startY);
-
-      if (!state.hasMoved) {
-        if (deltaX > 3 || deltaY > 3) {
-          state.hasMoved = true;
-        } else {
-          return;
-        }
-      }
-
-      event.preventDefault();
-      updatePipPosition(event.clientX, event.clientY);
-    },
-    [updatePipPosition]
-  );
-
-  const handlePipPointerUp = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (activePointerIdRef.current !== event.pointerId) return;
-
-      const state = pipDragStateRef.current;
-      const wasDragging = state.hasMoved;
-
-      state.isDragging = false;
-      state.hasMoved = false;
-      activePointerIdRef.current = null;
-      setIsPipDragging(false);
-      pipRef.current?.releasePointerCapture?.(event.pointerId);
-
-      if (!wasDragging && canSwapPrimarySecondary) {
-        togglePrimaryMediaMode();
-      }
-    },
-    [canSwapPrimarySecondary, togglePrimaryMediaMode]
-  );
-
-  const handlePipKeyDown = useCallback(
-    (event: ReactKeyboardEvent<HTMLDivElement>) => {
-      if (!canSwapPrimarySecondary) return;
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        togglePrimaryMediaMode();
-      }
-    },
-    [canSwapPrimarySecondary, togglePrimaryMediaMode]
-  );
-
-  useEffect(() => {
-    if (!shouldShowSecondaryVideo) return;
-    const container = screenContentRef.current;
-    if (!container || typeof ResizeObserver === "undefined") return;
-
-    const observer = new ResizeObserver(() => {
-      setPipPosition((prev) => {
-        if (!prev || !screenContentRef.current || !pipRef.current) return prev;
-        const containerRect = screenContentRef.current.getBoundingClientRect();
-        const pipRect = pipRef.current.getBoundingClientRect();
-        const maxLeft = Math.max(containerRect.width - pipRect.width, 0);
-        const maxTop = Math.max(containerRect.height - pipRect.height, 0);
-        const nextLeft = Math.min(Math.max(prev.left, 0), maxLeft);
-        const nextTop = Math.min(Math.max(prev.top, 0), maxTop);
-        if (nextLeft === prev.left && nextTop === prev.top) return prev;
-        return { left: nextLeft, top: nextTop };
-      });
-    });
-
-    observer.observe(container);
-
-    return () => observer.disconnect();
-  }, [shouldShowSecondaryVideo]);
 
   useEffect(() => {
     const onFullscreenChange = () => {
@@ -811,9 +576,9 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
 
   const presenterName = selectedTile
     ? selectedTile.participant?.displayName ??
-      (selectedTile.isSelf
-        ? currentUser?.displayName ?? selectedTile.displayName
-        : selectedTile.displayName)
+    (selectedTile.isSelf
+      ? currentUser?.displayName ?? selectedTile.displayName
+      : selectedTile.displayName)
     : null;
 
   const presenterAvatar =
@@ -850,23 +615,10 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
     },
   });
 
-  const secondaryStreamType = secondaryStreamInfo?.type;
-  const pipAriaLabel =
-    secondaryStreamType === "camera"
-      ? "Show camera on main stage"
-      : secondaryStreamType === "screen"
-      ? "Show screen share on main stage"
-      : "Secondary stream preview";
-
   const renderMainContent = () => {
-    if (primaryStream && hasActiveVideoTrack(primaryStream)) {
-      const pipPlacementStyles = pipPosition
-        ? { top: `${pipPosition.top}px`, left: `${pipPosition.left}px` }
-        : { bottom: "24px", right: "24px" };
-
+    if (activeStream && hasActiveVideoTrack(activeStream)) {
       return (
         <Box
-          ref={screenContentRef}
           sx={{
             flex: 1,
             width: "100%",
@@ -880,61 +632,16 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
           }}
         >
           <MediaStreamVideo
-            stream={primaryStream}
+            stream={activeStream}
             muted
             fit={isScreenView ? "contain" : "cover"}
           />
-          {shouldShowSecondaryVideo && (
-            <Box
-              ref={pipRef}
-              onPointerDown={handlePipPointerDown}
-              onPointerMove={handlePipPointerMove}
-              onPointerUp={handlePipPointerUp}
-              onPointerCancel={handlePipPointerUp}
-              onKeyDown={handlePipKeyDown}
-              sx={{
-                position: "absolute",
-                width: "min(240px, 26vw)",
-                aspectRatio: "16 / 9",
-                maxWidth: "calc(100% - 32px)",
-                minWidth: 140,
-                borderRadius: 1.75,
-                overflow: "hidden",
-                boxShadow: "0 18px 40px rgba(0,0,0,0.45)",
-                border: `1px solid ${alpha("#ffffff", 0.24)}`,
-                cursor: isPipDragging ? "grabbing" : "grab",
-                touchAction: "none",
-                backgroundColor: "#000",
-                backdropFilter: "blur(2px)",
-                transition: "box-shadow 160ms ease, transform 160ms ease",
-                pointerEvents: "auto",
-                zIndex: theme.zIndex.modal,
-                ...pipPlacementStyles,
-              }}
-              aria-label={pipAriaLabel}
-              aria-grabbed={isPipDragging}
-              role={canSwapPrimarySecondary ? "button" : undefined}
-              tabIndex={canSwapPrimarySecondary ? 0 : undefined}
-            >
-              <MediaStreamVideo
-                stream={secondaryStreamInfo?.stream}
-                muted
-                mirrored={
-                  secondaryStreamType === "camera" &&
-                  Boolean(selectedTile?.isSelf)
-                }
-                fit={secondaryStreamType === "screen" ? "contain" : "cover"}
-                style={{ pointerEvents: "none" }}
-              />
-            </Box>
-          )}
         </Box>
       );
     }
 
     return (
       <Box
-        ref={screenContentRef}
         sx={{
           flex: 1,
           display: "flex",
@@ -970,6 +677,7 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
     );
   };
 
+
   return (
     <Box
       ref={panelRef}
@@ -990,13 +698,13 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
         boxShadow: "0 20px 40px rgba(0,0,0,0.35)",
       }}
     >
-      <Box sx={{ flex: 1, position: "relative", display: "flex" }}>
+      <Box sx={{flex: 1, position: "relative", display: "flex"}}>
         {renderMainContent()}
       </Box>
 
       <Fade
         in={isUiVisible && isScreenView}
-        timeout={{ enter: 180, exit: 200 }}
+        timeout={{enter: 180, exit: 200}}
       >
         <Box
           sx={{
@@ -1023,15 +731,15 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
           >
             {channelLabel}
           </Typography>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.2 }}>
+          <Box sx={{display: "flex", alignItems: "center", gap: 1.2}}>
             <Avatar
               src={presenterAvatar}
               alt={presenterName ?? "Screen"}
-              sx={{ width: 36, height: 36 }}
+              sx={{width: 36, height: 36}}
             >
               {presenterName?.charAt(0).toUpperCase() ?? "?"}
             </Avatar>
-            <Box sx={{ minWidth: 0 }}>
+            <Box sx={{minWidth: 0}}>
               <Typography variant="body2" fontWeight={600} color="#fff" noWrap>
                 {presenterName ?? "No active stream"}
               </Typography>
@@ -1051,7 +759,7 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
 
       <Fade
         in={isUiVisible && isScreenView}
-        timeout={{ enter: 180, exit: 200 }}
+        timeout={{enter: 180, exit: 200}}
       >
         <Box
           sx={{
@@ -1090,7 +798,7 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
         </Box>
       </Fade>
 
-      <Fade in={isUiVisible} timeout={{ enter: 180, exit: 220 }}>
+      <Fade in={isUiVisible} timeout={{enter: 180, exit: 220}}>
         <Box
           sx={{
             position: "absolute",
@@ -1134,8 +842,8 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
                   tile.isSelf
                     ? voice.isSelfMuted
                     : tile.userId
-                    ? mutedParticipants.has(tile.userId)
-                    : false
+                      ? mutedParticipants.has(tile.userId)
+                      : false
                 }
               />
             ))}
@@ -1151,7 +859,7 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
               px: 2,
             }}
           >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Box sx={{display: "flex", alignItems: "center", gap: 1.5}}>
               <Tooltip
                 title={
                   voice.isSelfMuted ? "Unmute microphone" : "Mute microphone"
@@ -1168,7 +876,7 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
                     disabled={!isConnected || voice.isJoining}
                     aria-label={voice.isSelfMuted ? "Unmute" : "Mute"}
                   >
-                    {voice.isSelfMuted ? <MicOff /> : <Mic />}
+                    {voice.isSelfMuted ? <MicOff/> : <Mic/>}
                   </IconButton>
                 </span>
               </Tooltip>
@@ -1196,9 +904,9 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
                     }
                   >
                     {isCameraEnabled ? (
-                      <VideocamOffRounded />
+                      <VideocamOffRounded/>
                     ) : (
-                      <VideocamRounded />
+                      <VideocamRounded/>
                     )}
                   </IconButton>
                 </span>
@@ -1225,9 +933,9 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
                     }
                   >
                     {isScreenSharing ? (
-                      <StopScreenShareRounded />
+                      <StopScreenShareRounded/>
                     ) : (
-                      <ScreenShareRounded />
+                      <ScreenShareRounded/>
                     )}
                   </IconButton>
                 </span>
@@ -1238,11 +946,12 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
                   <IconButton
                     size="large"
                     sx={controlButtonBase(theme.palette.error.main, true)}
-                    onClick={() => voice.leave().catch(() => {})}
+                    onClick={() => voice.leave().catch(() => {
+                    })}
                     disabled={!isConnected || voice.isJoining}
                     aria-label="Disconnect"
                   >
-                    <CallEndRounded />
+                    <CallEndRounded/>
                   </IconButton>
                 </span>
               </Tooltip>
@@ -1260,7 +969,7 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
                     isFullscreen ? "Exit full screen" : "Enter full screen"
                   }
                 >
-                  {isFullscreen ? <FullscreenExit /> : <Fullscreen />}
+                  {isFullscreen ? <FullscreenExit/> : <Fullscreen/>}
                 </IconButton>
               </span>
             </Tooltip>
@@ -1272,8 +981,8 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
         anchorEl={resolutionMenuAnchor}
         open={isResolutionMenuOpen}
         onClose={handleResolutionMenuClose}
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}
-        transformOrigin={{ vertical: "bottom", horizontal: "center" }}
+        anchorOrigin={{vertical: "top", horizontal: "center"}}
+        transformOrigin={{vertical: "bottom", horizontal: "center"}}
       >
         {SCREEN_RESOLUTION_OPTIONS.map((option) => {
           const selected = option.id === selectedResolutionOption.id;
@@ -1290,9 +999,9 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
                   color: theme.palette.primary.main,
                 }}
               >
-                <Check fontSize="small" />
+                <Check fontSize="small"/>
               </ListItemIcon>
-              <ListItemText primary={option.label} />
+              <ListItemText primary={option.label}/>
             </MenuItem>
           );
         })}
@@ -1302,8 +1011,8 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
         anchorEl={frameRateMenuAnchor}
         open={isFrameRateMenuOpen}
         onClose={handleFrameRateMenuClose}
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}
-        transformOrigin={{ vertical: "bottom", horizontal: "center" }}
+        anchorOrigin={{vertical: "top", horizontal: "center"}}
+        transformOrigin={{vertical: "bottom", horizontal: "center"}}
       >
         {SCREEN_FRAME_RATE_OPTIONS.map((option) => {
           const selected = option.id === selectedFrameRateOption.id;
@@ -1320,9 +1029,9 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
                   color: theme.palette.primary.main,
                 }}
               >
-                <Check fontSize="small" />
+                <Check fontSize="small"/>
               </ListItemIcon>
-              <ListItemText primary={option.label} />
+              <ListItemText primary={option.label}/>
             </MenuItem>
           );
         })}
