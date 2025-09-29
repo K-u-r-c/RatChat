@@ -1,6 +1,6 @@
-import {type MouseEvent, useMemo, useRef} from "react";
-import {Box, IconButton, Tooltip, Typography} from "@mui/material";
-import {alpha, useTheme} from "@mui/material/styles";
+import { type MouseEvent, useCallback, useMemo, useRef, useState } from "react";
+import { Box, IconButton, Tooltip, Typography } from "@mui/material";
+import { alpha, useTheme } from "@mui/material/styles";
 import {
   CallEndRounded,
   Headset,
@@ -14,10 +14,13 @@ import {
   WifiRounded,
 } from "@mui/icons-material";
 import AvatarWithStatus from "../shared/components/AvatarWithStatus";
-import {useAccount} from "../../lib/hooks/useAccount";
-import {useVoiceChannel} from "../../lib/hooks/useVoiceChannel";
+import { useAccount } from "../../lib/hooks/useAccount";
+import { useVoiceChannel } from "../../lib/hooks/useVoiceChannel";
 import UserMenuIcon from "./UserMenuIcon";
-import {useChatRooms} from "../../lib/hooks/useChatRooms";
+import { useChatRooms } from "../../lib/hooks/useChatRooms";
+import ScreenShareSettingsDialog from "../shared/components/ScreenShareSettingsDialog";
+import type { ScreenShareConstraints } from "../../lib/types/voiceChannel";
+import { toast } from "react-toastify";
 
 export const BASE_USER_ACTION_RIBBON_HEIGHT = 72;
 export const VOICE_CARD_EXTRA_HEIGHT = 96;
@@ -28,21 +31,27 @@ const formatDiscriminator = (tag?: number) =>
   tag == null ? "" : `#${String(tag).padStart(4, "0")}`;
 
 export default function UserActionRibbon() {
-  const {currentUser} = useAccount();
+  const { currentUser } = useAccount();
   const theme = useTheme();
   const voice = useVoiceChannel(undefined, currentUser?.id);
-  const {chatRooms} = useChatRooms();
-  const userMenuHandlersRef = useRef<
-    | {
+  const { chatRooms } = useChatRooms();
+  const userMenuHandlersRef = useRef<{
     openMenu: (event: MouseEvent<HTMLElement>) => void;
     closeMenu: () => void;
-  }
-    | null
-  >(null);
+  } | null>(null);
 
-  const {isSelfMuted, isSelfDeafened, toggleSelfMute, toggleSelfDeafened} =
+  const { isSelfMuted, isSelfDeafened, toggleSelfMute, toggleSelfDeafened } =
     voice;
-  const {isCameraEnabled, isScreenSharing, toggleCamera, toggleScreenShare} = voice;
+  const {
+    isCameraEnabled,
+    isScreenSharing,
+    toggleCamera,
+    toggleScreenShare,
+    screenShareConstraints,
+    setScreenShareConstraints,
+  } = voice;
+  const [isScreenShareDialogOpen, setIsScreenShareDialogOpen] = useState(false);
+  const [isStartingScreenShare, setIsStartingScreenShare] = useState(false);
 
   const statusLine = useMemo(() => {
     if (!currentUser) return "";
@@ -82,18 +91,15 @@ export default function UserActionRibbon() {
     return segments.length ? segments.join(" / ") : null;
   }, [activeVoiceChannel?.name, activeVoiceRoom?.title, isVoiceConnected]);
 
-  if (!currentUser) return null;
-
   const openUserMenuAtElement = (element: HTMLElement) => {
     const handlers = userMenuHandlersRef.current;
     if (!handlers) return;
+
     const syntheticEvent = {
       currentTarget: element,
       target: element,
-      preventDefault: () => {
-      },
-      stopPropagation: () => {
-      },
+      preventDefault: () => {},
+      stopPropagation: () => {},
     } as unknown as MouseEvent<HTMLElement>;
     handlers.openMenu(syntheticEvent);
   };
@@ -111,9 +117,40 @@ export default function UserActionRibbon() {
   };
 
   const handleDisconnect = () => {
-    voice.leave().catch(() => {
-    });
+    voice.leave().catch(() => {});
   };
+
+  const handleScreenShareClick = useCallback(() => {
+    if (isScreenSharing) {
+      void toggleScreenShare(false);
+      return;
+    }
+    setIsScreenShareDialogOpen(true);
+  }, [isScreenSharing, toggleScreenShare]);
+
+  const handleScreenShareDialogClose = useCallback(() => {
+    if (isStartingScreenShare) return;
+    setIsScreenShareDialogOpen(false);
+  }, [isStartingScreenShare]);
+
+  const handleScreenShareDialogConfirm = useCallback(
+    async (constraints: ScreenShareConstraints) => {
+      setIsStartingScreenShare(true);
+      try {
+        setScreenShareConstraints(constraints);
+        await toggleScreenShare(true);
+        setIsScreenShareDialogOpen(false);
+      } catch (error) {
+        toast.error("Failed to start screen sharing");
+        if (import.meta.env.DEV) {
+          console.error("Failed to start screen sharing", error);
+        }
+      } finally {
+        setIsStartingScreenShare(false);
+      }
+    },
+    [setScreenShareConstraints, toggleScreenShare]
+  );
 
   const controlButtonSx = (active: boolean) => ({
     width: 40,
@@ -160,12 +197,16 @@ export default function UserActionRibbon() {
     }
   }
 
+  if (!currentUser) {
+    return null;
+  }
+
   return (
     <Box
       sx={{
         minHeight: BASE_USER_ACTION_RIBBON_HEIGHT,
         height: ribbonHeight,
-        px: {xs: 1, sm: 1.5},
+        px: { xs: 1, sm: 1.5 },
         py: 0.5,
         bgcolor: "background.default",
         borderTop: "1px solid rgba(255,255,255,0.06)",
@@ -192,16 +233,16 @@ export default function UserActionRibbon() {
               gap: 1.5,
             }}
           >
-            <Box sx={{display: "flex", alignItems: "center", gap: 1}}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <Tooltip title={pingTooltip}>
-                <WifiRounded sx={{color: pingColor}} fontSize="small"/>
+                <WifiRounded sx={{ color: pingColor }} fontSize="small" />
               </Tooltip>
-              <Box sx={{minWidth: 0}}>
+              <Box sx={{ minWidth: 0 }}>
                 <Typography
                   variant="caption"
                   fontWeight={700}
                   color={pingColor}
-                  sx={{letterSpacing: 0.3, textTransform: "uppercase"}}
+                  sx={{ letterSpacing: 0.3, textTransform: "uppercase" }}
                 >
                   Voice Connected
                 </Typography>
@@ -244,17 +285,15 @@ export default function UserActionRibbon() {
                     },
                   }}
                 >
-                  <CallEndRounded fontSize="small"/>
+                  <CallEndRounded fontSize="small" />
                 </IconButton>
               </span>
             </Tooltip>
           </Box>
 
-          <Box sx={{display: "flex", gap: 1}}>
+          <Box sx={{ display: "flex", gap: 1 }}>
             <Tooltip
-              title={
-                isCameraEnabled ? "Turn off camera" : "Turn on camera"
-              }
+              title={isCameraEnabled ? "Turn off camera" : "Turn on camera"}
             >
               <span>
                 <IconButton
@@ -263,9 +302,9 @@ export default function UserActionRibbon() {
                     ...quickActionButtonSx,
                     ...(isCameraEnabled
                       ? {
-                        color: theme.palette.primary.light,
-                        bgcolor: alpha(theme.palette.primary.main, 0.24),
-                      }
+                          color: theme.palette.primary.light,
+                          bgcolor: alpha(theme.palette.primary.main, 0.24),
+                        }
                       : {}),
                   }}
                   onClick={() => {
@@ -274,18 +313,16 @@ export default function UserActionRibbon() {
                   disabled={!isVoiceConnected || voice.isJoining}
                 >
                   {isCameraEnabled ? (
-                    <VideocamOffRounded fontSize="small"/>
+                    <VideocamOffRounded fontSize="small" />
                   ) : (
-                    <VideocamRounded fontSize="small"/>
+                    <VideocamRounded fontSize="small" />
                   )}
                 </IconButton>
               </span>
             </Tooltip>
             <Tooltip
               title={
-                isScreenSharing
-                  ? "Stop sharing screen"
-                  : "Share your screen"
+                isScreenSharing ? "Stop sharing screen" : "Share your screen"
               }
             >
               <span>
@@ -295,20 +332,22 @@ export default function UserActionRibbon() {
                     ...quickActionButtonSx,
                     ...(isScreenSharing
                       ? {
-                        color: theme.palette.success.light,
-                        bgcolor: alpha(theme.palette.success.main, 0.24),
-                      }
+                          color: theme.palette.success.light,
+                          bgcolor: alpha(theme.palette.success.main, 0.24),
+                        }
                       : {}),
                   }}
-                  onClick={() => {
-                    void toggleScreenShare();
-                  }}
-                  disabled={!isVoiceConnected || voice.isJoining}
+                  onClick={handleScreenShareClick}
+                  disabled={
+                    !isVoiceConnected ||
+                    voice.isJoining ||
+                    isStartingScreenShare
+                  }
                 >
                   {isScreenSharing ? (
-                    <StopScreenShareRounded fontSize="small"/>
+                    <StopScreenShareRounded fontSize="small" />
                   ) : (
-                    <ScreenShareRounded fontSize="small"/>
+                    <ScreenShareRounded fontSize="small" />
                   )}
                 </IconButton>
               </span>
@@ -354,7 +393,7 @@ export default function UserActionRibbon() {
             alt={currentUser.displayName}
             size={40}
           />
-          <Box sx={{minWidth: 0}}>
+          <Box sx={{ minWidth: 0 }}>
             <Typography variant="body2" fontWeight={600} color="white" noWrap>
               {currentUser.displayName}
             </Typography>
@@ -369,8 +408,8 @@ export default function UserActionRibbon() {
             isSelfDeafened
               ? "Undeafen to control microphone"
               : isSelfMuted
-                ? "Unmute"
-                : "Mute microphone"
+              ? "Unmute"
+              : "Mute microphone"
           }
         >
           <span>
@@ -383,7 +422,7 @@ export default function UserActionRibbon() {
               size="small"
               disabled={isSelfDeafened}
             >
-              {isSelfMuted ? <MicOff/> : <Mic/>}
+              {isSelfMuted ? <MicOff /> : <Mic />}
             </IconButton>
           </span>
         </Tooltip>
@@ -397,17 +436,25 @@ export default function UserActionRibbon() {
               sx={controlButtonSx(isSelfDeafened)}
               size="small"
             >
-              {isSelfDeafened ? <HeadsetOff/> : <Headset/>}
+              {isSelfDeafened ? <HeadsetOff /> : <Headset />}
             </IconButton>
           </span>
         </Tooltip>
       </Box>
 
       <UserMenuIcon
-        renderTrigger={({openMenu, closeMenu}) => {
-          userMenuHandlersRef.current = {openMenu, closeMenu};
+        renderTrigger={({ openMenu, closeMenu }) => {
+          userMenuHandlersRef.current = { openMenu, closeMenu };
           return null;
         }}
+      />
+
+      <ScreenShareSettingsDialog
+        open={isScreenShareDialogOpen}
+        initialConstraints={screenShareConstraints}
+        onCancel={handleScreenShareDialogClose}
+        onConfirm={handleScreenShareDialogConfirm}
+        isSubmitting={isStartingScreenShare}
       />
     </Box>
   );

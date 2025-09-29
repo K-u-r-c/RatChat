@@ -1,4 +1,4 @@
-import {useEffect, useSyncExternalStore} from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import {
   type IceCandidatePayload,
   joinVoiceChannel as joinVoiceChannelHub,
@@ -27,18 +27,25 @@ import {
 import type {
   LeaveOptions,
   LocalSpeakingMonitor,
+  ScreenShareConstraints,
   SpeakingMonitor,
   VoiceChannelSnapshot,
   VoiceChannelState,
 } from "../types/voiceChannel";
 
-export type {VoiceChannelState} from "../types/voiceChannel";
+export type { VoiceChannelState } from "../types/voiceChannel";
 
 const ICE_SERVERS: RTCConfiguration["iceServers"] = [
-  {urls: "stun:stun.l.google.com:19302"},
+  { urls: "stun:stun.l.google.com:19302" },
 ];
 const PING_REFRESH_INTERVAL_MS = 5000;
 const PING_HTTP_TIMEOUT_MS = 2000;
+
+const DEFAULT_SCREEN_SHARE_CONSTRAINTS: ScreenShareConstraints = {
+  width: 1920,
+  height: 1080,
+  frameRate: 30,
+};
 
 type MaybeNetworkInformation = {
   rtt?: number;
@@ -53,7 +60,10 @@ type NavigatorWithConnection = Navigator & {
 class VoiceManager {
   private participants = new Map<string, VoiceParticipant>();
   private remoteAudioStreams = new Map<string, MediaStream>();
-  private remoteVideoStreams = new Map<string, Map<"camera" | "screen", MediaStream>>();
+  private remoteVideoStreams = new Map<
+    string,
+    Map<"camera" | "screen", MediaStream>
+  >();
   private remoteVideoStreamTypes = new Map<string, "camera" | "screen">();
   private peerConnections = new Map<string, RTCPeerConnection>();
   private localMicrophoneStream: MediaStream | null = null;
@@ -61,7 +71,10 @@ class VoiceManager {
   private localScreenStream: MediaStream | null = null;
   private localCameraEndedHandler: (() => void) | null = null;
   private localScreenEndedHandler: (() => void) | null = null;
-  private videoSenders = new Map<string, { camera?: RTCRtpSender; screen?: RTCRtpSender }>();
+  private videoSenders = new Map<
+    string,
+    { camera?: RTCRtpSender; screen?: RTCRtpSender }
+  >();
   private isCameraEnabled = false;
   private isScreenSharing = false;
   private currentChannelId: string | null = null;
@@ -84,6 +97,9 @@ class VoiceManager {
   private pingHttpAbortController: AbortController | null = null;
   private pingTargets: string[] | null = null;
   private pingMs: number | null = null;
+  private screenShareConstraints: ScreenShareConstraints = {
+    ...DEFAULT_SCREEN_SHARE_CONSTRAINTS,
+  };
 
   private listeners = new Set<() => void>();
 
@@ -118,6 +134,9 @@ class VoiceManager {
     isSelfMuted: false,
     isSelfDeafened: false,
     pingMs: null,
+    screenShareConstraints: {
+      ...DEFAULT_SCREEN_SHARE_CONSTRAINTS,
+    },
   };
 
   subscribe = (listener: () => void) => {
@@ -149,6 +168,9 @@ class VoiceManager {
         isSelfMuted: this.selfMuted,
         isSelfDeafened: this.selfDeafened,
         pingMs: this.pingMs,
+        screenShareConstraints: {
+          ...this.screenShareConstraints,
+        },
       };
       this._snapshotVersion = this._version;
     }
@@ -170,8 +192,7 @@ class VoiceManager {
   trackChatRoomPresence = (chatRoomId: string | null) => {
     if (!chatRoomId) {
       this.releasePresenceWatch();
-      return () => {
-      };
+      return () => {};
     }
 
     const id = chatRoomId;
@@ -287,6 +308,14 @@ class VoiceManager {
     await this.setLocalVideoEnabled("screen", next);
   };
 
+  setScreenShareConstraints = (constraints: ScreenShareConstraints) => {
+    this.screenShareConstraints = {
+      ...this.screenShareConstraints,
+      ...constraints,
+    };
+    this.emit();
+  };
+
   join = async (channelId: string) => {
     if (!this.watchedChatRoomId) {
       this.setError(
@@ -303,7 +332,7 @@ class VoiceManager {
 
     try {
       await this.ensureHub();
-      await this.leave({keepLocalStream: true});
+      await this.leave({ keepLocalStream: true });
 
       const stream = await this.ensureLocalMicrophoneStream();
       if (!stream) throw new Error("Unable to access microphone");
@@ -351,7 +380,7 @@ class VoiceManager {
     } catch (err) {
       if (import.meta.env.DEV) console.error(err);
       this.setError("Unable to join the voice channel");
-      await this.leave({keepLocalStream: false});
+      await this.leave({ keepLocalStream: false });
     } finally {
       this.isJoining = false;
       this.emit();
@@ -382,7 +411,7 @@ class VoiceManager {
   };
 
   forceDisconnect = async () => {
-    await this.leave({keepLocalStream: false});
+    await this.leave({ keepLocalStream: false });
     await this.stopHub();
   };
 
@@ -428,8 +457,7 @@ class VoiceManager {
       off("PeerMediaStateChanged", this.handlePeerMediaStateChanged);
       this.hubHandlersAttached = false;
     }
-    await stopVoiceHub().catch(() => {
-    });
+    await stopVoiceHub().catch(() => {});
     this.hubStartPromise = null;
   }
 
@@ -473,8 +501,7 @@ class VoiceManager {
     this.presenceWatchToken = null;
     this.isWatchingChatRoom = false;
     if (chatRoomId) {
-      unwatchChatRoom(chatRoomId).catch(() => {
-      });
+      unwatchChatRoom(chatRoomId).catch(() => {});
     }
     this.channelPresence.clear();
     this.emit();
@@ -881,6 +908,80 @@ class VoiceManager {
     return entry;
   }
 
+  private updateSenderStreams(
+    sender: RTCRtpSender,
+    stream: MediaStream | null
+  ) {
+    const candidate = sender as RTCRtpSender & {
+      setStreams?: (...streams: MediaStream[]) => void;
+    };
+    if (typeof candidate.setStreams !== "function") return;
+    try {
+      if (stream) {
+        candidate.setStreams(stream);
+      } else {
+        candidate.setStreams();
+      }
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        console.warn("Failed to update sender streams", err);
+      }
+    }
+  }
+
+  private stopPublishingLocalVideoTrack(type: "camera" | "screen") {
+    this.videoSenders.forEach((entry, connectionId) => {
+      const sender = entry[type];
+      if (!sender) return;
+      this.updateSenderStreams(sender, null);
+      Promise.resolve(sender.replaceTrack(null)).catch((err) => {
+        if (import.meta.env.DEV) {
+          console.warn("Failed to clear local video track", err);
+        }
+        this.detachVideoSenderForConnection(connectionId, type);
+      });
+    });
+  }
+
+  private publishLocalVideoTrack(
+    type: "camera" | "screen",
+    track: MediaStreamTrack,
+    stream: MediaStream
+  ) {
+    this.peerConnections.forEach((pc, connectionId) => {
+      const entry = this.getVideoSenderEntry(connectionId);
+      const existingSender = entry[type];
+      if (existingSender) {
+        this.updateSenderStreams(existingSender, stream);
+        Promise.resolve(existingSender.replaceTrack(track)).catch((err) => {
+          if (import.meta.env.DEV) {
+            console.warn("Failed to replace video track, retrying", err);
+          }
+          this.detachVideoSenderForConnection(connectionId, type);
+          try {
+            const sender = pc.addTrack(track, stream);
+            this.getVideoSenderEntry(connectionId)[type] = sender;
+            this.updateSenderStreams(sender, stream);
+          } catch (fallbackErr) {
+            if (import.meta.env.DEV) {
+              console.warn("Failed to publish video track", fallbackErr);
+            }
+          }
+        });
+        return;
+      }
+      try {
+        const sender = pc.addTrack(track, stream);
+        entry[type] = sender;
+        this.updateSenderStreams(sender, stream);
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.warn("Failed to publish video track", err);
+        }
+      }
+    });
+  }
+
   private detachVideoSenderForConnection(
     connectionId: string,
     type: "camera" | "screen"
@@ -1078,7 +1179,7 @@ class VoiceManager {
             video: {
               width: 1280,
               height: 720,
-              frameRate: {ideal: 30, max: 60},
+              frameRate: { ideal: 30, max: 60 },
             },
             audio: false,
           });
@@ -1090,8 +1191,21 @@ class VoiceManager {
             }
             return;
           }
+          const { width, height, frameRate } = this.screenShareConstraints;
+          const videoConstraints: MediaTrackConstraints = {
+            frameRate:
+              typeof frameRate === "number" && frameRate > 0
+                ? frameRate
+                : { ideal: 30, max: 60 },
+          };
+          if (typeof width === "number" && width > 0) {
+            videoConstraints.width = width;
+          }
+          if (typeof height === "number" && height > 0) {
+            videoConstraints.height = height;
+          }
           stream = await mediaDevices.getDisplayMedia({
-            video: {frameRate: {ideal: 30, max: 60}},
+            video: videoConstraints,
             audio: false,
           });
         }
@@ -1164,18 +1278,7 @@ class VoiceManager {
         this.isScreenSharing = true;
       }
 
-      this.detachLocalVideoTrack(type);
-
-      this.peerConnections.forEach((pc, connectionId) => {
-        try {
-          const sender = pc.addTrack(track, stream);
-          this.getVideoSenderEntry(connectionId)[type] = sender;
-        } catch (err) {
-          if (import.meta.env.DEV) {
-            console.warn("Failed to publish video track", err);
-          }
-        }
-      });
+      this.publishLocalVideoTrack(type, track, stream);
 
       if (this.selfConnectionId) {
         if (type === "camera") {
@@ -1204,7 +1307,7 @@ class VoiceManager {
       }
     }
 
-    this.detachLocalVideoTrack(type);
+    this.stopPublishingLocalVideoTrack(type);
 
     if (type === "camera") {
       const stream = this.localCameraStream;
@@ -1286,7 +1389,7 @@ class VoiceManager {
 
     const stream = await this.ensureLocalMicrophoneStream();
 
-    const pc = new RTCPeerConnection({iceServers: ICE_SERVERS});
+    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 
     stream?.getAudioTracks().forEach((track) => pc.addTrack(track, stream));
 
@@ -1300,6 +1403,7 @@ class VoiceManager {
       try {
         const sender = pc.addTrack(videoTrack, mediaStream!);
         this.getVideoSenderEntry(connectionId)[type] = sender;
+        this.updateSenderStreams(sender, mediaStream!);
       } catch (err) {
         if (import.meta.env.DEV) {
           console.warn("Failed to publish video track", err);
@@ -1317,8 +1421,7 @@ class VoiceManager {
         sdpMid: event.candidate.sdpMid ?? null,
         sdpMLineIndex: event.candidate.sdpMLineIndex ?? null,
       };
-      sendIceCandidate(connectionId, payload).catch(() => {
-      });
+      sendIceCandidate(connectionId, payload).catch(() => {});
     };
 
     pc.ontrack = (event) => {
@@ -1334,19 +1437,27 @@ class VoiceManager {
         const mediaType = this.detectVideoType(event.track);
         this.setRemoteVideoStream(connectionId, mediaType, trackStream);
         if (mediaType === "screen") {
-          this.applyParticipantMediaState(connectionId, {isScreenSharing: true});
+          this.applyParticipantMediaState(connectionId, {
+            isScreenSharing: true,
+          });
         } else {
-          this.applyParticipantMediaState(connectionId, {isCameraEnabled: true});
+          this.applyParticipantMediaState(connectionId, {
+            isCameraEnabled: true,
+          });
         }
         const handleEnded = () => {
           this.removeRemoteVideoStream(connectionId, mediaType, trackStream.id);
           if (mediaType === "screen") {
-            this.applyParticipantMediaState(connectionId, {isScreenSharing: false});
+            this.applyParticipantMediaState(connectionId, {
+              isScreenSharing: false,
+            });
           } else {
-            this.applyParticipantMediaState(connectionId, {isCameraEnabled: false});
+            this.applyParticipantMediaState(connectionId, {
+              isCameraEnabled: false,
+            });
           }
         };
-        event.track.addEventListener("ended", handleEnded, {once: true});
+        event.track.addEventListener("ended", handleEnded, { once: true });
         this.emit();
       }
     };
@@ -1434,7 +1545,10 @@ class VoiceManager {
       const run = () => {
         void this.collectPingMeasurement();
       };
-      this.pingUpdateInterval = window.setInterval(run, PING_REFRESH_INTERVAL_MS);
+      this.pingUpdateInterval = window.setInterval(
+        run,
+        PING_REFRESH_INTERVAL_MS
+      );
     }
     if (immediate) {
       void this.collectPingMeasurement();
@@ -1513,11 +1627,7 @@ class VoiceManager {
             }
 
             const state = candidatePair.state;
-            if (
-              state &&
-              state !== "succeeded" &&
-              state !== "in-progress"
-            ) {
+            if (state && state !== "succeeded" && state !== "in-progress") {
               return;
             }
 
@@ -1603,7 +1713,10 @@ class VoiceManager {
     const explicitTarget = import.meta.env.VITE_PING_URL as string | undefined;
     if (explicitTarget) {
       try {
-        const resolved = new URL(explicitTarget, typeof window !== "undefined" ? window.location.origin : undefined);
+        const resolved = new URL(
+          explicitTarget,
+          typeof window !== "undefined" ? window.location.origin : undefined
+        );
         resolved.hash = "";
         targets.add(resolved.toString());
       } catch {
@@ -1615,7 +1728,9 @@ class VoiceManager {
     return this.pingTargets;
   }
 
-  private async measureHttpPingForTarget(target: string): Promise<number | null> {
+  private async measureHttpPingForTarget(
+    target: string
+  ): Promise<number | null> {
     if (typeof window === "undefined") return null;
 
     const attempt = async (
@@ -1629,18 +1744,15 @@ class VoiceManager {
       try {
         url = new URL(target);
       } catch {
-        if (typeof window === "undefined") return {value: null};
+        if (typeof window === "undefined") return { value: null };
         try {
           url = new URL(target, window.location.origin);
         } catch {
-          return {value: null};
+          return { value: null };
         }
       }
 
-      url.searchParams.set(
-        "_ping",
-        `${Date.now().toString(36)}-${method}`
-      );
+      url.searchParams.set("_ping", `${Date.now().toString(36)}-${method}`);
 
       const start = performance.now();
       const timeoutId = window.setTimeout(
@@ -1662,17 +1774,17 @@ class VoiceManager {
             method === "HEAD" &&
             (response.status === 405 || response.status === 501)
           ) {
-            return {value: null, retry: true};
+            return { value: null, retry: true };
           }
-          return {value: null};
+          return { value: null };
         }
 
-        return {value: Math.max(0, Math.round(end - start))};
+        return { value: Math.max(0, Math.round(end - start)) };
       } catch (error) {
         if ((error as DOMException)?.name === "AbortError") {
-          return {value: null};
+          return { value: null };
         }
-        return {value: null};
+        return { value: null };
       } finally {
         window.clearTimeout(timeoutId);
         if (this.pingHttpAbortController === controller) {
@@ -1829,6 +1941,7 @@ export function useVoiceChannel(
     startScreenShare: voiceManager.startScreenShare,
     stopScreenShare: voiceManager.stopScreenShare,
     toggleScreenShare: voiceManager.toggleScreenShare,
+    setScreenShareConstraints: voiceManager.setScreenShareConstraints,
     join: voiceManager.join,
     leave: voiceManager.leave,
   };

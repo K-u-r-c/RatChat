@@ -1,26 +1,57 @@
-import {type PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useRef, useState} from "react";
-import {Avatar, Box, Chip, Fade, IconButton, Tooltip, Typography,} from "@mui/material";
-import {alpha, useTheme} from "@mui/material/styles";
+import {
+  type PointerEvent as ReactPointerEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  Avatar,
+  Box,
+  Chip,
+  Fade,
+  IconButton,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem,
+  Tooltip,
+  Typography,
+} from "@mui/material";
+import { alpha, useTheme } from "@mui/material/styles";
 import {
   CallEndRounded,
   Fullscreen,
   FullscreenExit,
   Mic,
   MicOff,
+  Check,
   ScreenShareRounded,
   StopScreenShareRounded,
   VideocamOffRounded,
   VideocamRounded,
 } from "@mui/icons-material";
-import {useAccount} from "../../../lib/hooks/useAccount";
-import {useVoiceChannel} from "../../../lib/hooks/useVoiceChannel";
-import {useChatRooms} from "../../../lib/hooks/useChatRooms";
-import {useDominantColor} from "../../../lib/hooks/useDominantColor";
+import { useAccount } from "../../../lib/hooks/useAccount";
+import { useVoiceChannel } from "../../../lib/hooks/useVoiceChannel";
+import { useChatRooms } from "../../../lib/hooks/useChatRooms";
+import { useDominantColor } from "../../../lib/hooks/useDominantColor";
 import MediaStreamVideo from "../../../app/shared/components/MediaStreamVideo";
+import ScreenShareSettingsDialog from "../../../app/shared/components/ScreenShareSettingsDialog";
 import ParticipantTile from "./ParticipantTile";
-import type {VoiceParticipant} from "../../../lib/realtime/voiceHub";
-import {hasActiveVideoTrack} from "../../../lib/util/videoTrackUtils.ts";
-import type {ParticipantTileData} from "../../../lib/types/ParticipantTile.types.ts";
+import type { VoiceParticipant } from "../../../lib/realtime/voiceHub";
+import { hasActiveVideoTrack } from "../../../lib/util/videoTrackUtils.ts";
+import type { ParticipantTileData } from "../../../lib/types/ParticipantTile.types.ts";
+import type { ScreenShareConstraints } from "../../../lib/types/voiceChannel";
+import {
+  SCREEN_FRAME_RATE_OPTIONS,
+  SCREEN_RESOLUTION_OPTIONS,
+  getFrameRateOptionForConstraints,
+  getResolutionOptionForConstraints,
+  type ScreenFrameRateOption,
+  type ScreenResolutionOption,
+} from "../../../lib/constants/screenShare";
+import { toast } from "react-toastify";
 
 type Props = {
   chatRoomId: string;
@@ -38,22 +69,30 @@ const formatPossessive = (name?: string | null) => {
   return `${trimmed}'s Screen`;
 };
 
-export default function ChatRoomScreenSharePanel({chatRoomId}: Props) {
+export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
   const theme = useTheme();
   const panelRef = useRef<HTMLDivElement | null>(null);
   const uiHideTimerRef = useRef<number | null>(null);
   const screenContentRef = useRef<HTMLDivElement | null>(null);
   const pipRef = useRef<HTMLDivElement | null>(null);
-  const pipDragStateRef = useRef({isDragging: false, offsetX: 0, offsetY: 0});
+  const pipDragStateRef = useRef({ isDragging: false, offsetX: 0, offsetY: 0 });
   const activePointerIdRef = useRef<number | null>(null);
-  const [pipPosition, setPipPosition] = useState<{ left: number; top: number; } | null>(null);
+  const [pipPosition, setPipPosition] = useState<{
+    left: number;
+    top: number;
+  } | null>(null);
   const [isPipDragging, setIsPipDragging] = useState(false);
   const lastCameraStreamIdRef = useRef<string | null>(null);
+  const [resolutionMenuAnchor, setResolutionMenuAnchor] =
+    useState<HTMLElement | null>(null);
+  const [frameRateMenuAnchor, setFrameRateMenuAnchor] =
+    useState<HTMLElement | null>(null);
+  const [isScreenShareDialogOpen, setIsScreenShareDialogOpen] = useState(false);
+  const [isStartingScreenShare, setIsStartingScreenShare] = useState(false);
 
-
-  const {currentUser} = useAccount();
+  const { currentUser } = useAccount();
   const voice = useVoiceChannel(chatRoomId, currentUser?.id);
-  const {chatRooms} = useChatRooms();
+  const { chatRooms } = useChatRooms();
 
   const {
     localCameraStream,
@@ -62,6 +101,8 @@ export default function ChatRoomScreenSharePanel({chatRoomId}: Props) {
     isScreenSharing,
     toggleCamera,
     toggleScreenShare,
+    screenShareConstraints,
+    setScreenShareConstraints,
   } = voice;
 
   const [isUiVisible, setIsUiVisible] = useState(true);
@@ -72,6 +113,79 @@ export default function ChatRoomScreenSharePanel({chatRoomId}: Props) {
     height?: number;
     fps?: number;
   } | null>(null);
+  const selectedResolutionOption = useMemo(
+    () => getResolutionOptionForConstraints(screenShareConstraints),
+    [screenShareConstraints]
+  );
+
+  const selectedFrameRateOption = useMemo(
+    () => getFrameRateOptionForConstraints(screenShareConstraints),
+    [screenShareConstraints]
+  );
+
+  const isResolutionMenuOpen = Boolean(resolutionMenuAnchor);
+  const isFrameRateMenuOpen = Boolean(frameRateMenuAnchor);
+
+  const handleResolutionMenuClose = useCallback(() => {
+    setResolutionMenuAnchor(null);
+  }, []);
+
+  const handleFrameRateMenuClose = useCallback(() => {
+    setFrameRateMenuAnchor(null);
+  }, []);
+
+  const handleResolutionSelect = useCallback(
+    (option: ScreenResolutionOption) => {
+      setScreenShareConstraints({
+        width: option.width,
+        height: option.height,
+      });
+      setResolutionMenuAnchor(null);
+    },
+    [setScreenShareConstraints]
+  );
+
+  const handleFrameRateSelect = useCallback(
+    (option: ScreenFrameRateOption) => {
+      setScreenShareConstraints({
+        frameRate: option.fps,
+      });
+      setFrameRateMenuAnchor(null);
+    },
+    [setScreenShareConstraints]
+  );
+
+  const handleScreenShareToggleClick = useCallback(() => {
+    if (isScreenSharing) {
+      void toggleScreenShare(false);
+      return;
+    }
+    setIsScreenShareDialogOpen(true);
+  }, [isScreenSharing, toggleScreenShare]);
+
+  const handleScreenShareDialogClose = useCallback(() => {
+    if (isStartingScreenShare) return;
+    setIsScreenShareDialogOpen(false);
+  }, [isStartingScreenShare]);
+
+  const handleScreenShareDialogConfirm = useCallback(
+    async (constraints: ScreenShareConstraints) => {
+      setIsStartingScreenShare(true);
+      try {
+        setScreenShareConstraints(constraints);
+        await toggleScreenShare(true);
+        setIsScreenShareDialogOpen(false);
+      } catch (error) {
+        toast.error("Failed to start screen sharing");
+        if (import.meta.env.DEV) {
+          console.error("Failed to start screen sharing", error);
+        }
+      } finally {
+        setIsStartingScreenShare(false);
+      }
+    },
+    [setScreenShareConstraints, toggleScreenShare]
+  );
 
   const presenceList = useMemo(() => {
     if (voice.currentChannelId) {
@@ -98,8 +212,8 @@ export default function ChatRoomScreenSharePanel({chatRoomId}: Props) {
       }
     >();
     voice.remoteVideoStreams.forEach(
-      ({connectionId, mediaType, stream, userId}) => {
-        const entry = map.get(connectionId) ?? {userId: userId ?? null};
+      ({ connectionId, mediaType, stream, userId }) => {
+        const entry = map.get(connectionId) ?? { userId: userId ?? null };
         entry[mediaType] = stream;
         if (userId != null) {
           entry.userId = userId;
@@ -131,8 +245,8 @@ export default function ChatRoomScreenSharePanel({chatRoomId}: Props) {
       const videoType = screenStream
         ? "screen"
         : cameraStream
-          ? "camera"
-          : undefined;
+        ? "camera"
+        : undefined;
 
       push({
         id,
@@ -162,8 +276,8 @@ export default function ChatRoomScreenSharePanel({chatRoomId}: Props) {
       const videoType = screenStream
         ? "screen"
         : cameraStream
-          ? "camera"
-          : undefined;
+        ? "camera"
+        : undefined;
 
       if (seen.has(id)) {
         if (!stream) return;
@@ -221,8 +335,8 @@ export default function ChatRoomScreenSharePanel({chatRoomId}: Props) {
       const videoType = localScreen
         ? "screen"
         : localCamera
-          ? "camera"
-          : undefined;
+        ? "camera"
+        : undefined;
 
       if (index >= 0) {
         items[index] = {
@@ -401,7 +515,7 @@ export default function ChatRoomScreenSharePanel({chatRoomId}: Props) {
     const nextLeft = Math.min(Math.max(rawLeft, 0), maxLeft);
     const nextTop = Math.min(Math.max(rawTop, 0), maxTop);
 
-    setPipPosition({left: nextLeft, top: nextTop});
+    setPipPosition({ left: nextLeft, top: nextTop });
   }, []);
 
   const handlePipPointerDown = useCallback(
@@ -462,7 +576,7 @@ export default function ChatRoomScreenSharePanel({chatRoomId}: Props) {
         const nextLeft = Math.min(Math.max(prev.left, 0), maxLeft);
         const nextTop = Math.min(Math.max(prev.top, 0), maxTop);
         if (nextLeft === prev.left && nextTop === prev.top) return prev;
-        return {left: nextLeft, top: nextTop};
+        return { left: nextLeft, top: nextTop };
       });
     });
 
@@ -515,9 +629,9 @@ export default function ChatRoomScreenSharePanel({chatRoomId}: Props) {
 
   const presenterName = selectedTile
     ? selectedTile.participant?.displayName ??
-    (selectedTile.isSelf
-      ? currentUser?.displayName ?? selectedTile.displayName
-      : selectedTile.displayName)
+      (selectedTile.isSelf
+        ? currentUser?.displayName ?? selectedTile.displayName
+        : selectedTile.displayName)
     : null;
 
   const presenterAvatar =
@@ -557,8 +671,8 @@ export default function ChatRoomScreenSharePanel({chatRoomId}: Props) {
   const renderMainContent = () => {
     if (selectedTile?.stream && hasActiveVideoTrack(selectedTile.stream)) {
       const pipPlacementStyles = pipPosition
-        ? {top: `${pipPosition.top}px`, left: `${pipPosition.left}px`}
-        : {bottom: "24px", right: "24px"};
+        ? { top: `${pipPosition.top}px`, left: `${pipPosition.left}px` }
+        : { bottom: "24px", right: "24px" };
 
       return (
         <Box
@@ -615,7 +729,7 @@ export default function ChatRoomScreenSharePanel({chatRoomId}: Props) {
                 muted
                 mirrored={Boolean(selectedTile?.isSelf)}
                 fit="cover"
-                style={{pointerEvents: "none"}}
+                style={{ pointerEvents: "none" }}
               />
             </Box>
           )}
@@ -681,13 +795,13 @@ export default function ChatRoomScreenSharePanel({chatRoomId}: Props) {
         boxShadow: "0 20px 40px rgba(0,0,0,0.35)",
       }}
     >
-      <Box sx={{flex: 1, position: "relative", display: "flex"}}>
+      <Box sx={{ flex: 1, position: "relative", display: "flex" }}>
         {renderMainContent()}
       </Box>
 
       <Fade
         in={isUiVisible && isScreenView}
-        timeout={{enter: 180, exit: 200}}
+        timeout={{ enter: 180, exit: 200 }}
       >
         <Box
           sx={{
@@ -714,15 +828,15 @@ export default function ChatRoomScreenSharePanel({chatRoomId}: Props) {
           >
             {channelLabel}
           </Typography>
-          <Box sx={{display: "flex", alignItems: "center", gap: 1.2}}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.2 }}>
             <Avatar
               src={presenterAvatar}
               alt={presenterName ?? "Screen"}
-              sx={{width: 36, height: 36}}
+              sx={{ width: 36, height: 36 }}
             >
               {presenterName?.charAt(0).toUpperCase() ?? "?"}
             </Avatar>
-            <Box sx={{minWidth: 0}}>
+            <Box sx={{ minWidth: 0 }}>
               <Typography variant="body2" fontWeight={600} color="#fff" noWrap>
                 {presenterName ?? "No active stream"}
               </Typography>
@@ -742,7 +856,7 @@ export default function ChatRoomScreenSharePanel({chatRoomId}: Props) {
 
       <Fade
         in={isUiVisible && isScreenView}
-        timeout={{enter: 180, exit: 200}}
+        timeout={{ enter: 180, exit: 200 }}
       >
         <Box
           sx={{
@@ -781,7 +895,7 @@ export default function ChatRoomScreenSharePanel({chatRoomId}: Props) {
         </Box>
       </Fade>
 
-      <Fade in={isUiVisible} timeout={{enter: 180, exit: 220}}>
+      <Fade in={isUiVisible} timeout={{ enter: 180, exit: 220 }}>
         <Box
           sx={{
             position: "absolute",
@@ -825,8 +939,8 @@ export default function ChatRoomScreenSharePanel({chatRoomId}: Props) {
                   tile.isSelf
                     ? voice.isSelfMuted
                     : tile.userId
-                      ? mutedParticipants.has(tile.userId)
-                      : false
+                    ? mutedParticipants.has(tile.userId)
+                    : false
                 }
               />
             ))}
@@ -842,7 +956,7 @@ export default function ChatRoomScreenSharePanel({chatRoomId}: Props) {
               px: 2,
             }}
           >
-            <Box sx={{display: "flex", alignItems: "center", gap: 1.5}}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
               <Tooltip
                 title={
                   voice.isSelfMuted ? "Unmute microphone" : "Mute microphone"
@@ -859,7 +973,7 @@ export default function ChatRoomScreenSharePanel({chatRoomId}: Props) {
                     disabled={!isConnected || voice.isJoining}
                     aria-label={voice.isSelfMuted ? "Unmute" : "Mute"}
                   >
-                    {voice.isSelfMuted ? <MicOff/> : <Mic/>}
+                    {voice.isSelfMuted ? <MicOff /> : <Mic />}
                   </IconButton>
                 </span>
               </Tooltip>
@@ -887,9 +1001,9 @@ export default function ChatRoomScreenSharePanel({chatRoomId}: Props) {
                     }
                   >
                     {isCameraEnabled ? (
-                      <VideocamOffRounded/>
+                      <VideocamOffRounded />
                     ) : (
-                      <VideocamRounded/>
+                      <VideocamRounded />
                     )}
                   </IconButton>
                 </span>
@@ -907,18 +1021,18 @@ export default function ChatRoomScreenSharePanel({chatRoomId}: Props) {
                       theme.palette.primary.light,
                       isScreenSharing
                     )}
-                    onClick={() => {
-                      void toggleScreenShare();
-                    }}
-                    disabled={!isConnected || voice.isJoining}
+                    onClick={handleScreenShareToggleClick}
+                    disabled={
+                      !isConnected || voice.isJoining || isStartingScreenShare
+                    }
                     aria-label={
                       isScreenSharing ? "Stop screen" : "Share screen"
                     }
                   >
                     {isScreenSharing ? (
-                      <StopScreenShareRounded/>
+                      <StopScreenShareRounded />
                     ) : (
-                      <ScreenShareRounded/>
+                      <ScreenShareRounded />
                     )}
                   </IconButton>
                 </span>
@@ -929,12 +1043,11 @@ export default function ChatRoomScreenSharePanel({chatRoomId}: Props) {
                   <IconButton
                     size="large"
                     sx={controlButtonBase(theme.palette.error.main, true)}
-                    onClick={() => voice.leave().catch(() => {
-                    })}
+                    onClick={() => voice.leave().catch(() => {})}
                     disabled={!isConnected || voice.isJoining}
                     aria-label="Disconnect"
                   >
-                    <CallEndRounded/>
+                    <CallEndRounded />
                   </IconButton>
                 </span>
               </Tooltip>
@@ -952,13 +1065,81 @@ export default function ChatRoomScreenSharePanel({chatRoomId}: Props) {
                     isFullscreen ? "Exit full screen" : "Enter full screen"
                   }
                 >
-                  {isFullscreen ? <FullscreenExit/> : <Fullscreen/>}
+                  {isFullscreen ? <FullscreenExit /> : <Fullscreen />}
                 </IconButton>
               </span>
             </Tooltip>
           </Box>
         </Box>
       </Fade>
+
+      <Menu
+        anchorEl={resolutionMenuAnchor}
+        open={isResolutionMenuOpen}
+        onClose={handleResolutionMenuClose}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        transformOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        {SCREEN_RESOLUTION_OPTIONS.map((option) => {
+          const selected = option.id === selectedResolutionOption.id;
+          return (
+            <MenuItem
+              key={option.id}
+              selected={selected}
+              onClick={() => handleResolutionSelect(option)}
+            >
+              <ListItemIcon
+                sx={{
+                  minWidth: 28,
+                  visibility: selected ? "visible" : "hidden",
+                  color: theme.palette.primary.main,
+                }}
+              >
+                <Check fontSize="small" />
+              </ListItemIcon>
+              <ListItemText primary={option.label} />
+            </MenuItem>
+          );
+        })}
+      </Menu>
+
+      <Menu
+        anchorEl={frameRateMenuAnchor}
+        open={isFrameRateMenuOpen}
+        onClose={handleFrameRateMenuClose}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        transformOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        {SCREEN_FRAME_RATE_OPTIONS.map((option) => {
+          const selected = option.id === selectedFrameRateOption.id;
+          return (
+            <MenuItem
+              key={option.id}
+              selected={selected}
+              onClick={() => handleFrameRateSelect(option)}
+            >
+              <ListItemIcon
+                sx={{
+                  minWidth: 28,
+                  visibility: selected ? "visible" : "hidden",
+                  color: theme.palette.primary.main,
+                }}
+              >
+                <Check fontSize="small" />
+              </ListItemIcon>
+              <ListItemText primary={option.label} />
+            </MenuItem>
+          );
+        })}
+      </Menu>
+
+      <ScreenShareSettingsDialog
+        open={isScreenShareDialogOpen}
+        initialConstraints={screenShareConstraints}
+        onCancel={handleScreenShareDialogClose}
+        onConfirm={handleScreenShareDialogConfirm}
+        isSubmitting={isStartingScreenShare}
+      />
     </Box>
   );
 }

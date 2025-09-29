@@ -1,4 +1,10 @@
-﻿import type {VoiceParticipant} from "../realtime/voiceHub";
+﻿import type { VoiceParticipant } from "../realtime/voiceHub";
+
+export type ScreenShareConstraints = {
+  width?: number;
+  height?: number;
+  frameRate?: number;
+};
 
 type RemoteAudioStreamInfo = {
   connectionId: string;
@@ -46,6 +52,7 @@ export type VoiceChannelSnapshot = {
   isSelfMuted: boolean;
   isSelfDeafened: boolean;
   pingMs: number | null;
+  screenShareConstraints: ScreenShareConstraints;
 };
 
 export type VoiceChannelState = VoiceChannelSnapshot & {
@@ -63,4 +70,5 @@ export type VoiceChannelState = VoiceChannelSnapshot & {
   startScreenShare: () => Promise<void>;
   stopScreenShare: () => Promise<void>;
   toggleScreenShare: (enabled?: boolean) => Promise<void>;
+  setScreenShareConstraints: (constraints: ScreenShareConstraints) => void;
 };
