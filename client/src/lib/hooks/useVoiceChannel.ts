@@ -75,6 +75,13 @@ class VoiceManager {
     string,
     { camera?: RTCRtpSender; screen?: RTCRtpSender }
   >();
+  private negotiationStates = new Map<
+    string,
+    {
+      busy: boolean;
+      pending: boolean;
+    }
+  >();
   private isCameraEnabled = false;
   private isScreenSharing = false;
   private currentChannelId: string | null = null;
@@ -309,11 +316,23 @@ class VoiceManager {
   };
 
   setScreenShareConstraints = (constraints: ScreenShareConstraints) => {
-    this.screenShareConstraints = {
-      ...this.screenShareConstraints,
+    const previous = this.screenShareConstraints;
+    const next: ScreenShareConstraints = {
+      ...previous,
       ...constraints,
     };
+
+    const changed =
+      (next.width ?? null) !== (previous.width ?? null) ||
+      (next.height ?? null) !== (previous.height ?? null) ||
+      (next.frameRate ?? null) !== (previous.frameRate ?? null);
+
+    this.screenShareConstraints = next;
     this.emit();
+
+    if (changed && this.isScreenSharing) {
+      void this.applyScreenShareConstraintsToActiveTrack();
+    }
   };
 
   join = async (channelId: string) => {
@@ -757,6 +776,8 @@ class VoiceManager {
       try {
         pc.onicecandidate = null;
         pc.ontrack = null;
+        pc.onnegotiationneeded = null;
+        pc.onsignalingstatechange = null;
         pc.close();
       } catch {
         // ignore close errors
@@ -765,6 +786,8 @@ class VoiceManager {
     }
 
     this.stopRemoteSpeakingMonitor(connectionId);
+
+    this.negotiationStates.delete(connectionId);
 
     this.remoteAudioStreams.delete(connectionId);
     const videoStreams = this.remoteVideoStreams.get(connectionId);
@@ -908,6 +931,15 @@ class VoiceManager {
     return entry;
   }
 
+  private getNegotiationState(connectionId: string) {
+    let state = this.negotiationStates.get(connectionId);
+    if (!state) {
+      state = { busy: false, pending: false };
+      this.negotiationStates.set(connectionId, state);
+    }
+    return state;
+  }
+
   private updateSenderStreams(
     sender: RTCRtpSender,
     stream: MediaStream | null
@@ -931,16 +963,58 @@ class VoiceManager {
 
   private stopPublishingLocalVideoTrack(type: "camera" | "screen") {
     this.videoSenders.forEach((entry, connectionId) => {
-      const sender = entry[type];
-      if (!sender) return;
-      this.updateSenderStreams(sender, null);
-      Promise.resolve(sender.replaceTrack(null)).catch((err) => {
+      const sender = entry?.[type];
+      if (!sender) {
+        return;
+      }
+
+      const finalizeRenegotiation = () => {
+        this.renegotiateConnection(connectionId);
+      };
+
+      try {
+        this.updateSenderStreams(sender, null);
+        const replaceResult = sender.replaceTrack(null);
+        Promise.resolve(replaceResult)
+          .then(() => {
+            finalizeRenegotiation();
+          })
+          .catch((err) => {
+            if (import.meta.env.DEV) {
+              console.warn("Failed to clear video track", err);
+            }
+            this.detachVideoSenderForConnection(connectionId, type);
+            finalizeRenegotiation();
+          });
+      } catch (err) {
         if (import.meta.env.DEV) {
-          console.warn("Failed to clear local video track", err);
+          console.warn("Failed to clear video track", err);
         }
         this.detachVideoSenderForConnection(connectionId, type);
-      });
+        finalizeRenegotiation();
+      }
     });
+  }
+
+  private async applyScreenShareConstraintsToActiveTrack() {
+    const stream = this.localScreenStream;
+    if (!stream) return;
+
+    const [track] = stream.getVideoTracks();
+    if (!track) return;
+
+    await this.applyPreferredTrackSettings("screen", track);
+
+    this.peerConnections.forEach((_, connectionId) => {
+      const entry = this.videoSenders.get(connectionId);
+      const sender = entry?.screen;
+      if (!sender) return;
+      this.updateSenderStreams(sender, stream);
+      this.configureVideoSender(connectionId, "screen", sender, track);
+      this.renegotiateConnection(connectionId);
+    });
+
+    this.emit();
   }
 
   private publishLocalVideoTrack(
@@ -953,33 +1027,177 @@ class VoiceManager {
       const existingSender = entry[type];
       if (existingSender) {
         this.updateSenderStreams(existingSender, stream);
-        Promise.resolve(existingSender.replaceTrack(track)).catch((err) => {
-          if (import.meta.env.DEV) {
-            console.warn("Failed to replace video track, retrying", err);
-          }
-          this.detachVideoSenderForConnection(connectionId, type);
-          try {
-            const sender = pc.addTrack(track, stream);
-            this.getVideoSenderEntry(connectionId)[type] = sender;
-            this.updateSenderStreams(sender, stream);
-          } catch (fallbackErr) {
+        Promise.resolve(existingSender.replaceTrack(track))
+          .then(() => {
+            this.configureVideoSender(
+              connectionId,
+              type,
+              existingSender,
+              track
+            );
+            this.renegotiateConnection(connectionId);
+          })
+          .catch((err) => {
             if (import.meta.env.DEV) {
-              console.warn("Failed to publish video track", fallbackErr);
+              console.warn("Failed to replace video track, retrying", err);
             }
-          }
-        });
+            this.detachVideoSenderForConnection(connectionId, type);
+            try {
+              const sender = pc.addTrack(track, stream);
+              this.getVideoSenderEntry(connectionId)[type] = sender;
+              this.updateSenderStreams(sender, stream);
+              this.configureVideoSender(connectionId, type, sender, track);
+              this.renegotiateConnection(connectionId);
+            } catch (fallbackErr) {
+              if (import.meta.env.DEV) {
+                console.warn("Failed to publish video track", fallbackErr);
+              }
+            }
+          });
         return;
       }
       try {
         const sender = pc.addTrack(track, stream);
         entry[type] = sender;
         this.updateSenderStreams(sender, stream);
+        this.configureVideoSender(connectionId, type, sender, track);
+        this.renegotiateConnection(connectionId);
       } catch (err) {
         if (import.meta.env.DEV) {
           console.warn("Failed to publish video track", err);
         }
       }
     });
+  }
+
+  private async applyPreferredTrackSettings(
+    type: "camera" | "screen",
+    track: MediaStreamTrack
+  ) {
+    if (type === "screen") {
+      const { width, height, frameRate } = this.screenShareConstraints;
+      const constraints: MediaTrackConstraints = {};
+      if (typeof width === "number" && width > 0) {
+        constraints.width = { ideal: width };
+      }
+      if (typeof height === "number" && height > 0) {
+        constraints.height = { ideal: height };
+      }
+      if (typeof frameRate === "number" && frameRate > 0) {
+        constraints.frameRate = { ideal: frameRate, max: frameRate };
+      }
+      if (Object.keys(constraints).length > 0) {
+        try {
+          await track.applyConstraints(constraints);
+        } catch (err) {
+          if (import.meta.env.DEV) {
+            console.warn("Failed to apply screen track constraints", err);
+          }
+        }
+      }
+      if ("contentHint" in track) {
+        try {
+          track.contentHint = "detail";
+        } catch {
+          // ignore unsupported
+        }
+      }
+    } else if ("contentHint" in track) {
+      try {
+        track.contentHint = "motion";
+      } catch {
+        // ignore unsupported
+      }
+    }
+  }
+
+  private configureVideoSender(
+    connectionId: string,
+    type: "camera" | "screen",
+    sender: RTCRtpSender,
+    track: MediaStreamTrack
+  ) {
+    const settings = this.safeGetTrackSettings(track);
+    const width =
+      settings.width ??
+      (type === "screen" ? this.screenShareConstraints.width : undefined);
+    const height =
+      settings.height ??
+      (type === "screen" ? this.screenShareConstraints.height : undefined);
+    const frameRate =
+      settings.frameRate ??
+      (type === "screen" ? this.screenShareConstraints.frameRate : undefined);
+
+    const params =
+      typeof sender.getParameters === "function" &&
+      typeof sender.setParameters === "function"
+        ? sender.getParameters()
+        : null;
+    if (!params) return;
+
+    if (!params.encodings || params.encodings.length === 0) {
+      params.encodings = [{}];
+    }
+    const encoding = params.encodings[0];
+    const maxBitrate = this.estimateVideoBitrate(
+      width,
+      height,
+      frameRate,
+      type
+    );
+    if (maxBitrate != null) {
+      encoding.maxBitrate = maxBitrate;
+    }
+
+    if (type === "screen") {
+      params.degradationPreference = "maintain-resolution";
+    } else if (!params.degradationPreference) {
+      params.degradationPreference = "balanced";
+    }
+
+    if (encoding.scaleResolutionDownBy === undefined) {
+      encoding.scaleResolutionDownBy = 1;
+    }
+
+    sender.setParameters(params).catch((err) => {
+      if (import.meta.env.DEV) {
+        console.warn(
+          `Failed to update RTP sender parameters for ${type} track ${connectionId}`,
+          err
+        );
+      }
+    });
+  }
+
+  private safeGetTrackSettings(track: MediaStreamTrack) {
+    try {
+      return track.getSettings() as MediaTrackSettings & {
+        width?: number;
+        height?: number;
+        frameRate?: number;
+      };
+    } catch {
+      return {};
+    }
+  }
+
+  private estimateVideoBitrate(
+    width?: number,
+    height?: number,
+    frameRate?: number,
+    type: "camera" | "screen" = "camera"
+  ): number | null {
+    const fallback = type === "screen" ? 8_000_000 : 2_500_000;
+    if (!width || !height) {
+      return fallback;
+    }
+    const fps = frameRate && frameRate > 0 ? frameRate : 30;
+    const pixelsPerSecond = width * height * fps;
+    const bitsPerPixel = type === "screen" ? 0.14 : 0.08;
+    const estimate = pixelsPerSecond * bitsPerPixel;
+    const min = type === "screen" ? 4_000_000 : 1_500_000;
+    const max = type === "screen" ? 25_000_000 : 12_000_000;
+    return Math.max(min, Math.min(estimate, max));
   }
 
   private detachVideoSenderForConnection(
@@ -1195,14 +1413,14 @@ class VoiceManager {
           const videoConstraints: MediaTrackConstraints = {
             frameRate:
               typeof frameRate === "number" && frameRate > 0
-                ? frameRate
+                ? { ideal: frameRate, max: frameRate }
                 : { ideal: 30, max: 60 },
           };
           if (typeof width === "number" && width > 0) {
-            videoConstraints.width = width;
+            videoConstraints.width = { ideal: width };
           }
           if (typeof height === "number" && height > 0) {
-            videoConstraints.height = height;
+            videoConstraints.height = { ideal: height };
           }
           stream = await mediaDevices.getDisplayMedia({
             video: videoConstraints,
@@ -1233,6 +1451,8 @@ class VoiceManager {
         });
         return;
       }
+
+      await this.applyPreferredTrackSettings(type, track);
 
       if (type === "camera" && this.localCameraStream) {
         const prevTrack = this.localCameraStream.getVideoTracks()[0];
@@ -1467,6 +1687,10 @@ class VoiceManager {
       this.renegotiateConnection(connectionId);
     };
 
+    pc.onsignalingstatechange = () => {
+      this.handleSignalingStateChange(connectionId);
+    };
+
     pc.onconnectionstatechange = () => {
       if (
         pc.connectionState === "disconnected" ||
@@ -1485,9 +1709,34 @@ class VoiceManager {
   private renegotiateConnection(connectionId: string) {
     const pc = this.peerConnections.get(connectionId);
     if (!pc) return;
+
+    if (pc.signalingState === "closed" || pc.connectionState === "closed") {
+      this.negotiationStates.delete(connectionId);
+      return;
+    }
+
+    const state = this.getNegotiationState(connectionId);
+
+    if (state.busy) {
+      state.pending = true;
+      return;
+    }
+
+    if (pc.signalingState !== "stable") {
+      state.pending = true;
+      return;
+    }
+
+    state.busy = true;
+    state.pending = false;
+
     (async () => {
       try {
         const offer = await pc.createOffer();
+        if (pc.signalingState !== "stable") {
+          state.pending = true;
+          return;
+        }
         await pc.setLocalDescription(offer);
         await sendOffer(connectionId, {
           type: offer.type,
@@ -1497,8 +1746,36 @@ class VoiceManager {
         if (import.meta.env.DEV) {
           console.error("Failed to renegotiate connection", err);
         }
+        state.pending = true;
+      } finally {
+        state.busy = false;
+        if (state.pending) {
+          state.pending = false;
+          this.renegotiateConnection(connectionId);
+        }
       }
     })();
+  }
+
+  private handleSignalingStateChange(connectionId: string) {
+    const pc = this.peerConnections.get(connectionId);
+    if (!pc) {
+      this.negotiationStates.delete(connectionId);
+      return;
+    }
+
+    if (pc.signalingState === "closed") {
+      this.negotiationStates.delete(connectionId);
+      return;
+    }
+
+    if (pc.signalingState === "stable") {
+      const state = this.negotiationStates.get(connectionId);
+      if (state && state.pending && !state.busy) {
+        state.pending = false;
+        this.renegotiateConnection(connectionId);
+      }
+    }
   }
 
   private setChannelPresence(

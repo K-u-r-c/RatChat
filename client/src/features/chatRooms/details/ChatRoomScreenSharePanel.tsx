@@ -1,5 +1,6 @@
 import {
   type PointerEvent as ReactPointerEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -75,14 +76,25 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
   const uiHideTimerRef = useRef<number | null>(null);
   const screenContentRef = useRef<HTMLDivElement | null>(null);
   const pipRef = useRef<HTMLDivElement | null>(null);
-  const pipDragStateRef = useRef({ isDragging: false, offsetX: 0, offsetY: 0 });
+  const pipDragStateRef = useRef({
+    isDragging: false,
+    hasMoved: false,
+    startX: 0,
+    startY: 0,
+    offsetX: 0,
+    offsetY: 0,
+  });
   const activePointerIdRef = useRef<number | null>(null);
   const [pipPosition, setPipPosition] = useState<{
     left: number;
     top: number;
   } | null>(null);
   const [isPipDragging, setIsPipDragging] = useState(false);
-  const lastCameraStreamIdRef = useRef<string | null>(null);
+  const lastSecondaryStreamIdRef = useRef<string | null>(null);
+  const lastPrimaryTileIdRef = useRef<string | null>(null);
+  const [primaryMediaMode, setPrimaryMediaMode] = useState<
+    "screen" | "camera" | null
+  >(null);
   const [resolutionMenuAnchor, setResolutionMenuAnchor] =
     useState<HTMLElement | null>(null);
   const [frameRateMenuAnchor, setFrameRateMenuAnchor] =
@@ -376,30 +388,158 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
     localScreenStream,
   ]);
 
+  const screenTiles = useMemo(
+    () => tiles.filter((tile) => tile.videoType === "screen"),
+    [tiles]
+  );
+
+  const primaryScreenTile = useMemo(() => {
+    if (screenTiles.length === 0) return null;
+    const active = screenTiles.find((tile) =>
+      tile.stream ? hasActiveVideoTrack(tile.stream) : false
+    );
+    return active ?? screenTiles[0];
+  }, [screenTiles]);
+
   useEffect(() => {
-    if (selectedTileId && tiles.some((tile) => tile.id === selectedTileId))
+    const current = selectedTileId
+      ? tiles.find((tile) => tile.id === selectedTileId) ?? null
+      : null;
+
+    if (primaryScreenTile) {
+      if (!current || current.id !== primaryScreenTile.id) {
+        setSelectedTileId(primaryScreenTile.id);
+      }
       return;
-    if (tiles.length > 0) {
-      const preferred =
-        tiles.find((tile) => tile.videoType === "screen") ?? tiles[0];
-      setSelectedTileId(preferred.id);
-    } else {
-      setSelectedTileId(null);
     }
-  }, [tiles, selectedTileId]);
+
+    if (tiles.length === 0) {
+      if (selectedTileId !== null) {
+        setSelectedTileId(null);
+      }
+      return;
+    }
+
+    if (!current) {
+      setSelectedTileId(tiles[0].id);
+    }
+  }, [tiles, selectedTileId, primaryScreenTile]);
 
   const selectedTile = useMemo(
     () => tiles.find((tile) => tile.id === selectedTileId) ?? null,
     [tiles, selectedTileId]
   );
 
-  const isScreenView = selectedTile?.videoType === "screen";
-  const floatingCameraStream = isScreenView
-    ? selectedTile?.cameraStream ?? null
-    : null;
-  const shouldShowFloatingCamera = Boolean(
-    floatingCameraStream && hasActiveVideoTrack(floatingCameraStream)
+  const hasAnyScreenTile = screenTiles.length > 0;
+
+  const handleTileSelect = useCallback(
+    (tile: ParticipantTileData) => {
+      if (hasAnyScreenTile && tile.videoType !== "screen") {
+        return;
+      }
+      setSelectedTileId(tile.id);
+    },
+    [hasAnyScreenTile]
   );
+
+  const screenStream = selectedTile?.screenStream ?? null;
+  const cameraStream = selectedTile?.cameraStream ?? null;
+  const activeScreenStream =
+    screenStream && hasActiveVideoTrack(screenStream) ? screenStream : null;
+  const activeCameraStream =
+    cameraStream && hasActiveVideoTrack(cameraStream) ? cameraStream : null;
+  const fallbackPrimaryStream =
+    selectedTile?.stream && hasActiveVideoTrack(selectedTile.stream)
+      ? selectedTile.stream
+      : null;
+
+  const effectivePrimaryMode: "screen" | "camera" | null =
+    primaryMediaMode ??
+    (activeScreenStream
+      ? "screen"
+      : activeCameraStream
+      ? "camera"
+      : selectedTile?.videoType === "screen"
+      ? "screen"
+      : selectedTile?.videoType === "camera"
+      ? "camera"
+      : null);
+
+  const primaryStream =
+    effectivePrimaryMode === "screen"
+      ? activeScreenStream ?? fallbackPrimaryStream
+      : effectivePrimaryMode === "camera"
+      ? activeCameraStream ?? fallbackPrimaryStream
+      : fallbackPrimaryStream;
+
+  const secondaryStreamInfo = useMemo(() => {
+    if (!selectedTile) return null;
+
+    if (effectivePrimaryMode === "screen") {
+      return activeCameraStream
+        ? { stream: activeCameraStream, type: "camera" as const }
+        : null;
+    }
+
+    if (effectivePrimaryMode === "camera") {
+      return activeScreenStream
+        ? { stream: activeScreenStream, type: "screen" as const }
+        : null;
+    }
+
+    if (activeScreenStream && activeCameraStream) {
+      return { stream: activeCameraStream, type: "camera" as const };
+    }
+
+    return null;
+  }, [
+    selectedTile,
+    effectivePrimaryMode,
+    activeCameraStream,
+    activeScreenStream,
+  ]);
+
+  const isScreenView = effectivePrimaryMode === "screen";
+  const shouldShowSecondaryVideo = Boolean(secondaryStreamInfo);
+  const canSwapPrimarySecondary = Boolean(
+    activeScreenStream && activeCameraStream
+  );
+
+  useEffect(() => {
+    const tileId = selectedTile?.id ?? null;
+    const hasScreen = Boolean(activeScreenStream);
+    const hasCamera = Boolean(activeCameraStream);
+
+    if (!tileId) {
+      lastPrimaryTileIdRef.current = null;
+      setPrimaryMediaMode(null);
+      return;
+    }
+
+    setPrimaryMediaMode((prev) => {
+      if (lastPrimaryTileIdRef.current !== tileId) {
+        lastPrimaryTileIdRef.current = tileId;
+        if (hasScreen) return "screen";
+        if (hasCamera) return "camera";
+        return null;
+      }
+
+      if (prev === "screen" && !hasScreen) {
+        return hasCamera ? "camera" : null;
+      }
+
+      if (prev === "camera" && !hasCamera) {
+        return hasScreen ? "screen" : null;
+      }
+
+      if (prev == null) {
+        if (hasScreen) return "screen";
+        if (hasCamera) return "camera";
+      }
+
+      return prev;
+    });
+  }, [selectedTile?.id, activeScreenStream, activeCameraStream]);
 
   const dominantColor = useDominantColor(
     selectedTile?.avatarUrl,
@@ -418,15 +558,15 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
 
   useEffect(() => {
     if (
-      !selectedTile?.stream ||
-      !hasActiveVideoTrack(selectedTile.stream) ||
-      selectedTile.videoType !== "screen"
+      !primaryStream ||
+      !hasActiveVideoTrack(primaryStream) ||
+      effectivePrimaryMode !== "screen"
     ) {
       setVideoInfo(null);
       return;
     }
 
-    const stream = selectedTile.stream;
+    const stream = primaryStream;
     const update = () => {
       const [track] = stream.getVideoTracks();
       if (!track) {
@@ -448,29 +588,35 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
     update();
     const intervalId = window.setInterval(update, 4000);
     return () => window.clearInterval(intervalId);
-  }, [selectedTile?.stream, selectedTile?.videoType]);
+  }, [primaryStream, effectivePrimaryMode]);
+
+  const togglePrimaryMediaMode = useCallback(() => {
+    if (!canSwapPrimarySecondary) return;
+    setPrimaryMediaMode((prev) => (prev === "camera" ? "screen" : "camera"));
+  }, [canSwapPrimarySecondary]);
 
   useEffect(() => {
     const resetDragState = () => {
       pipDragStateRef.current.isDragging = false;
+      pipDragStateRef.current.hasMoved = false;
       activePointerIdRef.current = null;
       setIsPipDragging(false);
     };
 
-    if (!isScreenView) {
+    const currentId = secondaryStreamInfo?.stream.id ?? null;
+    if (!secondaryStreamInfo) {
       resetDragState();
-      lastCameraStreamIdRef.current = null;
+      lastSecondaryStreamIdRef.current = null;
       setPipPosition(null);
       return;
     }
 
-    const currentId = floatingCameraStream?.id ?? null;
-    if (currentId !== lastCameraStreamIdRef.current) {
+    if (currentId !== lastSecondaryStreamIdRef.current) {
       resetDragState();
-      lastCameraStreamIdRef.current = currentId;
+      lastSecondaryStreamIdRef.current = currentId;
       setPipPosition(null);
     }
-  }, [isScreenView, floatingCameraStream, selectedTile?.id]);
+  }, [secondaryStreamInfo, selectedTile?.id]);
 
   const hideUiAfterDelay = useCallback(() => {
     if (uiHideTimerRef.current) window.clearTimeout(uiHideTimerRef.current);
@@ -520,7 +666,7 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
 
   const handlePipPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (!shouldShowFloatingCamera) return;
+      if (!shouldShowSecondaryVideo) return;
       if (!screenContentRef.current || !pipRef.current) return;
 
       event.preventDefault();
@@ -528,20 +674,37 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
       handlePointerActivity();
 
       const rect = pipRef.current.getBoundingClientRect();
-      pipDragStateRef.current.isDragging = true;
-      pipDragStateRef.current.offsetX = event.clientX - rect.left;
-      pipDragStateRef.current.offsetY = event.clientY - rect.top;
+      const state = pipDragStateRef.current;
+      state.isDragging = true;
+      state.hasMoved = false;
+      state.startX = event.clientX;
+      state.startY = event.clientY;
+      state.offsetX = event.clientX - rect.left;
+      state.offsetY = event.clientY - rect.top;
+
       activePointerIdRef.current = event.pointerId;
       setIsPipDragging(true);
       pipRef.current.setPointerCapture?.(event.pointerId);
     },
-    [handlePointerActivity, shouldShowFloatingCamera]
+    [handlePointerActivity, shouldShowSecondaryVideo]
   );
 
   const handlePipPointerMove = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (!pipDragStateRef.current.isDragging) return;
+      const state = pipDragStateRef.current;
+      if (!state.isDragging) return;
       if (activePointerIdRef.current !== event.pointerId) return;
+
+      const deltaX = Math.abs(event.clientX - state.startX);
+      const deltaY = Math.abs(event.clientY - state.startY);
+
+      if (!state.hasMoved) {
+        if (deltaX > 3 || deltaY > 3) {
+          state.hasMoved = true;
+        } else {
+          return;
+        }
+      }
 
       event.preventDefault();
       updatePipPosition(event.clientX, event.clientY);
@@ -553,16 +716,35 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
     (event: ReactPointerEvent<HTMLDivElement>) => {
       if (activePointerIdRef.current !== event.pointerId) return;
 
-      pipDragStateRef.current.isDragging = false;
+      const state = pipDragStateRef.current;
+      const wasDragging = state.hasMoved;
+
+      state.isDragging = false;
+      state.hasMoved = false;
       activePointerIdRef.current = null;
       setIsPipDragging(false);
       pipRef.current?.releasePointerCapture?.(event.pointerId);
+
+      if (!wasDragging && canSwapPrimarySecondary) {
+        togglePrimaryMediaMode();
+      }
     },
-    []
+    [canSwapPrimarySecondary, togglePrimaryMediaMode]
+  );
+
+  const handlePipKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (!canSwapPrimarySecondary) return;
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        togglePrimaryMediaMode();
+      }
+    },
+    [canSwapPrimarySecondary, togglePrimaryMediaMode]
   );
 
   useEffect(() => {
-    if (!isScreenView) return;
+    if (!shouldShowSecondaryVideo) return;
     const container = screenContentRef.current;
     if (!container || typeof ResizeObserver === "undefined") return;
 
@@ -583,7 +765,7 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
     observer.observe(container);
 
     return () => observer.disconnect();
-  }, [isScreenView, shouldShowFloatingCamera]);
+  }, [shouldShowSecondaryVideo]);
 
   useEffect(() => {
     const onFullscreenChange = () => {
@@ -668,8 +850,16 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
     },
   });
 
+  const secondaryStreamType = secondaryStreamInfo?.type;
+  const pipAriaLabel =
+    secondaryStreamType === "camera"
+      ? "Show camera on main stage"
+      : secondaryStreamType === "screen"
+      ? "Show screen share on main stage"
+      : "Secondary stream preview";
+
   const renderMainContent = () => {
-    if (selectedTile?.stream && hasActiveVideoTrack(selectedTile.stream)) {
+    if (primaryStream && hasActiveVideoTrack(primaryStream)) {
       const pipPlacementStyles = pipPosition
         ? { top: `${pipPosition.top}px`, left: `${pipPosition.left}px` }
         : { bottom: "24px", right: "24px" };
@@ -690,17 +880,18 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
           }}
         >
           <MediaStreamVideo
-            stream={selectedTile.stream}
+            stream={primaryStream}
             muted
             fit={isScreenView ? "contain" : "cover"}
           />
-          {shouldShowFloatingCamera && (
+          {shouldShowSecondaryVideo && (
             <Box
               ref={pipRef}
               onPointerDown={handlePipPointerDown}
               onPointerMove={handlePipPointerMove}
               onPointerUp={handlePipPointerUp}
               onPointerCancel={handlePipPointerUp}
+              onKeyDown={handlePipKeyDown}
               sx={{
                 position: "absolute",
                 width: "min(240px, 26vw)",
@@ -720,15 +911,19 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
                 zIndex: theme.zIndex.modal,
                 ...pipPlacementStyles,
               }}
-              aria-label="Camera preview"
+              aria-label={pipAriaLabel}
               aria-grabbed={isPipDragging}
-              role="button"
+              role={canSwapPrimarySecondary ? "button" : undefined}
+              tabIndex={canSwapPrimarySecondary ? 0 : undefined}
             >
               <MediaStreamVideo
-                stream={floatingCameraStream ?? undefined}
+                stream={secondaryStreamInfo?.stream}
                 muted
-                mirrored={Boolean(selectedTile?.isSelf)}
-                fit="cover"
+                mirrored={
+                  secondaryStreamType === "camera" &&
+                  Boolean(selectedTile?.isSelf)
+                }
+                fit={secondaryStreamType === "screen" ? "contain" : "cover"}
                 style={{ pointerEvents: "none" }}
               />
             </Box>
@@ -931,7 +1126,7 @@ export default function ChatRoomScreenSharePanel({ chatRoomId }: Props) {
                 key={tile.id}
                 tile={tile}
                 isSelected={tile.id === selectedTileId}
-                onSelect={() => setSelectedTileId(tile.id)}
+                onSelect={() => handleTileSelect(tile)}
                 isActiveSpeaker={
                   tile.userId ? activeSpeakers.has(tile.userId) : false
                 }

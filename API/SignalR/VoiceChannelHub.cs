@@ -251,7 +251,9 @@ public class VoiceChannelHub(
             UserId = participant.UserId,
             DisplayName = participant.DisplayName,
             Slug = participant.Slug,
-            ImageUrl = participant.ImageUrl
+            ImageUrl = participant.ImageUrl,
+            IsCameraEnabled = participant.IsCameraEnabled,
+            IsScreenSharing = participant.IsScreenSharing
         };
     }
 }
