@@ -1,5 +1,6 @@
 using API.DTOs.Voice;
 using Application.Interfaces;
+using Application.VoiceChannels.Models;
 using Domain.Enums;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -93,7 +94,8 @@ public class VoiceChannelHub(
             Slug = user.Slug,
             ImageUrl = user.ImageUrl,
             ChatRoomId = channel.ChatRoomId,
-            ChannelId = channel.Id
+            ChannelId = channel.Id,
+            IsMuted = false
         };
 
         var joinResult = presenceService.JoinChannel(channel.Id, participant);
@@ -180,6 +182,29 @@ public class VoiceChannelHub(
             });
     }
 
+    public async Task UpdateMediaState(VoiceMediaStateUpdateDto state)
+    {
+        if (!presenceService.TryGetConnection(Context.ConnectionId, out var participant))
+            throw new HubException("You are not connected to a voice channel");
+
+        presenceService.UpdateMediaState(Context.ConnectionId, state.IsCameraEnabled, state.IsScreenSharing, state.IsMuted);
+
+        var payload = new VoiceMediaStateDto
+        {
+            ConnectionId = Context.ConnectionId,
+            IsCameraEnabled = state.IsCameraEnabled,
+            IsScreenSharing = state.IsScreenSharing,
+            IsMuted = state.IsMuted
+        };
+
+        await Clients.Group(GetGroupName(participant.ChannelId)).SendAsync(
+            "PeerMediaStateChanged",
+            payload
+        );
+
+        await NotifyChannelPresenceChanged(participant.ChatRoomId, participant.ChannelId);
+    }
+
     private async Task NotifyChannelPresenceChanged(string chatRoomId, string channelId)
     {
         var participants = presenceService
@@ -228,7 +253,10 @@ public class VoiceChannelHub(
             UserId = participant.UserId,
             DisplayName = participant.DisplayName,
             Slug = participant.Slug,
-            ImageUrl = participant.ImageUrl
+            ImageUrl = participant.ImageUrl,
+            IsCameraEnabled = participant.IsCameraEnabled,
+            IsScreenSharing = participant.IsScreenSharing,
+            IsMuted = participant.IsMuted
         };
     }
 }

@@ -107,7 +107,7 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
 
   const startResize = (e: React.MouseEvent) => {
     dragRef.current = {startX: e.clientX, startWidth: rightPanelWidth};
-    const onMove = (ev: MouseEvent) => {
+    const onMove = (ev: globalThis.MouseEvent) => {
       if (!dragRef.current) return;
       const dx = dragRef.current.startX - ev.clientX;
       const next = Math.min(
@@ -159,31 +159,32 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
           minWidth: 0,
         }}
       >
-        {/* Header (dummy for now) */}
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            borderBottom: "1px solid",
-            borderColor: "divider",
-            p: 1,
-            gap: 1,
-            flexWrap: "wrap",
-          }}
-        >
-          <Typography variant="h6" fontWeight="bold" noWrap>
-            {chatRoom.title}
-          </Typography>
-          <Box sx={{display: "flex", alignItems: "center", gap: 1}}>
-            <TextField
-              size="small"
-              placeholder="Search (dummy)"
-              sx={{width: 320}}
-              disabled
-            />
+        {!isScreenShareView && (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              borderBottom: "1px solid",
+              borderColor: "divider",
+              p: 1,
+              gap: 1,
+              flexWrap: "wrap",
+            }}
+          >
+            <Typography variant="h6" fontWeight="bold" noWrap>
+              {chatRoom.title}
+            </Typography>
+            <Box sx={{display: "flex", alignItems: "center", gap: 1}}>
+              <TextField
+                size="small"
+                placeholder="Search (dummy)"
+                sx={{width: 320}}
+                disabled
+              />
+            </Box>
           </Box>
-        </Box>
+        )}
 
         <Box sx={{flex: 1, minHeight: 0, display: "flex", flexDirection: "column"}}>
           {isScreenShareView ? (

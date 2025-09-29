@@ -1,9 +1,22 @@
 ﻿import type { VoiceParticipant } from "../realtime/voiceHub";
 
-type RemoteStreamInfo = {
+export type ScreenShareConstraints = {
+  width?: number;
+  height?: number;
+  frameRate?: number;
+};
+
+type RemoteAudioStreamInfo = {
   connectionId: string;
   stream: MediaStream;
   userId: string | null;
+};
+
+type RemoteVideoStreamInfo = {
+  connectionId: string;
+  stream: MediaStream;
+  userId: string | null;
+  mediaType: "camera" | "screen";
 };
 
 export type LeaveOptions = {
@@ -25,7 +38,12 @@ export type VoiceChannelSnapshot = {
   participants: VoiceParticipant[];
   allParticipants: VoiceParticipant[];
   presenceByChannel: Record<string, VoiceParticipant[]>;
-  remoteStreams: RemoteStreamInfo[];
+  remoteAudioStreams: RemoteAudioStreamInfo[];
+  remoteVideoStreams: RemoteVideoStreamInfo[];
+  localCameraStream: MediaStream | null;
+  localScreenStream: MediaStream | null;
+  isCameraEnabled: boolean;
+  isScreenSharing: boolean;
   participantVolumes: Record<string, number>;
   mutedParticipantIds: string[];
   activeSpeakers: string[];
@@ -34,6 +52,7 @@ export type VoiceChannelSnapshot = {
   isSelfMuted: boolean;
   isSelfDeafened: boolean;
   pingMs: number | null;
+  screenShareConstraints: ScreenShareConstraints;
 };
 
 export type VoiceChannelState = VoiceChannelSnapshot & {
@@ -45,4 +64,11 @@ export type VoiceChannelState = VoiceChannelSnapshot & {
   toggleSelfDeafened: () => void;
   join: (channelId: string) => Promise<void>;
   leave: (options?: LeaveOptions) => Promise<void>;
+  startCamera: () => Promise<void>;
+  stopCamera: () => Promise<void>;
+  toggleCamera: (enabled?: boolean) => Promise<void>;
+  startScreenShare: () => Promise<void>;
+  stopScreenShare: () => Promise<void>;
+  toggleScreenShare: (enabled?: boolean) => Promise<void>;
+  setScreenShareConstraints: (constraints: ScreenShareConstraints) => void;
 };

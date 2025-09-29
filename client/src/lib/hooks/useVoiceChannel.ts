@@ -1,4 +1,4 @@
-import {useEffect, useSyncExternalStore} from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import {
   type IceCandidatePayload,
   joinVoiceChannel as joinVoiceChannelHub,
@@ -12,10 +12,12 @@ import {
   startVoiceHub,
   stopVoiceHub,
   unwatchChatRoom,
+  updateMediaState,
   type VoiceChannelJoinResponse,
   type VoiceChannelPresence,
   type VoiceChannelPresenceSnapshot,
   type VoiceIceCandidateMessage,
+  type VoiceMediaState,
   type VoiceParticipant,
   type VoicePeerUpdate,
   type VoiceSignalMessage,
@@ -25,18 +27,25 @@ import {
 import type {
   LeaveOptions,
   LocalSpeakingMonitor,
+  ScreenShareConstraints,
   SpeakingMonitor,
   VoiceChannelSnapshot,
   VoiceChannelState,
 } from "../types/voiceChannel";
 
-export type {VoiceChannelState} from "../types/voiceChannel";
+export type { VoiceChannelState } from "../types/voiceChannel";
 
 const ICE_SERVERS: RTCConfiguration["iceServers"] = [
-  {urls: "stun:stun.l.google.com:19302"},
+  { urls: "stun:stun.l.google.com:19302" },
 ];
 const PING_REFRESH_INTERVAL_MS = 5000;
 const PING_HTTP_TIMEOUT_MS = 2000;
+
+const DEFAULT_SCREEN_SHARE_CONSTRAINTS: ScreenShareConstraints = {
+  width: 1920,
+  height: 1080,
+  frameRate: 30,
+};
 
 type MaybeNetworkInformation = {
   rtt?: number;
@@ -50,9 +59,31 @@ type NavigatorWithConnection = Navigator & {
 
 class VoiceManager {
   private participants = new Map<string, VoiceParticipant>();
-  private remoteStreams = new Map<string, MediaStream>();
+  private remoteAudioStreams = new Map<string, MediaStream>();
+  private remoteVideoStreams = new Map<
+    string,
+    Map<"camera" | "screen", MediaStream>
+  >();
+  private remoteVideoStreamTypes = new Map<string, "camera" | "screen">();
   private peerConnections = new Map<string, RTCPeerConnection>();
-  private localStream: MediaStream | null = null;
+  private localMicrophoneStream: MediaStream | null = null;
+  private localCameraStream: MediaStream | null = null;
+  private localScreenStream: MediaStream | null = null;
+  private localCameraEndedHandler: (() => void) | null = null;
+  private localScreenEndedHandler: (() => void) | null = null;
+  private videoSenders = new Map<
+    string,
+    { camera?: RTCRtpSender; screen?: RTCRtpSender }
+  >();
+  private negotiationStates = new Map<
+    string,
+    {
+      busy: boolean;
+      pending: boolean;
+    }
+  >();
+  private isCameraEnabled = false;
+  private isScreenSharing = false;
   private currentChannelId: string | null = null;
   private channelPresence = new Map<string, Map<string, VoiceParticipant>>();
   private participantVolumes = new Map<string, number>();
@@ -64,6 +95,7 @@ class VoiceManager {
   private isJoining = false;
   private error: string | null = null;
   private currentUserId: string | null = null;
+  private selfConnectionId: string | null = null;
   private selfMuted = false;
   private selfDeafened = false;
   private selfMutedBeforeDeafen: boolean | null = null;
@@ -72,6 +104,9 @@ class VoiceManager {
   private pingHttpAbortController: AbortController | null = null;
   private pingTargets: string[] | null = null;
   private pingMs: number | null = null;
+  private screenShareConstraints: ScreenShareConstraints = {
+    ...DEFAULT_SCREEN_SHARE_CONSTRAINTS,
+  };
 
   private listeners = new Set<() => void>();
 
@@ -92,7 +127,12 @@ class VoiceManager {
     participants: [],
     allParticipants: [],
     presenceByChannel: {},
-    remoteStreams: [],
+    remoteAudioStreams: [],
+    remoteVideoStreams: [],
+    localCameraStream: null,
+    localScreenStream: null,
+    isCameraEnabled: false,
+    isScreenSharing: false,
     participantVolumes: {},
     mutedParticipantIds: [],
     activeSpeakers: [],
@@ -101,6 +141,9 @@ class VoiceManager {
     isSelfMuted: false,
     isSelfDeafened: false,
     pingMs: null,
+    screenShareConstraints: {
+      ...DEFAULT_SCREEN_SHARE_CONSTRAINTS,
+    },
   };
 
   subscribe = (listener: () => void) => {
@@ -118,7 +161,12 @@ class VoiceManager {
         participants: this.getUniqueParticipants(),
         allParticipants: Array.from(this.participants.values()),
         presenceByChannel: this.buildPresenceMap(),
-        remoteStreams: this.buildRemoteStreams(),
+        remoteAudioStreams: this.buildRemoteAudioStreams(),
+        remoteVideoStreams: this.buildRemoteVideoStreams(),
+        localCameraStream: this.localCameraStream,
+        localScreenStream: this.localScreenStream,
+        isCameraEnabled: this.isCameraEnabled,
+        isScreenSharing: this.isScreenSharing,
         participantVolumes: this.buildParticipantVolumeRecord(),
         mutedParticipantIds: Array.from(this.participantMute),
         activeSpeakers: Array.from(this.activeSpeakers),
@@ -127,6 +175,9 @@ class VoiceManager {
         isSelfMuted: this.selfMuted,
         isSelfDeafened: this.selfDeafened,
         pingMs: this.pingMs,
+        screenShareConstraints: {
+          ...this.screenShareConstraints,
+        },
       };
       this._snapshotVersion = this._version;
     }
@@ -148,8 +199,7 @@ class VoiceManager {
   trackChatRoomPresence = (chatRoomId: string | null) => {
     if (!chatRoomId) {
       this.releasePresenceWatch();
-      return () => {
-      };
+      return () => {};
     }
 
     const id = chatRoomId;
@@ -208,8 +258,14 @@ class VoiceManager {
     if (!this.selfDeafened) {
       this.selfMutedBeforeDeafen = null;
     }
+    if (this.selfConnectionId) {
+      this.applyParticipantMediaState(this.selfConnectionId, {
+        isMuted: this.selfMuted,
+      });
+    }
     this.applyLocalMuteState();
     this.emit();
+    void this.syncMediaState();
   };
 
   toggleSelfMute = () => {
@@ -231,12 +287,64 @@ class VoiceManager {
       this.selfMuted = restore;
       this.selfMutedBeforeDeafen = null;
     }
+    if (this.selfConnectionId) {
+      this.applyParticipantMediaState(this.selfConnectionId, {
+        isMuted: this.selfMuted,
+      });
+    }
     this.applyLocalMuteState();
     this.emit();
+    void this.syncMediaState();
   };
 
   toggleSelfDeafened = () => {
     this.setSelfDeafened(!this.selfDeafened);
+  };
+
+  startCamera = async () => {
+    await this.setLocalVideoEnabled("camera", true);
+  };
+
+  stopCamera = async () => {
+    await this.setLocalVideoEnabled("camera", false);
+  };
+
+  toggleCamera = async (enabled?: boolean) => {
+    const next = typeof enabled === "boolean" ? enabled : !this.isCameraEnabled;
+    await this.setLocalVideoEnabled("camera", next);
+  };
+
+  startScreenShare = async () => {
+    await this.setLocalVideoEnabled("screen", true);
+  };
+
+  stopScreenShare = async () => {
+    await this.setLocalVideoEnabled("screen", false);
+  };
+
+  toggleScreenShare = async (enabled?: boolean) => {
+    const next = typeof enabled === "boolean" ? enabled : !this.isScreenSharing;
+    await this.setLocalVideoEnabled("screen", next);
+  };
+
+  setScreenShareConstraints = (constraints: ScreenShareConstraints) => {
+    const previous = this.screenShareConstraints;
+    const next: ScreenShareConstraints = {
+      ...previous,
+      ...constraints,
+    };
+
+    const changed =
+      (next.width ?? null) !== (previous.width ?? null) ||
+      (next.height ?? null) !== (previous.height ?? null) ||
+      (next.frameRate ?? null) !== (previous.frameRate ?? null);
+
+    this.screenShareConstraints = next;
+    this.emit();
+
+    if (changed && this.isScreenSharing) {
+      void this.applyScreenShareConstraintsToActiveTrack();
+    }
   };
 
   join = async (channelId: string) => {
@@ -255,9 +363,9 @@ class VoiceManager {
 
     try {
       await this.ensureHub();
-      await this.leave({keepLocalStream: true});
+      await this.leave({ keepLocalStream: true });
 
-      const stream = await this.ensureLocalStream();
+      const stream = await this.ensureLocalMicrophoneStream();
       if (!stream) throw new Error("Unable to access microphone");
 
       const response: VoiceChannelJoinResponse = await joinVoiceChannelHub(
@@ -269,10 +377,20 @@ class VoiceManager {
         this.participants.set(participant.connectionId, participant);
       }
 
+      this.selfConnectionId = response.selfConnectionId;
+      if (this.selfConnectionId) {
+        this.applyParticipantMediaState(this.selfConnectionId, {
+          isCameraEnabled: this.isCameraEnabled,
+          isScreenSharing: this.isScreenSharing,
+          isMuted: this.selfMuted,
+        });
+      }
+
       this.currentChannelId = response.channelId;
       this.setChannelPresence(response.channelId, response.participants);
       this.ensurePingMonitor(true);
       this.emit();
+      void this.syncMediaState();
 
       for (const participant of response.participants) {
         if (participant.connectionId === response.selfConnectionId) continue;
@@ -294,7 +412,7 @@ class VoiceManager {
     } catch (err) {
       if (import.meta.env.DEV) console.error(err);
       this.setError("Unable to join the voice channel");
-      await this.leave({keepLocalStream: false});
+      await this.leave({ keepLocalStream: false });
     } finally {
       this.isJoining = false;
       this.emit();
@@ -304,9 +422,12 @@ class VoiceManager {
   leave = async (options: LeaveOptions = {}) => {
     const keepLocalStream = options.keepLocalStream ?? false;
 
+    await this.setLocalVideoEnabled("screen", false, false);
+    await this.setLocalVideoEnabled("camera", false, false);
+
     if (!this.currentChannelId) {
       if (!keepLocalStream) {
-        this.releaseLocalStream();
+        this.releaseLocalMicrophoneStream();
       }
       return;
     }
@@ -322,14 +443,14 @@ class VoiceManager {
   };
 
   forceDisconnect = async () => {
-    await this.leave({keepLocalStream: false});
+    await this.leave({ keepLocalStream: false });
     await this.stopHub();
   };
 
   private applyLocalMuteState() {
-    if (!this.localStream) return;
+    if (!this.localMicrophoneStream) return;
     const disable = this.selfMuted || this.selfDeafened;
-    this.localStream.getAudioTracks().forEach((track) => {
+    this.localMicrophoneStream.getAudioTracks().forEach((track) => {
       track.enabled = !disable;
     });
   }
@@ -365,10 +486,10 @@ class VoiceManager {
       off("ReceiveAnswer", this.handleAnswer);
       off("ReceiveIceCandidate", this.handleIceCandidate);
       off("ChannelPresenceUpdated", this.handleChannelPresenceUpdated);
+      off("PeerMediaStateChanged", this.handlePeerMediaStateChanged);
       this.hubHandlersAttached = false;
     }
-    await stopVoiceHub().catch(() => {
-    });
+    await stopVoiceHub().catch(() => {});
     this.hubStartPromise = null;
   }
 
@@ -385,6 +506,10 @@ class VoiceManager {
     on<VoiceChannelPresence>(
       "ChannelPresenceUpdated",
       this.handleChannelPresenceUpdated
+    );
+    on<VoiceMediaState>(
+      "PeerMediaStateChanged",
+      this.handlePeerMediaStateChanged
     );
     this.hubHandlersAttached = true;
   }
@@ -408,8 +533,7 @@ class VoiceManager {
     this.presenceWatchToken = null;
     this.isWatchingChatRoom = false;
     if (chatRoomId) {
-      unwatchChatRoom(chatRoomId).catch(() => {
-      });
+      unwatchChatRoom(chatRoomId).catch(() => {});
     }
     this.channelPresence.clear();
     this.emit();
@@ -464,14 +588,34 @@ class VoiceManager {
     return result;
   }
 
-  private buildRemoteStreams() {
-    return Array.from(this.remoteStreams.entries()).map(
+  private buildRemoteAudioStreams() {
+    return Array.from(this.remoteAudioStreams.entries()).map(
       ([connectionId, stream]) => ({
         connectionId,
         stream,
         userId: this.participants.get(connectionId)?.userId ?? null,
       })
     );
+  }
+
+  private buildRemoteVideoStreams() {
+    const result: {
+      connectionId: string;
+      stream: MediaStream;
+      userId: string | null;
+      mediaType: "camera" | "screen";
+    }[] = [];
+    this.remoteVideoStreams.forEach((streams, connectionId) => {
+      streams.forEach((stream, mediaType) => {
+        result.push({
+          connectionId,
+          stream,
+          userId: this.participants.get(connectionId)?.userId ?? null,
+          mediaType,
+        });
+      });
+    });
+    return result;
   }
 
   private buildParticipantVolumeRecord() {
@@ -612,15 +756,15 @@ class VoiceManager {
     detect();
   }
 
-  private releaseLocalStream() {
+  private releaseLocalMicrophoneStream() {
     this.stopLocalSpeakingMonitor();
-    if (!this.localStream) return;
-    this.localStream.getTracks().forEach((track) => track.stop());
-    this.localStream = null;
+    if (!this.localMicrophoneStream) return;
+    this.localMicrophoneStream.getTracks().forEach((track) => track.stop());
+    this.localMicrophoneStream = null;
   }
 
-  private async ensureLocalStream(): Promise<MediaStream | null> {
-    if (this.localStream) return this.localStream;
+  private async ensureLocalMicrophoneStream(): Promise<MediaStream | null> {
+    if (this.localMicrophoneStream) return this.localMicrophoneStream;
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -629,7 +773,7 @@ class VoiceManager {
           noiseSuppression: true,
         },
       });
-      this.localStream = stream;
+      this.localMicrophoneStream = stream;
       this.startLocalSpeakingMonitor(stream);
       this.applyLocalMuteState();
       return stream;
@@ -645,6 +789,8 @@ class VoiceManager {
       try {
         pc.onicecandidate = null;
         pc.ontrack = null;
+        pc.onnegotiationneeded = null;
+        pc.onsignalingstatechange = null;
         pc.close();
       } catch {
         // ignore close errors
@@ -654,11 +800,21 @@ class VoiceManager {
 
     this.stopRemoteSpeakingMonitor(connectionId);
 
-    const stream = this.remoteStreams.get(connectionId);
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      this.remoteStreams.delete(connectionId);
+    this.negotiationStates.delete(connectionId);
+
+    this.remoteAudioStreams.delete(connectionId);
+    const videoStreams = this.remoteVideoStreams.get(connectionId);
+    if (videoStreams) {
+      videoStreams.forEach((videoStream) => {
+        this.remoteVideoStreamTypes.delete(videoStream.id);
+      });
     }
+    this.remoteVideoStreams.delete(connectionId);
+    this.videoSenders.delete(connectionId);
+    this.applyParticipantMediaState(connectionId, {
+      isCameraEnabled: false,
+      isScreenSharing: false,
+    });
 
     if (removeParticipant) {
       if (this.participants.delete(connectionId)) {
@@ -688,7 +844,7 @@ class VoiceManager {
     this.emit();
   }
 
-  private resetState(stopLocalStream: boolean) {
+  private resetState(stopLocalMicrophoneStream: boolean) {
     const previousChannelId = this.currentChannelId;
     const currentUserId = this.currentUserId;
 
@@ -696,6 +852,10 @@ class VoiceManager {
       this.cleanupConnection(connectionId)
     );
     this.peerConnections.clear();
+
+    this.detachLocalVideoTrack("camera");
+    this.detachLocalVideoTrack("screen");
+    this.videoSenders.clear();
 
     this.speakingMonitors.forEach((_, connectionId) => {
       this.stopRemoteSpeakingMonitor(connectionId);
@@ -707,8 +867,14 @@ class VoiceManager {
     }
     this.activeSpeakers.clear();
 
-    this.remoteStreams.clear();
+    this.remoteAudioStreams.clear();
+    this.remoteVideoStreams.clear();
+    this.remoteVideoStreamTypes.clear();
     this.participants.clear();
+
+    this.isCameraEnabled = false;
+    this.isScreenSharing = false;
+    this.selfConnectionId = null;
 
     this.stopPingMonitor();
     this.pingMs = null;
@@ -730,8 +896,733 @@ class VoiceManager {
 
     this.currentChannelId = null;
 
-    if (stopLocalStream) {
-      this.releaseLocalStream();
+    if (this.localCameraStream) {
+      const track = this.localCameraStream.getVideoTracks()[0];
+      if (track && this.localCameraEndedHandler) {
+        track.removeEventListener("ended", this.localCameraEndedHandler);
+      }
+      this.localCameraStream.getTracks().forEach((localTrack) => {
+        try {
+          localTrack.stop();
+        } catch {
+          // ignore
+        }
+      });
+      this.localCameraStream = null;
+      this.localCameraEndedHandler = null;
+    }
+
+    if (this.localScreenStream) {
+      const track = this.localScreenStream.getVideoTracks()[0];
+      if (track && this.localScreenEndedHandler) {
+        track.removeEventListener("ended", this.localScreenEndedHandler);
+      }
+      this.localScreenStream.getTracks().forEach((localTrack) => {
+        try {
+          localTrack.stop();
+        } catch {
+          // ignore
+        }
+      });
+      this.localScreenStream = null;
+      this.localScreenEndedHandler = null;
+    }
+
+    if (stopLocalMicrophoneStream) {
+      this.releaseLocalMicrophoneStream();
+    }
+
+    this.emit();
+  }
+
+  private getVideoSenderEntry(connectionId: string) {
+    let entry = this.videoSenders.get(connectionId);
+    if (!entry) {
+      entry = {};
+      this.videoSenders.set(connectionId, entry);
+    }
+    return entry;
+  }
+
+  private getNegotiationState(connectionId: string) {
+    let state = this.negotiationStates.get(connectionId);
+    if (!state) {
+      state = { busy: false, pending: false };
+      this.negotiationStates.set(connectionId, state);
+    }
+    return state;
+  }
+
+  private updateSenderStreams(
+    sender: RTCRtpSender,
+    stream: MediaStream | null
+  ) {
+    const candidate = sender as RTCRtpSender & {
+      setStreams?: (...streams: MediaStream[]) => void;
+    };
+    if (typeof candidate.setStreams !== "function") return;
+    try {
+      if (stream) {
+        candidate.setStreams(stream);
+      } else {
+        candidate.setStreams();
+      }
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        console.warn("Failed to update sender streams", err);
+      }
+    }
+  }
+
+  private stopPublishingLocalVideoTrack(type: "camera" | "screen") {
+    this.videoSenders.forEach((entry, connectionId) => {
+      const sender = entry?.[type];
+      if (!sender) {
+        return;
+      }
+
+      const finalizeRenegotiation = () => {
+        this.renegotiateConnection(connectionId);
+      };
+
+      try {
+        this.updateSenderStreams(sender, null);
+        const replaceResult = sender.replaceTrack(null);
+        Promise.resolve(replaceResult)
+          .then(() => {
+            finalizeRenegotiation();
+          })
+          .catch((err) => {
+            if (import.meta.env.DEV) {
+              console.warn("Failed to clear video track", err);
+            }
+            this.detachVideoSenderForConnection(connectionId, type);
+            finalizeRenegotiation();
+          });
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.warn("Failed to clear video track", err);
+        }
+        this.detachVideoSenderForConnection(connectionId, type);
+        finalizeRenegotiation();
+      }
+    });
+  }
+
+  private async applyScreenShareConstraintsToActiveTrack() {
+    const stream = this.localScreenStream;
+    if (!stream) return;
+
+    const [track] = stream.getVideoTracks();
+    if (!track) return;
+
+    await this.applyPreferredTrackSettings("screen", track);
+
+    this.peerConnections.forEach((_, connectionId) => {
+      const entry = this.videoSenders.get(connectionId);
+      const sender = entry?.screen;
+      if (!sender) return;
+      this.updateSenderStreams(sender, stream);
+      this.configureVideoSender(connectionId, "screen", sender, track);
+      this.renegotiateConnection(connectionId);
+    });
+
+    this.emit();
+  }
+
+  private publishLocalVideoTrack(
+    type: "camera" | "screen",
+    track: MediaStreamTrack,
+    stream: MediaStream
+  ) {
+    this.peerConnections.forEach((pc, connectionId) => {
+      const entry = this.getVideoSenderEntry(connectionId);
+      const existingSender = entry[type];
+      if (existingSender) {
+        this.updateSenderStreams(existingSender, stream);
+        Promise.resolve(existingSender.replaceTrack(track))
+          .then(() => {
+            this.configureVideoSender(
+              connectionId,
+              type,
+              existingSender,
+              track
+            );
+            this.renegotiateConnection(connectionId);
+          })
+          .catch((err) => {
+            if (import.meta.env.DEV) {
+              console.warn("Failed to replace video track, retrying", err);
+            }
+            this.detachVideoSenderForConnection(connectionId, type);
+            try {
+              const sender = pc.addTrack(track, stream);
+              this.getVideoSenderEntry(connectionId)[type] = sender;
+              this.updateSenderStreams(sender, stream);
+              this.configureVideoSender(connectionId, type, sender, track);
+              this.renegotiateConnection(connectionId);
+            } catch (fallbackErr) {
+              if (import.meta.env.DEV) {
+                console.warn("Failed to publish video track", fallbackErr);
+              }
+            }
+          });
+        return;
+      }
+      try {
+        const sender = pc.addTrack(track, stream);
+        entry[type] = sender;
+        this.updateSenderStreams(sender, stream);
+        this.configureVideoSender(connectionId, type, sender, track);
+        this.renegotiateConnection(connectionId);
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.warn("Failed to publish video track", err);
+        }
+      }
+    });
+  }
+
+  private async applyPreferredTrackSettings(
+    type: "camera" | "screen",
+    track: MediaStreamTrack
+  ) {
+    if (type === "screen") {
+      const { width, height, frameRate } = this.screenShareConstraints;
+      const constraints: MediaTrackConstraints = {};
+      if (typeof width === "number" && width > 0) {
+        constraints.width = { ideal: width };
+      }
+      if (typeof height === "number" && height > 0) {
+        constraints.height = { ideal: height };
+      }
+      if (typeof frameRate === "number" && frameRate > 0) {
+        constraints.frameRate = { ideal: frameRate, max: frameRate };
+      }
+      if (Object.keys(constraints).length > 0) {
+        try {
+          await track.applyConstraints(constraints);
+        } catch (err) {
+          if (import.meta.env.DEV) {
+            console.warn("Failed to apply screen track constraints", err);
+          }
+        }
+      }
+      if ("contentHint" in track) {
+        try {
+          track.contentHint = "detail";
+        } catch {
+          // ignore unsupported
+        }
+      }
+    } else if ("contentHint" in track) {
+      try {
+        track.contentHint = "motion";
+      } catch {
+        // ignore unsupported
+      }
+    }
+  }
+
+  private configureVideoSender(
+    connectionId: string,
+    type: "camera" | "screen",
+    sender: RTCRtpSender,
+    track: MediaStreamTrack
+  ) {
+    const settings = this.safeGetTrackSettings(track);
+    const width =
+      settings.width ??
+      (type === "screen" ? this.screenShareConstraints.width : undefined);
+    const height =
+      settings.height ??
+      (type === "screen" ? this.screenShareConstraints.height : undefined);
+    const frameRate =
+      settings.frameRate ??
+      (type === "screen" ? this.screenShareConstraints.frameRate : undefined);
+
+    const params =
+      typeof sender.getParameters === "function" &&
+      typeof sender.setParameters === "function"
+        ? sender.getParameters()
+        : null;
+    if (!params) return;
+
+    if (!params.encodings || params.encodings.length === 0) {
+      params.encodings = [{}];
+    }
+    const encoding = params.encodings[0];
+    const maxBitrate = this.estimateVideoBitrate(
+      width,
+      height,
+      frameRate,
+      type
+    );
+    if (maxBitrate != null) {
+      encoding.maxBitrate = maxBitrate;
+    }
+
+    if (type === "screen") {
+      params.degradationPreference = "maintain-resolution";
+    } else if (!params.degradationPreference) {
+      params.degradationPreference = "balanced";
+    }
+
+    if (encoding.scaleResolutionDownBy === undefined) {
+      encoding.scaleResolutionDownBy = 1;
+    }
+
+    sender.setParameters(params).catch((err) => {
+      if (import.meta.env.DEV) {
+        console.warn(
+          `Failed to update RTP sender parameters for ${type} track ${connectionId}`,
+          err
+        );
+      }
+    });
+  }
+
+  private safeGetTrackSettings(track: MediaStreamTrack) {
+    try {
+      return track.getSettings() as MediaTrackSettings & {
+        width?: number;
+        height?: number;
+        frameRate?: number;
+      };
+    } catch {
+      return {};
+    }
+  }
+
+  private estimateVideoBitrate(
+    width?: number,
+    height?: number,
+    frameRate?: number,
+    type: "camera" | "screen" = "camera"
+  ): number | null {
+    const fallback = type === "screen" ? 8_000_000 : 2_500_000;
+    if (!width || !height) {
+      return fallback;
+    }
+    const fps = frameRate && frameRate > 0 ? frameRate : 30;
+    const pixelsPerSecond = width * height * fps;
+    const bitsPerPixel = type === "screen" ? 0.14 : 0.08;
+    const estimate = pixelsPerSecond * bitsPerPixel;
+    const min = type === "screen" ? 4_000_000 : 1_500_000;
+    const max = type === "screen" ? 25_000_000 : 12_000_000;
+    return Math.max(min, Math.min(estimate, max));
+  }
+
+  private detachVideoSenderForConnection(
+    connectionId: string,
+    type: "camera" | "screen"
+  ) {
+    const entry = this.videoSenders.get(connectionId);
+    const sender = entry?.[type];
+    if (!sender) return;
+    const pc = this.peerConnections.get(connectionId);
+    if (pc) {
+      try {
+        pc.removeTrack(sender);
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.warn("Failed to remove video track", err);
+        }
+      }
+    }
+    if (entry) {
+      delete entry[type];
+      if (!entry.camera && !entry.screen) {
+        this.videoSenders.delete(connectionId);
+      }
+    }
+  }
+
+  private detachLocalVideoTrack(type: "camera" | "screen") {
+    Array.from(this.videoSenders.keys()).forEach((connectionId) => {
+      this.detachVideoSenderForConnection(connectionId, type);
+    });
+  }
+
+  private detectVideoType(track: MediaStreamTrack): "camera" | "screen" {
+    try {
+      const settings = track.getSettings() as MediaTrackSettings & {
+        displaySurface?: string;
+      };
+      const surface = settings.displaySurface?.toLowerCase();
+      if (surface && surface !== "camera") {
+        return "screen";
+      }
+    } catch {
+      // ignore inability to read settings
+    }
+    const label = track.label?.toLowerCase() ?? "";
+    if (
+      label.includes("screen") ||
+      label.includes("display") ||
+      label.includes("window")
+    ) {
+      return "screen";
+    }
+    return "camera";
+  }
+
+  private setRemoteVideoStream(
+    connectionId: string,
+    mediaType: "camera" | "screen",
+    stream: MediaStream
+  ) {
+    let streams = this.remoteVideoStreams.get(connectionId);
+    if (!streams) {
+      streams = new Map();
+      this.remoteVideoStreams.set(connectionId, streams);
+    }
+
+    const participant = this.participants.get(connectionId);
+    const hasScreenStream = streams.has("screen");
+    const hasCameraStream = streams.has("camera");
+    let resolvedType: "camera" | "screen" = mediaType;
+
+    if (mediaType === "camera") {
+      if (
+        participant?.isScreenSharing &&
+        !participant?.isCameraEnabled &&
+        !hasScreenStream
+      ) {
+        resolvedType = "screen";
+      } else if (
+        participant?.isScreenSharing &&
+        participant?.isCameraEnabled &&
+        hasCameraStream &&
+        !hasScreenStream
+      ) {
+        const existingCamera = streams.get("camera");
+        if (existingCamera && existingCamera.id !== stream.id) {
+          streams.set("screen", existingCamera);
+          this.remoteVideoStreamTypes.set(existingCamera.id, "screen");
+        }
+      }
+    } else if (mediaType === "screen") {
+      if (
+        !participant?.isScreenSharing &&
+        participant?.isCameraEnabled &&
+        !hasCameraStream
+      ) {
+        resolvedType = "camera";
+      }
+    }
+
+    if (resolvedType !== mediaType) {
+      const misclassified = streams.get(mediaType);
+      if (misclassified && misclassified.id === stream.id) {
+        streams.delete(mediaType);
+        this.remoteVideoStreamTypes.delete(misclassified.id);
+      }
+    }
+
+    const current = streams.get(resolvedType);
+    if (current && current.id === stream.id) {
+      this.remoteVideoStreamTypes.set(stream.id, resolvedType);
+      return;
+    }
+
+    streams.set(resolvedType, stream);
+    this.remoteVideoStreamTypes.set(stream.id, resolvedType);
+    this.emit();
+  }
+
+  private removeRemoteVideoStream(
+    connectionId: string,
+    mediaType: "camera" | "screen",
+    streamId?: string
+  ) {
+    const streams = this.remoteVideoStreams.get(connectionId);
+    if (!streams) return;
+
+    const resolvedType =
+      streamId != null
+        ? this.remoteVideoStreamTypes.get(streamId) ?? mediaType
+        : mediaType;
+
+    if (streamId) {
+      const target = streams.get(resolvedType);
+      if (!target || target.id !== streamId) return;
+    }
+
+    if (!streams.delete(resolvedType)) return;
+
+    if (streamId != null) {
+      this.remoteVideoStreamTypes.delete(streamId);
+    }
+
+    if (streams.size === 0) {
+      this.remoteVideoStreams.delete(connectionId);
+    }
+
+    this.emit();
+  }
+
+  private applyParticipantMediaState(
+    connectionId: string,
+    mediaState: {
+      isCameraEnabled?: boolean;
+      isScreenSharing?: boolean;
+      isMuted?: boolean;
+    }
+  ) {
+    const participant = this.participants.get(connectionId);
+    if (participant) {
+      this.participants.set(connectionId, {
+        ...participant,
+        ...mediaState,
+      });
+    }
+    this.channelPresence.forEach((connections) => {
+      const existing = connections.get(connectionId);
+      if (!existing) return;
+      connections.set(connectionId, {
+        ...existing,
+        ...mediaState,
+      });
+    });
+  }
+
+  private async setLocalVideoEnabled(
+    type: "camera" | "screen",
+    enabled: boolean,
+    notify = true
+  ) {
+    const currentlyEnabled =
+      type === "camera" ? this.isCameraEnabled : this.isScreenSharing;
+
+    if (enabled) {
+      if (currentlyEnabled) return;
+      if (!this.currentChannelId) return;
+
+      const otherType = type === "camera" ? "screen" : "camera";
+      const otherEnabled =
+        otherType === "camera" ? this.isCameraEnabled : this.isScreenSharing;
+      if (otherEnabled) {
+        await this.setLocalVideoEnabled(otherType, false, notify);
+      }
+
+      let stream: MediaStream | null = null;
+
+      try {
+        if (type === "camera") {
+          const mediaDevices = navigator.mediaDevices;
+          if (!mediaDevices?.getUserMedia) {
+            if (import.meta.env.DEV) {
+              console.warn("Camera capture is not supported in this browser");
+            }
+            return;
+          }
+          stream = await mediaDevices.getUserMedia({
+            video: {
+              width: 1280,
+              height: 720,
+              frameRate: { ideal: 30, max: 60 },
+            },
+            audio: false,
+          });
+        } else {
+          const mediaDevices = navigator.mediaDevices;
+          if (!mediaDevices?.getDisplayMedia) {
+            if (import.meta.env.DEV) {
+              console.warn("Screen sharing is not supported in this browser");
+            }
+            return;
+          }
+          const { width, height, frameRate } = this.screenShareConstraints;
+          const videoConstraints: MediaTrackConstraints = {
+            frameRate:
+              typeof frameRate === "number" && frameRate > 0
+                ? { ideal: frameRate, max: frameRate }
+                : { ideal: 30, max: 60 },
+          };
+          if (typeof width === "number" && width > 0) {
+            videoConstraints.width = { ideal: width };
+          }
+          if (typeof height === "number" && height > 0) {
+            videoConstraints.height = { ideal: height };
+          }
+          stream = await mediaDevices.getDisplayMedia({
+            video: videoConstraints,
+            audio: false,
+          });
+        }
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.warn(
+            type === "camera"
+              ? "Camera capture cancelled or failed"
+              : "Screen share cancelled or failed",
+            err
+          );
+        }
+        return;
+      }
+
+      if (!stream) return;
+      const [track] = stream.getVideoTracks();
+      if (!track) {
+        stream.getTracks().forEach((t) => {
+          try {
+            t.stop();
+          } catch {
+            // ignore
+          }
+        });
+        return;
+      }
+
+      await this.applyPreferredTrackSettings(type, track);
+
+      if (type === "camera" && this.localCameraStream) {
+        const prevTrack = this.localCameraStream.getVideoTracks()[0];
+        if (prevTrack && this.localCameraEndedHandler) {
+          prevTrack.removeEventListener("ended", this.localCameraEndedHandler);
+        }
+        this.localCameraStream.getTracks().forEach((t) => {
+          try {
+            t.stop();
+          } catch {
+            // ignore
+          }
+        });
+      }
+
+      if (type === "screen" && this.localScreenStream) {
+        const prevTrack = this.localScreenStream.getVideoTracks()[0];
+        if (prevTrack && this.localScreenEndedHandler) {
+          prevTrack.removeEventListener("ended", this.localScreenEndedHandler);
+        }
+        this.localScreenStream.getTracks().forEach((t) => {
+          try {
+            t.stop();
+          } catch {
+            // ignore
+          }
+        });
+      }
+
+      const onEnded = () => {
+        void this.setLocalVideoEnabled(type, false, false);
+        void this.syncMediaState();
+      };
+      track.addEventListener("ended", onEnded);
+
+      if (type === "camera") {
+        this.localCameraEndedHandler = onEnded;
+        this.localCameraStream = stream;
+        this.isCameraEnabled = true;
+      } else {
+        this.localScreenEndedHandler = onEnded;
+        this.localScreenStream = stream;
+        this.isScreenSharing = true;
+      }
+
+      this.publishLocalVideoTrack(type, track, stream);
+
+      if (this.selfConnectionId) {
+        if (type === "camera") {
+          this.applyParticipantMediaState(this.selfConnectionId, {
+            isCameraEnabled: true,
+          });
+        } else {
+          this.applyParticipantMediaState(this.selfConnectionId, {
+            isScreenSharing: true,
+          });
+        }
+      }
+
+      this.emit();
+      if (notify) {
+        await this.syncMediaState();
+      }
+      return;
+    }
+
+    if (!currentlyEnabled) {
+      if (type === "camera") {
+        if (!this.localCameraStream) return;
+      } else if (!this.localScreenStream) {
+        return;
+      }
+    }
+
+    this.stopPublishingLocalVideoTrack(type);
+
+    if (type === "camera") {
+      const stream = this.localCameraStream;
+      const handler = this.localCameraEndedHandler;
+      if (stream) {
+        const [prevTrack] = stream.getVideoTracks();
+        if (prevTrack && handler) {
+          prevTrack.removeEventListener("ended", handler);
+        }
+        stream.getTracks().forEach((t) => {
+          try {
+            t.stop();
+          } catch {
+            // ignore
+          }
+        });
+      }
+      this.localCameraStream = null;
+      this.localCameraEndedHandler = null;
+      this.isCameraEnabled = false;
+    } else {
+      const stream = this.localScreenStream;
+      const handler = this.localScreenEndedHandler;
+      if (stream) {
+        const [prevTrack] = stream.getVideoTracks();
+        if (prevTrack && handler) {
+          prevTrack.removeEventListener("ended", handler);
+        }
+        stream.getTracks().forEach((t) => {
+          try {
+            t.stop();
+          } catch {
+            // ignore
+          }
+        });
+      }
+      this.localScreenStream = null;
+      this.localScreenEndedHandler = null;
+      this.isScreenSharing = false;
+    }
+
+    if (this.selfConnectionId) {
+      if (type === "camera") {
+        this.applyParticipantMediaState(this.selfConnectionId, {
+          isCameraEnabled: false,
+        });
+      } else {
+        this.applyParticipantMediaState(this.selfConnectionId, {
+          isScreenSharing: false,
+        });
+      }
+    }
+
+    this.emit();
+    if (notify) {
+      await this.syncMediaState();
+    }
+  }
+
+  private async syncMediaState() {
+    if (!this.currentChannelId) return;
+    try {
+      await updateMediaState({
+        isCameraEnabled: this.isCameraEnabled,
+        isScreenSharing: this.isScreenSharing,
+        isMuted: this.selfMuted,
+      });
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        console.warn("Failed to sync media state", err);
+      }
     }
   }
 
@@ -741,11 +1632,32 @@ class VoiceManager {
     const existing = this.peerConnections.get(connectionId);
     if (existing) return existing;
 
-    const stream = await this.ensureLocalStream();
+    const stream = await this.ensureLocalMicrophoneStream();
 
-    const pc = new RTCPeerConnection({iceServers: ICE_SERVERS});
+    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 
     stream?.getAudioTracks().forEach((track) => pc.addTrack(track, stream));
+
+    const addVideoTrack = (
+      mediaStream: MediaStream | null,
+      type: "camera" | "screen"
+    ) => {
+      const videoTrack = mediaStream?.getVideoTracks()[0];
+      if (!videoTrack) return;
+      this.detachVideoSenderForConnection(connectionId, type);
+      try {
+        const sender = pc.addTrack(videoTrack, mediaStream!);
+        this.getVideoSenderEntry(connectionId)[type] = sender;
+        this.updateSenderStreams(sender, mediaStream!);
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.warn("Failed to publish video track", err);
+        }
+      }
+    };
+
+    addVideoTrack(this.localCameraStream, "camera");
+    addVideoTrack(this.localScreenStream, "screen");
 
     pc.onicecandidate = (event) => {
       if (!event.candidate) return;
@@ -754,16 +1666,54 @@ class VoiceManager {
         sdpMid: event.candidate.sdpMid ?? null,
         sdpMLineIndex: event.candidate.sdpMLineIndex ?? null,
       };
-      sendIceCandidate(connectionId, payload).catch(() => {
-      });
+      sendIceCandidate(connectionId, payload).catch(() => {});
     };
 
     pc.ontrack = (event) => {
       const [trackStream] = event.streams;
       if (!trackStream) return;
-      this.remoteStreams.set(connectionId, trackStream);
-      this.startRemoteSpeakingMonitor(connectionId, trackStream);
-      this.emit();
+      if (event.track.kind === "audio") {
+        this.remoteAudioStreams.set(connectionId, trackStream);
+        this.startRemoteSpeakingMonitor(connectionId, trackStream);
+        this.emit();
+        return;
+      }
+      if (event.track.kind === "video") {
+        const mediaType = this.detectVideoType(event.track);
+        this.setRemoteVideoStream(connectionId, mediaType, trackStream);
+        if (mediaType === "screen") {
+          this.applyParticipantMediaState(connectionId, {
+            isScreenSharing: true,
+          });
+        } else {
+          this.applyParticipantMediaState(connectionId, {
+            isCameraEnabled: true,
+          });
+        }
+        const handleEnded = () => {
+          this.removeRemoteVideoStream(connectionId, mediaType, trackStream.id);
+          if (mediaType === "screen") {
+            this.applyParticipantMediaState(connectionId, {
+              isScreenSharing: false,
+            });
+          } else {
+            this.applyParticipantMediaState(connectionId, {
+              isCameraEnabled: false,
+            });
+          }
+        };
+        event.track.addEventListener("ended", handleEnded, { once: true });
+        this.emit();
+      }
+    };
+
+    pc.onnegotiationneeded = () => {
+      if (this.isJoining) return;
+      this.renegotiateConnection(connectionId);
+    };
+
+    pc.onsignalingstatechange = () => {
+      this.handleSignalingStateChange(connectionId);
     };
 
     pc.onconnectionstatechange = () => {
@@ -779,6 +1729,78 @@ class VoiceManager {
     this.peerConnections.set(connectionId, pc);
     this.ensurePingMonitor();
     return pc;
+  }
+
+  private renegotiateConnection(connectionId: string) {
+    const pc = this.peerConnections.get(connectionId);
+    if (!pc) return;
+
+    if (pc.signalingState === "closed" || pc.connectionState === "closed") {
+      this.negotiationStates.delete(connectionId);
+      return;
+    }
+
+    const state = this.getNegotiationState(connectionId);
+
+    if (state.busy) {
+      state.pending = true;
+      return;
+    }
+
+    if (pc.signalingState !== "stable") {
+      state.pending = true;
+      return;
+    }
+
+    state.busy = true;
+    state.pending = false;
+
+    (async () => {
+      try {
+        const offer = await pc.createOffer();
+        if (pc.signalingState !== "stable") {
+          state.pending = true;
+          return;
+        }
+        await pc.setLocalDescription(offer);
+        await sendOffer(connectionId, {
+          type: offer.type,
+          sdp: offer.sdp ?? "",
+        });
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.error("Failed to renegotiate connection", err);
+        }
+        state.pending = true;
+      } finally {
+        state.busy = false;
+        if (state.pending) {
+          state.pending = false;
+          this.renegotiateConnection(connectionId);
+        }
+      }
+    })();
+  }
+
+  private handleSignalingStateChange(connectionId: string) {
+    const pc = this.peerConnections.get(connectionId);
+    if (!pc) {
+      this.negotiationStates.delete(connectionId);
+      return;
+    }
+
+    if (pc.signalingState === "closed") {
+      this.negotiationStates.delete(connectionId);
+      return;
+    }
+
+    if (pc.signalingState === "stable") {
+      const state = this.negotiationStates.get(connectionId);
+      if (state && state.pending && !state.busy) {
+        state.pending = false;
+        this.renegotiateConnection(connectionId);
+      }
+    }
   }
 
   private setChannelPresence(
@@ -825,7 +1847,10 @@ class VoiceManager {
       const run = () => {
         void this.collectPingMeasurement();
       };
-      this.pingUpdateInterval = window.setInterval(run, PING_REFRESH_INTERVAL_MS);
+      this.pingUpdateInterval = window.setInterval(
+        run,
+        PING_REFRESH_INTERVAL_MS
+      );
     }
     if (immediate) {
       void this.collectPingMeasurement();
@@ -904,11 +1929,7 @@ class VoiceManager {
             }
 
             const state = candidatePair.state;
-            if (
-              state &&
-              state !== "succeeded" &&
-              state !== "in-progress"
-            ) {
+            if (state && state !== "succeeded" && state !== "in-progress") {
               return;
             }
 
@@ -994,7 +2015,10 @@ class VoiceManager {
     const explicitTarget = import.meta.env.VITE_PING_URL as string | undefined;
     if (explicitTarget) {
       try {
-        const resolved = new URL(explicitTarget, typeof window !== "undefined" ? window.location.origin : undefined);
+        const resolved = new URL(
+          explicitTarget,
+          typeof window !== "undefined" ? window.location.origin : undefined
+        );
         resolved.hash = "";
         targets.add(resolved.toString());
       } catch {
@@ -1006,7 +2030,9 @@ class VoiceManager {
     return this.pingTargets;
   }
 
-  private async measureHttpPingForTarget(target: string): Promise<number | null> {
+  private async measureHttpPingForTarget(
+    target: string
+  ): Promise<number | null> {
     if (typeof window === "undefined") return null;
 
     const attempt = async (
@@ -1020,18 +2046,15 @@ class VoiceManager {
       try {
         url = new URL(target);
       } catch {
-        if (typeof window === "undefined") return {value: null};
+        if (typeof window === "undefined") return { value: null };
         try {
           url = new URL(target, window.location.origin);
         } catch {
-          return {value: null};
+          return { value: null };
         }
       }
 
-      url.searchParams.set(
-        "_ping",
-        `${Date.now().toString(36)}-${method}`
-      );
+      url.searchParams.set("_ping", `${Date.now().toString(36)}-${method}`);
 
       const start = performance.now();
       const timeoutId = window.setTimeout(
@@ -1053,17 +2076,17 @@ class VoiceManager {
             method === "HEAD" &&
             (response.status === 405 || response.status === 501)
           ) {
-            return {value: null, retry: true};
+            return { value: null, retry: true };
           }
-          return {value: null};
+          return { value: null };
         }
 
-        return {value: Math.max(0, Math.round(end - start))};
+        return { value: Math.max(0, Math.round(end - start)) };
       } catch (error) {
         if ((error as DOMException)?.name === "AbortError") {
-          return {value: null};
+          return { value: null };
         }
-        return {value: null};
+        return { value: null };
       } finally {
         window.clearTimeout(timeoutId);
         if (this.pingHttpAbortController === controller) {
@@ -1169,6 +2192,15 @@ class VoiceManager {
     });
   };
 
+  private handlePeerMediaStateChanged = (message: VoiceMediaState) => {
+    this.applyParticipantMediaState(message.connectionId, {
+      isCameraEnabled: message.isCameraEnabled,
+      isScreenSharing: message.isScreenSharing,
+      isMuted: message.isMuted,
+    });
+    this.emit();
+  };
+
   private handleChannelPresenceUpdated = (update: VoiceChannelPresence) => {
     this.setChannelPresence(update.channelId, update.participants);
   };
@@ -1206,6 +2238,13 @@ export function useVoiceChannel(
     toggleSelfMute: voiceManager.toggleSelfMute,
     setSelfDeafened: voiceManager.setSelfDeafened,
     toggleSelfDeafened: voiceManager.toggleSelfDeafened,
+    startCamera: voiceManager.startCamera,
+    stopCamera: voiceManager.stopCamera,
+    toggleCamera: voiceManager.toggleCamera,
+    startScreenShare: voiceManager.startScreenShare,
+    stopScreenShare: voiceManager.stopScreenShare,
+    toggleScreenShare: voiceManager.toggleScreenShare,
+    setScreenShareConstraints: voiceManager.setScreenShareConstraints,
     join: voiceManager.join,
     leave: voiceManager.leave,
   };

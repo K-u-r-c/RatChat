@@ -13,46 +13,66 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import {useEffect, useMemo, useState} from "react";
-import {CallEnd, Chat, ExitToApp, ExpandLess, ExpandMore, People, Settings, VolumeUp,} from "@mui/icons-material";
-import {useParams} from "react-router";
-import {useChatRooms} from "../../lib/hooks/useChatRooms";
-import {useVoiceChannel} from "../../lib/hooks/useVoiceChannel";
-import type {VoiceParticipant} from "../../lib/realtime/voiceHub";
+import { useEffect, useMemo, useState } from "react";
+import {
+  CallEnd,
+  Chat,
+  ExitToApp,
+  ExpandLess,
+  ExpandMore,
+  MicOff,
+  People,
+  Settings,
+  VolumeUp,
+} from "@mui/icons-material";
+import { useParams } from "react-router";
+import { useChatRooms } from "../../lib/hooks/useChatRooms";
+import { useVoiceChannel } from "../../lib/hooks/useVoiceChannel";
+import type { VoiceParticipant } from "../../lib/realtime/voiceHub";
 import ChatRoomSettings from "./settings/ChatRoomSettings";
 import InvitePeopleModal from "./invites/InvitePeopleModal";
-import {useAccount} from "../../lib/hooks/useAccount";
-import {useStore} from "../../lib/hooks/useStore";
-import {useChatRoomRolesRealtime} from "../../lib/hooks/useChatRoomRolesRealtime";
-import {CHATROOM_PERMISSIONS} from "../../lib/types/chatroomPermissions";
+import { useAccount } from "../../lib/hooks/useAccount";
+import { useStore } from "../../lib/hooks/useStore";
+import { useChatRoomRolesRealtime } from "../../lib/hooks/useChatRoomRolesRealtime";
+import { CHATROOM_PERMISSIONS } from "../../lib/types/chatroomPermissions";
 
-function uniqueVoiceParticipants(participants: VoiceParticipant[]): VoiceParticipant[] {
+function uniqueVoiceParticipants(
+  participants: VoiceParticipant[]
+): VoiceParticipant[] {
   const unique = new Map<string, VoiceParticipant>();
   for (const participant of participants) {
-    if (!unique.has(participant.userId)) {
+    const existing = unique.get(participant.userId);
+    if (!existing) {
       unique.set(participant.userId, participant);
+    } else if (!existing.isMuted && participant.isMuted) {
+      unique.set(participant.userId, {
+        ...existing,
+        isMuted: participant.isMuted,
+      });
     }
   }
   return Array.from(unique.values());
 }
 
 export default function ChatRoomSidebarContent() {
-  const {slug} = useParams();
-  const {currentUser} = useAccount();
-  const {chatRoom, isLoadingChatRoom, leaveChatRoom, deleteChatRooms} =
+  const { slug } = useParams();
+  const { currentUser } = useAccount();
+  const { chatRoom, isLoadingChatRoom, leaveChatRoom, deleteChatRooms } =
     useChatRooms(slug);
-  const {rolesStore} = useChatRoomRolesRealtime(
+  const { rolesStore } = useChatRoomRolesRealtime(
     chatRoom?.id,
     currentUser?.id
   );
-  const {uiStore} = useStore();
+  const { uiStore } = useStore();
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [volumeMenu, setVolumeMenu] = useState<
-    { anchor: { left: number; top: number }; participant: VoiceParticipant } | null
-  >(null);
-  const [selectedTextChannel, setSelectedTextChannel] = useState<string>("general");
+  const [volumeMenu, setVolumeMenu] = useState<{
+    anchor: { left: number; top: number };
+    participant: VoiceParticipant;
+  } | null>(null);
+  const [selectedTextChannel, setSelectedTextChannel] =
+    useState<string>("general");
 
   const menuOpen = Boolean(menuAnchorEl);
   const voiceChannels = useMemo(
@@ -64,7 +84,9 @@ export default function ChatRoomSidebarContent() {
   );
 
   const voice = useVoiceChannel(chatRoom?.id, currentUser?.id);
-  const activeRoomView = chatRoom ? uiStore.getChatRoomView(chatRoom.id) : "chat";
+  const activeRoomView = chatRoom
+    ? uiStore.getChatRoomView(chatRoom.id)
+    : "chat";
   const isChatView = activeRoomView === "chat";
   const mutedParticipantIdsSet = useMemo(
     () => new Set(voice.mutedParticipantIds),
@@ -132,9 +154,9 @@ export default function ChatRoomSidebarContent() {
     void voice.join(channelId);
   };
   return (
-    <Box sx={{width: "100%", p: 2}}>
+    <Box sx={{ width: "100%", p: 2 }}>
       {/* Server name and menu */}
-      <Box sx={{mb: 2, display: "flex", alignItems: "center", gap: 1}}>
+      <Box sx={{ mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
         <Typography
           variant="h6"
           sx={{
@@ -146,7 +168,7 @@ export default function ChatRoomSidebarContent() {
             py: 1,
             width: "100%",
             borderRadius: 2,
-            "&:hover": {bgcolor: "#2e2f33ff"},
+            "&:hover": { bgcolor: "#2e2f33ff" },
             display: "flex",
             alignItems: "center",
             gap: 1,
@@ -155,9 +177,9 @@ export default function ChatRoomSidebarContent() {
         >
           {chatRoom?.title}
           {menuOpen ? (
-            <ExpandLess sx={{ml: 1, fontSize: 22}}/>
+            <ExpandLess sx={{ ml: 1, fontSize: 22 }} />
           ) : (
-            <ExpandMore sx={{ml: 1, fontSize: 22}}/>
+            <ExpandMore sx={{ ml: 1, fontSize: 22 }} />
           )}
         </Typography>
         <Menu
@@ -177,7 +199,7 @@ export default function ChatRoomSidebarContent() {
           {(chatRoom.isOwner ||
             rolesStore.userPermissions[
               CHATROOM_PERMISSIONS.CreateInviteLinks
-              ]) && (
+            ]) && (
             <MenuItem
               onClick={() => {
                 setInviteOpen(true);
@@ -185,14 +207,14 @@ export default function ChatRoomSidebarContent() {
               }}
             >
               <ListItemIcon>
-                <People fontSize="small"/>
+                <People fontSize="small" />
               </ListItemIcon>
               Invite people
             </MenuItem>
           )}
-          <MenuItem onClick={handleMenuClose} sx={{display: "none"}}>
+          <MenuItem onClick={handleMenuClose} sx={{ display: "none" }}>
             <ListItemIcon>
-              <People fontSize="small"/>
+              <People fontSize="small" />
             </ListItemIcon>
             Invite people
           </MenuItem>
@@ -203,7 +225,7 @@ export default function ChatRoomSidebarContent() {
             }}
           >
             <ListItemIcon>
-              <Settings fontSize="small"/>
+              <Settings fontSize="small" />
             </ListItemIcon>
             Server settings
           </MenuItem>
@@ -220,10 +242,10 @@ export default function ChatRoomSidebarContent() {
                 }
                 handleMenuClose();
               }}
-              sx={{color: "error.main"}}
+              sx={{ color: "error.main" }}
             >
               <ListItemIcon>
-                <ExitToApp fontSize="small" sx={{color: "error.main"}}/>
+                <ExitToApp fontSize="small" sx={{ color: "error.main" }} />
               </ListItemIcon>
               Delete server
             </MenuItem>
@@ -233,10 +255,10 @@ export default function ChatRoomSidebarContent() {
                 handleLeave();
                 handleMenuClose();
               }}
-              sx={{color: "error.main"}}
+              sx={{ color: "error.main" }}
             >
               <ListItemIcon>
-                <ExitToApp fontSize="small" sx={{color: "error.main"}}/>
+                <ExitToApp fontSize="small" sx={{ color: "error.main" }} />
               </ListItemIcon>
               Leave server
             </MenuItem>
@@ -245,7 +267,7 @@ export default function ChatRoomSidebarContent() {
       </Box>
 
       {/* Text channels */}
-      <Typography variant="subtitle2" color="text.secondary" sx={{mb: 1}}>
+      <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
         Text Channels
       </Typography>
       <List>
@@ -259,9 +281,9 @@ export default function ChatRoomSidebarContent() {
           }}
         >
           <ListItemIcon>
-            <Chat/>
+            <Chat />
           </ListItemIcon>
-          <ListItemText primary="# general"/>
+          <ListItemText primary="# general" />
         </ListItemButton>
         <ListItemButton
           selected={isChatView && selectedTextChannel === "memes"}
@@ -273,9 +295,9 @@ export default function ChatRoomSidebarContent() {
           }}
         >
           <ListItemIcon>
-            <Chat/>
+            <Chat />
           </ListItemIcon>
-          <ListItemText primary="# memes"/>
+          <ListItemText primary="# memes" />
         </ListItemButton>
         <ListItemButton
           selected={isChatView && selectedTextChannel === "tech-talk"}
@@ -287,20 +309,20 @@ export default function ChatRoomSidebarContent() {
           }}
         >
           <ListItemIcon>
-            <Chat/>
+            <Chat />
           </ListItemIcon>
-          <ListItemText primary="# tech-talk"/>
+          <ListItemText primary="# tech-talk" />
         </ListItemButton>
       </List>
 
-      <Divider sx={{my: 2}}/>
+      <Divider sx={{ my: 2 }} />
       {/* Voice channels */}
-      <Typography variant="subtitle2" color="text.secondary" sx={{mb: 1}}>
+      <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
         Voice Channels
       </Typography>
-      <List sx={{listStyle: "none", pl: 0}}>
+      <List sx={{ listStyle: "none", pl: 0 }}>
         {voiceChannels.length === 0 ? (
-          <Box component="li" sx={{px: 2, py: 1, color: "text.secondary"}}>
+          <Box component="li" sx={{ px: 2, py: 1, color: "text.secondary" }}>
             <Typography variant="body2" color="text.secondary">
               No voice channels yet.
             </Typography>
@@ -309,27 +331,31 @@ export default function ChatRoomSidebarContent() {
           voiceChannels.map((channel) => {
             const isActive = voice.currentChannelId === channel.id;
             const channelPresence = voice.presenceByChannel[channel.id] ?? [];
-            const uniqueChannelParticipants = uniqueVoiceParticipants(channelPresence);
+            const uniqueChannelParticipants =
+              uniqueVoiceParticipants(channelPresence);
             const participantCount = uniqueChannelParticipants.length;
             const secondaryText = isActive
               ? voice.isJoining
                 ? "Connecting..."
                 : participantCount > 0
-                  ? participantCount + " connected"
-                  : undefined
-              : participantCount > 0
                 ? participantCount + " connected"
-                : undefined;
+                : undefined
+              : participantCount > 0
+              ? participantCount + " connected"
+              : undefined;
 
             return (
-              <Box component="li" key={channel.id} sx={{mb: 0.75}}>
+              <Box component="li" key={channel.id} sx={{ mb: 0.75 }}>
                 <Box
                   sx={{
                     borderRadius: 1.5,
                     bgcolor: isActive ? "#2f3136" : "#1f2024",
-                    border: isActive ? "1px solid #5865f2" : "1px solid transparent",
+                    border: isActive
+                      ? "1px solid #5865f2"
+                      : "1px solid transparent",
                     overflow: "hidden",
-                    transition: "background-color 0.2s ease, border-color 0.2s ease",
+                    transition:
+                      "background-color 0.2s ease, border-color 0.2s ease",
                   }}
                 >
                   <ListItemButton
@@ -351,15 +377,21 @@ export default function ChatRoomSidebarContent() {
                       },
                     }}
                   >
-                    <Box sx={{display: "flex", alignItems: "center", gap: 1}}>
-                      <ListItemIcon sx={{minWidth: 32}}>
-                        <VolumeUp fontSize="small"/>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <ListItemIcon sx={{ minWidth: 32 }}>
+                        <VolumeUp fontSize="small" />
                       </ListItemIcon>
                       <ListItemText
                         primary={channel.name}
                         secondary={secondaryText}
-                        primaryTypographyProps={{fontSize: 14, fontWeight: 500}}
-                        secondaryTypographyProps={{fontSize: 12, color: "text.secondary"}}
+                        primaryTypographyProps={{
+                          fontSize: 14,
+                          fontWeight: 500,
+                        }}
+                        secondaryTypographyProps={{
+                          fontSize: 12,
+                          color: "text.secondary",
+                        }}
                       />
                     </Box>
                     {isActive && (
@@ -373,13 +405,12 @@ export default function ChatRoomSidebarContent() {
                           }
                           void voice.leave();
                         }}
-                        sx={{color: "error.main"}}
+                        sx={{ color: "error.main" }}
                         aria-label="Leave channel"
                       >
-                        <CallEnd fontSize="small"/>
+                        <CallEnd fontSize="small" />
                       </IconButton>
                     )}
-
                   </ListItemButton>
                   {participantCount > 0 && (
                     <Box
@@ -394,37 +425,92 @@ export default function ChatRoomSidebarContent() {
                       {uniqueChannelParticipants.map((participant) => {
                         const isSelf = participant.userId === currentUser?.id;
                         const isSelfActive = isSelf && isActive;
-                        const isMuted = mutedParticipantIdsSet.has(participant.userId);
-                        const isSpeaking = activeSpeakersSet.has(participant.userId);
-                        const initials = participant.displayName?.charAt(0) ?? "?";
-                        const handleParticipantContextMenu = (event: React.MouseEvent) => {
+                        const mutedByYou = mutedParticipantIdsSet.has(
+                          participant.userId
+                        );
+                        const selfMuted = isSelf
+                          ? voice.isSelfMuted
+                          : Boolean(participant.isMuted);
+                        const isMuted = mutedByYou || selfMuted;
+                        const isSpeaking = activeSpeakersSet.has(
+                          participant.userId
+                        );
+                        const initials =
+                          participant.displayName?.charAt(0) ?? "?";
+                        const handleParticipantContextMenu = (
+                          event: React.MouseEvent
+                        ) => {
                           event.preventDefault();
                           setVolumeMenu({
-                            anchor: {left: event.clientX, top: event.clientY},
+                            anchor: { left: event.clientX, top: event.clientY },
                             participant,
                           });
                         };
                         return (
-                          <Tooltip title={participant.displayName} arrow key={participant.userId}>
-                            <Avatar
-                              src={participant.imageUrl ?? undefined}
-                              onContextMenu={handleParticipantContextMenu}
+                          <Tooltip
+                            title={participant.displayName}
+                            arrow
+                            key={participant.userId}
+                          >
+                            <Box
                               sx={{
-                                width: 30,
-                                height: 30,
-                                fontSize: 14,
-                                bgcolor: isSelfActive ? "primary.main" : "#2f3136",
-                                border: isSelfActive
-                                  ? `2px solid ${isSpeaking ? "#43b581" : "#5865f2"}`
-                                  : `1px solid ${isSpeaking ? "#43b581" : "#3b3d43"}`
-                                ,
-                                boxShadow: isSpeaking ? "0 0 0 2px rgba(67,181,129,0.35)" : "none",
-                                opacity: isMuted ? 0.6 : 1,
-                                transition: "box-shadow 0.2s ease, border-color 0.2s ease, opacity 0.2s ease",
+                                position: "relative",
+                                display: "inline-flex",
                               }}
                             >
-                              {participant.imageUrl ? null : initials.toUpperCase()}
-                            </Avatar>
+                              <Avatar
+                                src={participant.imageUrl ?? undefined}
+                                onContextMenu={handleParticipantContextMenu}
+                                sx={{
+                                  width: 30,
+                                  height: 30,
+                                  fontSize: 14,
+                                  bgcolor: isSelfActive
+                                    ? "primary.main"
+                                    : "#2f3136",
+                                  border: isSelfActive
+                                    ? `2px solid ${
+                                        isSpeaking ? "#43b581" : "#5865f2"
+                                      }`
+                                    : `1px solid ${
+                                        isSpeaking ? "#43b581" : "#3b3d43"
+                                      }`,
+                                  boxShadow: isSpeaking
+                                    ? "0 0 0 2px rgba(67,181,129,0.35)"
+                                    : "none",
+                                  opacity: isMuted ? 0.6 : 1,
+                                  transition:
+                                    "box-shadow 0.2s ease, border-color 0.2s ease, opacity 0.2s ease",
+                                }}
+                              >
+                                {participant.imageUrl
+                                  ? null
+                                  : initials.toUpperCase()}
+                              </Avatar>
+                              {selfMuted && (
+                                <Box
+                                  sx={{
+                                    position: "absolute",
+                                    bottom: -2,
+                                    right: -2,
+                                    bgcolor: "rgba(32,34,37,0.95)",
+                                    borderRadius: "50%",
+                                    border: "1px solid rgba(0,0,0,0.55)",
+                                    width: 18,
+                                    height: 18,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    boxShadow: "0 2px 4px rgba(0,0,0,0.6)",
+                                    pointerEvents: "none",
+                                  }}
+                                >
+                                  <MicOff
+                                    sx={{ fontSize: 12, color: "#ff7a7a" }}
+                                  />
+                                </Box>
+                              )}
+                            </Box>
                           </Tooltip>
                         );
                       })}
@@ -437,7 +523,11 @@ export default function ChatRoomSidebarContent() {
         )}
       </List>
       {voice.error && (
-        <Typography variant="caption" color="error" sx={{display: "block", mt: 1}}>
+        <Typography
+          variant="caption"
+          color="error"
+          sx={{ display: "block", mt: 1 }}
+        >
           {voice.error}
         </Typography>
       )}
@@ -445,35 +535,60 @@ export default function ChatRoomSidebarContent() {
         open={Boolean(volumeMenu)}
         onClose={() => setVolumeMenu(null)}
         anchorReference="anchorPosition"
-        anchorPosition={volumeMenu ? {left: volumeMenu.anchor.left, top: volumeMenu.anchor.top} : undefined}
-        MenuListProps={{disablePadding: true}}
+        anchorPosition={
+          volumeMenu
+            ? { left: volumeMenu.anchor.left, top: volumeMenu.anchor.top }
+            : undefined
+        }
+        MenuListProps={{ disablePadding: true }}
       >
         {volumeMenu && (
           <>
-            <Box sx={{px: 2, pt: 1.5, width: 220}}>
-              <Typography variant="body2" sx={{fontWeight: 600, mb: 1}}>
+            <Box sx={{ px: 2, pt: 1.5, width: 220 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
                 {volumeMenu.participant.displayName}
               </Typography>
               <Slider
-                value={Math.round((voice.participantVolumes[volumeMenu.participant.userId] ?? 1) * 100)}
+                value={Math.round(
+                  (voice.participantVolumes[volumeMenu.participant.userId] ??
+                    1) * 100
+                )}
                 onChange={(_, value) => {
                   const vol = Array.isArray(value) ? value[0] : value;
-                  voice.setParticipantVolume(volumeMenu.participant.userId, vol / 100);
-                  if (mutedParticipantIdsSet.has(volumeMenu.participant.userId) && vol > 0) {
-                    voice.toggleParticipantMute(volumeMenu.participant.userId, false);
+                  voice.setParticipantVolume(
+                    volumeMenu.participant.userId,
+                    vol / 100
+                  );
+                  if (
+                    mutedParticipantIdsSet.has(volumeMenu.participant.userId) &&
+                    vol > 0
+                  ) {
+                    voice.toggleParticipantMute(
+                      volumeMenu.participant.userId,
+                      false
+                    );
                   }
                 }}
                 onChangeCommitted={(_, value) => {
                   const vol = Array.isArray(value) ? value[0] : value;
-                  voice.setParticipantVolume(volumeMenu.participant.userId, vol / 100);
-                  if (mutedParticipantIdsSet.has(volumeMenu.participant.userId) && vol > 0) {
-                    voice.toggleParticipantMute(volumeMenu.participant.userId, false);
+                  voice.setParticipantVolume(
+                    volumeMenu.participant.userId,
+                    vol / 100
+                  );
+                  if (
+                    mutedParticipantIdsSet.has(volumeMenu.participant.userId) &&
+                    vol > 0
+                  ) {
+                    voice.toggleParticipantMute(
+                      volumeMenu.participant.userId,
+                      false
+                    );
                   }
                 }}
                 valueLabelDisplay="auto"
                 min={0}
                 max={100}
-                sx={{mt: 1}}
+                sx={{ mt: 1 }}
               />
             </Box>
             <MenuItem
@@ -482,7 +597,9 @@ export default function ChatRoomSidebarContent() {
                 setVolumeMenu(null);
               }}
             >
-              {mutedParticipantIdsSet.has(volumeMenu.participant.userId) ? "Unmute User" : "Mute User"}
+              {mutedParticipantIdsSet.has(volumeMenu.participant.userId)
+                ? "Unmute User"
+                : "Mute User"}
             </MenuItem>
           </>
         )}
