@@ -829,24 +829,27 @@ export default function ChatRoomScreenSharePanel({chatRoomId}: Props) {
                 "linear-gradient(90deg, transparent 0%, black 10%, black 90%, transparent 100%)",
             }}
           >
-            {tiles.map((tile) => (
-              <ParticipantTile
-                key={tile.id}
-                tile={tile}
-                isSelected={tile.id === selectedTileId}
-                onSelect={() => handleTileSelect(tile)}
-                isActiveSpeaker={
-                  tile.userId ? activeSpeakers.has(tile.userId) : false
-                }
-                isMuted={
-                  tile.isSelf
-                    ? voice.isSelfMuted
-                    : tile.userId
-                      ? mutedParticipants.has(tile.userId)
-                      : false
-                }
-              />
-            ))}
+
+            {tiles.map((tile) => {
+              const isActiveSpeakerForTile =
+                tile.userId ? activeSpeakers.has(tile.userId) : false;
+              const selfMuted =
+                tile.isSelf ? voice.isSelfMuted : Boolean(tile.participant?.isMuted);
+              const mutedByViewer =
+                tile.userId ? mutedParticipants.has(tile.userId) : false;
+
+              return (
+                <ParticipantTile
+                  key={tile.id}
+                  tile={tile}
+                  isSelected={tile.id === selectedTileId}
+                  onSelect={() => handleTileSelect(tile)}
+                  isActiveSpeaker={isActiveSpeakerForTile}
+                  isMuted={selfMuted || mutedByViewer}
+                />
+              );
+            })}
+
           </Box>
 
           <Box

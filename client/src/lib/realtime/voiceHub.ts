@@ -8,12 +8,14 @@ export type VoiceParticipant = {
     imageUrl?: string;
     isCameraEnabled?: boolean;
     isScreenSharing?: boolean;
+    isMuted?: boolean;
 };
 
 export type VoiceMediaState = {
     connectionId: string;
     isCameraEnabled: boolean;
     isScreenSharing: boolean;
+    isMuted: boolean;
 };
 
 export type VoiceChannelJoinResponse = {
@@ -165,6 +167,7 @@ export async function sendIceCandidate(
 export async function updateMediaState(state: {
     isCameraEnabled: boolean;
     isScreenSharing: boolean;
+    isMuted: boolean;
 }) {
     const connection = ensureConnection();
     await connection.invoke("UpdateMediaState", state);

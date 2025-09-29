@@ -8,5 +8,5 @@ public interface IVoiceChannelPresenceService
     VoiceChannelLeaveResult? LeaveChannel(string connectionId);
     bool TryGetConnection(string connectionId, out VoiceParticipantConnection participant);
     IReadOnlyCollection<VoiceParticipantConnection> GetParticipants(string channelId);
-    void UpdateMediaState(string connectionId, bool isCameraEnabled, bool isScreenSharing);
+    void UpdateMediaState(string connectionId, bool isCameraEnabled, bool isScreenSharing, bool isMuted);
 }

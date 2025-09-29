@@ -11,18 +11,20 @@ public class VoiceChannelPresenceService : IVoiceChannelPresenceService
 
     private readonly ConcurrentDictionary<string, VoiceParticipantConnection> _connections = new();
 
-    public void UpdateMediaState(string connectionId, bool isCameraEnabled, bool isScreenSharing)
+    public void UpdateMediaState(string connectionId, bool isCameraEnabled, bool isScreenSharing, bool isMuted)
     {
         if (!_connections.TryGetValue(connectionId, out var participant)) return;
 
         participant.IsCameraEnabled = isCameraEnabled;
         participant.IsScreenSharing = isScreenSharing;
+        participant.IsMuted = isMuted;
 
         if (_channels.TryGetValue(participant.ChannelId, out var channel) &&
             channel.TryGetValue(connectionId, out var channelParticipant))
         {
             channelParticipant.IsCameraEnabled = isCameraEnabled;
             channelParticipant.IsScreenSharing = isScreenSharing;
+            channelParticipant.IsMuted = isMuted;
         }
     }
 

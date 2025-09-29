@@ -258,8 +258,14 @@ class VoiceManager {
     if (!this.selfDeafened) {
       this.selfMutedBeforeDeafen = null;
     }
+    if (this.selfConnectionId) {
+      this.applyParticipantMediaState(this.selfConnectionId, {
+        isMuted: this.selfMuted,
+      });
+    }
     this.applyLocalMuteState();
     this.emit();
+    void this.syncMediaState();
   };
 
   toggleSelfMute = () => {
@@ -281,8 +287,14 @@ class VoiceManager {
       this.selfMuted = restore;
       this.selfMutedBeforeDeafen = null;
     }
+    if (this.selfConnectionId) {
+      this.applyParticipantMediaState(this.selfConnectionId, {
+        isMuted: this.selfMuted,
+      });
+    }
     this.applyLocalMuteState();
     this.emit();
+    void this.syncMediaState();
   };
 
   toggleSelfDeafened = () => {
@@ -370,6 +382,7 @@ class VoiceManager {
         this.applyParticipantMediaState(this.selfConnectionId, {
           isCameraEnabled: this.isCameraEnabled,
           isScreenSharing: this.isScreenSharing,
+          isMuted: this.selfMuted,
         });
       }
 
@@ -1351,7 +1364,11 @@ class VoiceManager {
 
   private applyParticipantMediaState(
     connectionId: string,
-    mediaState: { isCameraEnabled?: boolean; isScreenSharing?: boolean }
+    mediaState: {
+      isCameraEnabled?: boolean;
+      isScreenSharing?: boolean;
+      isMuted?: boolean;
+    }
   ) {
     const participant = this.participants.get(connectionId);
     if (participant) {
@@ -1600,6 +1617,7 @@ class VoiceManager {
       await updateMediaState({
         isCameraEnabled: this.isCameraEnabled,
         isScreenSharing: this.isScreenSharing,
+        isMuted: this.selfMuted,
       });
     } catch (err) {
       if (import.meta.env.DEV) {
@@ -2178,6 +2196,7 @@ class VoiceManager {
     this.applyParticipantMediaState(message.connectionId, {
       isCameraEnabled: message.isCameraEnabled,
       isScreenSharing: message.isScreenSharing,
+      isMuted: message.isMuted,
     });
     this.emit();
   };

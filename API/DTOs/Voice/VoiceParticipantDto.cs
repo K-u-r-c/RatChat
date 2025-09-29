@@ -9,4 +9,5 @@ public class VoiceParticipantDto
     public string? ImageUrl { get; set; }
     public bool IsCameraEnabled { get; set; }
     public bool IsScreenSharing { get; set; }
+    public bool IsMuted { get; set; }
 }
