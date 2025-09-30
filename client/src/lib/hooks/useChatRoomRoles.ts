@@ -75,7 +75,7 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
         Object.values(CHATROOM_PERMISSIONS).forEach((p) => (map[p] = true));
       } else {
         Object.values(CHATROOM_PERMISSIONS).forEach((p) => {
-          map[p] = res.data.permissions.some((perm) => perm.name === p);
+          map[p] = res.data.permissions.some((perm) => perm.permission.name === p);
         });
       }
       return map;
@@ -466,3 +466,4 @@ export const chatRoomRolesQueryKeys = {
   usersRolesKey,
   userPermsKey,
 };
+
