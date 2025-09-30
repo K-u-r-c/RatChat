@@ -25,12 +25,13 @@ export type User = {
 
 export type ChatRoomBan = {
   userId: string;
-  user: User?;
+  user?: User;
   chatRoomId: string;
   dateBanned: string;
 };
 
 export type ChatChannel = {
+  chatRoomId: string;
   id: string;
   name: string;
   type: "Text" | "Voice";
@@ -63,6 +64,7 @@ export type BaseMessage = {
   createdAt: Date;
   body: string;
   type: MessageType;
+  channelId?: string;
   senderId?: string;
   senderDisplayName?: string;
   senderSlug?: string;
@@ -121,6 +123,7 @@ export type ChatMessage = {
   displayName: string;
   imageUrl?: string;
   type: MessageType;
+  channelId: string;
 
   mediaUrl?: string;
   mediaPublicId?: string;
@@ -342,7 +345,3 @@ export type NotificationCounters = {
   directChats: Record<string, number>;
   encryptedDirectChats: Record<string, number>;
 };
-
-
-
-

@@ -26,7 +26,8 @@ public class MappingProfiles : Profile
         CreateMap<ChatRoom, UserChatRoomDto>();
 
         CreateMap<ChatChannel, ChatChannelDto>()
-            .ForMember(d => d.Type, o => o.MapFrom(s => s.Type.ToString()));
+            .ForMember(d => d.Type, o => o.MapFrom(s => s.Type.ToString()))
+            .ForMember(d => d.ChatRoomId, o => o.MapFrom(s => s.ChatRoomId));
         CreateMap<ChatRoom, ChatRoomDto>()
             .ForMember(
                 d => d.OwnerDisplayName,

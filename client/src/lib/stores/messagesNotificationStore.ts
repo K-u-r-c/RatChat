@@ -1,11 +1,15 @@
 ﻿import { makeAutoObservable, observable } from "mobx";
 import type { NotificationCounters } from "../types";
 
+type ChannelUnreadMap = ReturnType<typeof observable.map<string, number>>;
+
 export class MessagesNotificationStore {
   unreadByRoom = observable.map<string, number>();
+  channelUnreadByRoom = observable.map<string, ChannelUnreadMap>();
   directUnreadByChat = observable.map<string, number>();
   encryptedDirectUnreadByChat = observable.map<string, number>();
   activeChatRoomId: string | null = null;
+  activeChannelId: string | null = null;
   activeDirectChatId: string | null = null;
   activeEncryptedDirectChatId: string | null = null;
   windowFocused = true;
@@ -21,6 +25,7 @@ export class MessagesNotificationStore {
 
   hydrate(counters: NotificationCounters) {
     this.unreadByRoom.clear();
+    this.channelUnreadByRoom.clear();
     this.directUnreadByChat.clear();
     this.encryptedDirectUnreadByChat.clear();
 
@@ -39,9 +44,18 @@ export class MessagesNotificationStore {
     );
   }
 
-  setActiveChatRoom(chatRoomId: string | null): boolean {
+  setActiveChatRoom(chatRoomId: string | null, channelId?: string | null): boolean {
     this.activeChatRoomId = chatRoomId;
-    if (!chatRoomId || !this.windowFocused) return false;
+    if (!chatRoomId) {
+      this.activeChannelId = null;
+      return false;
+    }
+
+    if (channelId) {
+      this.setActiveChannel(chatRoomId, channelId);
+    }
+
+    if (!this.windowFocused) return false;
     const unread = this.unreadByRoom.get(chatRoomId) ?? 0;
     if (unread === 0) return false;
     this.unreadByRoom.delete(chatRoomId);
@@ -72,6 +86,9 @@ export class MessagesNotificationStore {
 
     if (this.activeChatRoomId) {
       this.unreadByRoom.delete(this.activeChatRoomId);
+      if (this.activeChannelId) {
+        this.markChannelRead(this.activeChatRoomId, this.activeChannelId);
+      }
     }
 
     if (this.activeDirectChatId) {
@@ -90,6 +107,52 @@ export class MessagesNotificationStore {
     const current = this.unreadByRoom.get(chatRoomId) ?? 0;
     this.unreadByRoom.set(chatRoomId, current + 1);
     this.playNotificationSound();
+  }
+
+  private ensureChannelMap(chatRoomId: string) {
+    let map = this.channelUnreadByRoom.get(chatRoomId);
+    if (!map) {
+      map = observable.map<string, number>();
+      this.channelUnreadByRoom.set(chatRoomId, map);
+    }
+    return map;
+  }
+
+  incrementChannelUnread(chatRoomId: string, channelId: string) {
+    if (!chatRoomId || !channelId) return;
+
+    if (
+      this.activeChatRoomId === chatRoomId &&
+      this.activeChannelId === channelId &&
+      this.windowFocused
+    ) {
+      return;
+    }
+
+    const map = this.ensureChannelMap(chatRoomId);
+    const current = map.get(channelId) ?? 0;
+    map.set(channelId, current + 1);
+    this.playNotificationSound();
+  }
+
+  getChannelUnread(chatRoomId: string, channelId: string): number {
+    return this.channelUnreadByRoom.get(chatRoomId)?.get(channelId) ?? 0;
+  }
+
+  markChannelRead(chatRoomId: string, channelId: string): boolean {
+    const map = this.channelUnreadByRoom.get(chatRoomId);
+    if (!map || !map.has(channelId)) return false;
+    map.delete(channelId);
+    if (map.size === 0) {
+      this.channelUnreadByRoom.delete(chatRoomId);
+    }
+    return true;
+  }
+
+  setActiveChannel(chatRoomId: string, channelId: string) {
+    this.activeChatRoomId = chatRoomId;
+    this.activeChannelId = channelId;
+    this.markChannelRead(chatRoomId, channelId);
   }
 
   incrementDirectUnread(chatId: string) {
@@ -114,6 +177,7 @@ export class MessagesNotificationStore {
   markRoomRead(chatRoomId: string): boolean {
     if (!this.unreadByRoom.has(chatRoomId)) return false;
     this.unreadByRoom.delete(chatRoomId);
+    this.channelUnreadByRoom.delete(chatRoomId);
     return true;
   }
 
@@ -131,6 +195,7 @@ export class MessagesNotificationStore {
 
   clearAll() {
     this.unreadByRoom.clear();
+    this.channelUnreadByRoom.clear();
     this.directUnreadByChat.clear();
     this.encryptedDirectUnreadByChat.clear();
   }

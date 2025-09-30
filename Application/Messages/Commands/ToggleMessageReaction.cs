@@ -83,6 +83,7 @@ public class ToggleMessageReaction
                 {
                     Action = "removed",
                     ChatRoomId = request.ChatRoomId,
+                    ChannelId = message.ChannelId,
                     MessageId = request.MessageId,
                     Emoji = normalizedEmoji,
                     UserId = user.Id,
@@ -107,6 +108,7 @@ public class ToggleMessageReaction
                 {
                     Action = "added",
                     ChatRoomId = request.ChatRoomId,
+                    ChannelId = message.ChannelId,
                     MessageId = request.MessageId,
                     Emoji = normalizedEmoji,
                     UserId = user.Id,

@@ -1,28 +1,42 @@
 import {
   Avatar,
   Box,
+  Badge,
+  Button,
   Divider,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   IconButton,
   List,
+  ListItem,
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  ListItemSecondaryAction,
   Menu,
   MenuItem,
   Slider,
   Tooltip,
   Typography,
+  TextField,
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
+import { observer } from "mobx-react-lite";
 import {
   CallEnd,
+  Add,
+  Delete,
   Chat,
   ExitToApp,
   ExpandLess,
   ExpandMore,
+  Edit,
   MicOff,
   People,
   Settings,
+  MoreVert,
   VolumeUp,
 } from "@mui/icons-material";
 import { useParams } from "react-router";
@@ -35,6 +49,8 @@ import { useAccount } from "../../lib/hooks/useAccount";
 import { useStore } from "../../lib/hooks/useStore";
 import { useChatRoomRolesRealtime } from "../../lib/hooks/useChatRoomRolesRealtime";
 import { CHATROOM_PERMISSIONS } from "../../lib/types/chatroomPermissions";
+import { toast } from "react-toastify";
+import type { ChatChannel } from "../../lib/types";
 
 function uniqueVoiceParticipants(
   participants: VoiceParticipant[]
@@ -54,16 +70,23 @@ function uniqueVoiceParticipants(
   return Array.from(unique.values());
 }
 
-export default function ChatRoomSidebarContent() {
+const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
   const { slug } = useParams();
   const { currentUser } = useAccount();
-  const { chatRoom, isLoadingChatRoom, leaveChatRoom, deleteChatRooms } =
-    useChatRooms(slug);
+  const {
+    chatRoom,
+    isLoadingChatRoom,
+    leaveChatRoom,
+    deleteChatRooms,
+    createChannel: createChannelMutation,
+    updateChannel: updateChannelMutation,
+    deleteChannel: deleteChannelMutation,
+  } = useChatRooms(slug);
   const { rolesStore } = useChatRoomRolesRealtime(
     chatRoom?.id,
     currentUser?.id
   );
-  const { uiStore } = useStore();
+  const { uiStore, messagesNotificationsStore } = useStore();
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -71,10 +94,32 @@ export default function ChatRoomSidebarContent() {
     anchor: { left: number; top: number };
     participant: VoiceParticipant;
   } | null>(null);
-  const [selectedTextChannel, setSelectedTextChannel] =
-    useState<string>("general");
+  const [channelDialog, setChannelDialog] = useState<
+    | {
+        mode: "create" | "edit";
+        type: ChatChannel["type"];
+        channel?: ChatChannel;
+      }
+    | null
+  >(null);
+  const [channelName, setChannelName] = useState("");
+  const [channelMenu, setChannelMenu] = useState<
+    | {
+        anchor: HTMLElement;
+        channel: ChatChannel;
+      }
+    | null
+  >(null);
 
   const menuOpen = Boolean(menuAnchorEl);
+  const textChannels = useMemo(
+    () =>
+      (chatRoom?.channels ?? [])
+        .filter((channel) => channel.type === "Text")
+        .sort((a, b) => a.position - b.position),
+    [chatRoom?.channels]
+  );
+
   const voiceChannels = useMemo(
     () =>
       (chatRoom?.channels ?? [])
@@ -84,10 +129,18 @@ export default function ChatRoomSidebarContent() {
   );
 
   const voice = useVoiceChannel(chatRoom?.id, currentUser?.id);
+  const selectedTextChannelId =
+    chatRoom?.id != null
+      ? uiStore.getSelectedTextChannel(chatRoom.id) ?? textChannels[0]?.id
+      : undefined;
   const activeRoomView = chatRoom
     ? uiStore.getChatRoomView(chatRoom.id)
     : "chat";
   const isChatView = activeRoomView === "chat";
+  const canManageChannels =
+    !!chatRoom &&
+    (chatRoom.isOwner ||
+      rolesStore.userPermissions[CHATROOM_PERMISSIONS.ManageChannels]);
   const mutedParticipantIdsSet = useMemo(
     () => new Set(voice.mutedParticipantIds),
     [voice.mutedParticipantIds]
@@ -106,6 +159,18 @@ export default function ChatRoomSidebarContent() {
       }
     }
   }, [chatRoom?.id, uiStore, voice.currentChannelId, voice.currentChatRoomId]);
+
+  useEffect(() => {
+    if (!chatRoom?.id) return;
+    if (textChannels.length === 0) {
+      uiStore.clearSelectedTextChannel(chatRoom.id);
+      return;
+    }
+    const current = uiStore.getSelectedTextChannel(chatRoom.id);
+    if (!current || !textChannels.some((channel) => channel.id === current)) {
+      uiStore.setSelectedTextChannel(chatRoom.id, textChannels[0].id);
+    }
+  }, [chatRoom?.id, textChannels, uiStore]);
 
   const handleServerNameClick = (event: React.MouseEvent<HTMLElement>) => {
     setMenuAnchorEl(event.currentTarget);
@@ -152,6 +217,100 @@ export default function ChatRoomSidebarContent() {
     }
     uiStore.setChatRoomView(chatRoom.id, "screen-share");
     void voice.join(channelId);
+  };
+
+  const handleDeleteChannel = async (channel: ChatChannel) => {
+    if (!chatRoom) return;
+    if (channel.type === "Text" && textChannels.length <= 1) {
+      toast.error("At least one text channel is required.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete #${channel.name}? This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    try {
+      await deleteChannelMutation.mutateAsync({
+        chatRoomId: chatRoom.id,
+        channelId: channel.id,
+      });
+
+      if (channel.type === "Text") {
+        const remaining = textChannels.filter((c) => c.id !== channel.id);
+        if (remaining.length > 0) {
+          uiStore.setSelectedTextChannel(chatRoom.id, remaining[0].id);
+        } else {
+          uiStore.clearSelectedTextChannel(chatRoom.id);
+        }
+        uiStore.setChatRoomView(chatRoom.id, "chat");
+      }
+
+      toast.success("Channel deleted");
+    } catch {
+      // handled by mutation onError
+    }
+  };
+
+  const isChannelSaving =
+    createChannelMutation.isPending || updateChannelMutation.isPending;
+
+  const handleChannelDialogSubmit = async () => {
+    if (!chatRoom || !channelDialog) return;
+    const trimmedName = channelName.trim();
+    if (!trimmedName) {
+      toast.error("Channel name cannot be empty");
+      return;
+    }
+
+    if (channelDialog.mode === "create") {
+      try {
+        const channel = await createChannelMutation.mutateAsync({
+          chatRoomId: chatRoom.id,
+          name: trimmedName,
+          type: channelDialog.type,
+        });
+
+        if (channelDialog.type === "Text") {
+          uiStore.setSelectedTextChannel(chatRoom.id, channel.id);
+          uiStore.setChatRoomView(chatRoom.id, "chat");
+        }
+
+        toast.success("Channel created");
+        setChannelDialog(null);
+        setChannelName("");
+      } catch {
+        // errors handled by mutation
+      }
+    } else if (channelDialog.mode === "edit" && channelDialog.channel) {
+      try {
+        const channel = await updateChannelMutation.mutateAsync({
+          chatRoomId: chatRoom.id,
+          channelId: channelDialog.channel.id,
+          name: trimmedName,
+        });
+
+        if (
+          channelDialog.type === "Text" &&
+          selectedTextChannelId === channel.id
+        ) {
+          uiStore.setSelectedTextChannel(chatRoom.id, channel.id);
+        }
+
+        toast.success("Channel updated");
+        setChannelDialog(null);
+        setChannelName("");
+      } catch {
+        // handled by mutation
+      }
+    }
+  };
+
+  const handleChannelDialogClose = () => {
+    if (isChannelSaving) return;
+    setChannelDialog(null);
+    setChannelName("");
   };
   return (
     <Box sx={{ width: "100%", p: 2 }}>
@@ -267,59 +426,202 @@ export default function ChatRoomSidebarContent() {
       </Box>
 
       {/* Text channels */}
-      <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-        Text Channels
-      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
+        <Typography variant="subtitle2" color="text.secondary" sx={{ flex: 1 }}>
+          Text Channels
+        </Typography>
+        {canManageChannels && (
+          <Tooltip title="Create text channel">
+            <IconButton
+              size="small"
+              onClick={() => {
+                setChannelName("");
+                setChannelDialog({ mode: "create", type: "Text" });
+              }}
+            >
+              <Add fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Box>
       <List>
-        <ListItemButton
-          selected={isChatView && selectedTextChannel === "general"}
-          onClick={() => {
-            setSelectedTextChannel("general");
-            if (chatRoom?.id) {
-              uiStore.setChatRoomView(chatRoom.id, "chat");
-            }
-          }}
-        >
-          <ListItemIcon>
-            <Chat />
-          </ListItemIcon>
-          <ListItemText primary="# general" />
-        </ListItemButton>
-        <ListItemButton
-          selected={isChatView && selectedTextChannel === "memes"}
-          onClick={() => {
-            setSelectedTextChannel("memes");
-            if (chatRoom?.id) {
-              uiStore.setChatRoomView(chatRoom.id, "chat");
-            }
-          }}
-        >
-          <ListItemIcon>
-            <Chat />
-          </ListItemIcon>
-          <ListItemText primary="# memes" />
-        </ListItemButton>
-        <ListItemButton
-          selected={isChatView && selectedTextChannel === "tech-talk"}
-          onClick={() => {
-            setSelectedTextChannel("tech-talk");
-            if (chatRoom?.id) {
-              uiStore.setChatRoomView(chatRoom.id, "chat");
-            }
-          }}
-        >
-          <ListItemIcon>
-            <Chat />
-          </ListItemIcon>
-          <ListItemText primary="# tech-talk" />
-        </ListItemButton>
+        {textChannels.length === 0 ? (
+          <ListItem>
+            <ListItemText
+              primary="No text channels yet."
+              primaryTypographyProps={{
+                color: "text.secondary",
+                variant: "body2",
+              }}
+            />
+          </ListItem>
+        ) : (
+          textChannels.map((channel) => {
+            const unreadCount = chatRoom
+              ? messagesNotificationsStore.getChannelUnread(
+                  chatRoom.id,
+                  channel.id
+                )
+              : 0;
+
+            const isSelected =
+              isChatView && selectedTextChannelId === channel.id;
+
+            return (
+              <ListItem disablePadding key={channel.id}>
+                <ListItemButton
+                selected={isSelected}
+                onClick={() => {
+                  if (!chatRoom?.id) return;
+                  uiStore.setSelectedTextChannel(chatRoom.id, channel.id);
+                  messagesNotificationsStore.setActiveChannel(
+                    chatRoom.id,
+                    channel.id
+                  );
+                  uiStore.setChatRoomView(chatRoom.id, "chat");
+                }}
+              >
+                <ListItemIcon>
+                  <Badge
+                    color="primary"
+                    badgeContent={unreadCount}
+                    invisible={!unreadCount}
+                    overlap="circular"
+                  >
+                    <Chat />
+                  </Badge>
+                </ListItemIcon>
+                <ListItemText
+                  primary={`# ${channel.name}`}
+                  primaryTypographyProps={{
+                    fontSize: 14,
+                    fontWeight: unreadCount > 0 && !isSelected ? 600 : 500,
+                  }}
+                />
+              </ListItemButton>
+              {canManageChannels && (
+                <ListItemSecondaryAction>
+                  <IconButton
+                    edge="end"
+                    size="small"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setChannelMenu({ anchor: event.currentTarget, channel });
+                    }}
+                  >
+                    <MoreVert fontSize="small" />
+                  </IconButton>
+                </ListItemSecondaryAction>
+              )}
+            </ListItem>
+          );
+          })
+        )}
       </List>
+
+      <Menu
+        anchorEl={channelMenu?.anchor ?? null}
+        open={Boolean(channelMenu)}
+        onClose={() => setChannelMenu(null)}
+        slotProps={{
+          paper: {
+            sx: {
+              bgcolor: "rgba(19,19,22)",
+              borderRadius: 2,
+              minWidth: 180,
+            },
+          },
+        }}
+      >
+        <MenuItem
+          onClick={() => {
+            if (!channelMenu) return;
+            setChannelDialog({
+              mode: "edit",
+              type: channelMenu.channel.type,
+              channel: channelMenu.channel,
+            });
+            setChannelName(channelMenu.channel.name);
+            setChannelMenu(null);
+          }}
+        >
+          <ListItemIcon>
+            <Edit fontSize="small" />
+          </ListItemIcon>
+          Rename
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            if (!channelMenu) return;
+            const target = channelMenu.channel;
+            setChannelMenu(null);
+            void handleDeleteChannel(target);
+          }}
+          sx={{ color: "error.main" }}
+        >
+          <ListItemIcon>
+            <Delete fontSize="small" sx={{ color: "error.main" }} />
+          </ListItemIcon>
+          Delete
+        </MenuItem>
+      </Menu>
+
+      <Dialog
+        open={Boolean(channelDialog)}
+        onClose={handleChannelDialogClose}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>
+          {channelDialog?.mode === "create"
+            ? `Create ${channelDialog?.type === "Text" ? "text" : "voice"} channel`
+            : `Rename ${channelDialog?.type === "Text" ? "text" : "voice"} channel`}
+        </DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Channel name"
+            fullWidth
+            value={channelName}
+            onChange={(event) => setChannelName(event.target.value)}
+            disabled={isChannelSaving}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleChannelDialogClose} disabled={isChannelSaving}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleChannelDialogSubmit}
+            variant="contained"
+            disabled={isChannelSaving || channelName.trim().length === 0}
+          >
+            {channelDialog?.mode === "create" ? "Create" : "Save"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Divider sx={{ my: 2 }} />
       {/* Voice channels */}
-      <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-        Voice Channels
-      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
+        <Typography variant="subtitle2" color="text.secondary" sx={{ flex: 1 }}>
+          Voice Channels
+        </Typography>
+        {canManageChannels && (
+          <Tooltip title="Create voice channel">
+            <IconButton
+              size="small"
+              onClick={() => {
+                setChannelName("");
+                setChannelDialog({ mode: "create", type: "Voice" });
+              }}
+            >
+              <Add fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Box>
       <List sx={{ listStyle: "none", pl: 0 }}>
         {voiceChannels.length === 0 ? (
           <Box component="li" sx={{ px: 2, py: 1, color: "text.secondary" }}>
@@ -394,23 +696,41 @@ export default function ChatRoomSidebarContent() {
                         }}
                       />
                     </Box>
-                    {isActive && (
-                      <IconButton
-                        size="small"
-                        edge="end"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          if (chatRoom?.id) {
-                            uiStore.setChatRoomView(chatRoom.id, "chat");
-                          }
-                          void voice.leave();
-                        }}
-                        sx={{ color: "error.main" }}
-                        aria-label="Leave channel"
-                      >
-                        <CallEnd fontSize="small" />
-                      </IconButton>
-                    )}
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                      {canManageChannels && (
+                        <IconButton
+                          size="small"
+                          edge="end"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setChannelMenu({
+                              anchor: event.currentTarget,
+                              channel,
+                            });
+                          }}
+                          aria-label="Channel options"
+                        >
+                          <MoreVert fontSize="small" />
+                        </IconButton>
+                      )}
+                      {isActive && (
+                        <IconButton
+                          size="small"
+                          edge="end"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            if (chatRoom?.id) {
+                              uiStore.setChatRoomView(chatRoom.id, "chat");
+                            }
+                            void voice.leave();
+                          }}
+                          sx={{ color: "error.main" }}
+                          aria-label="Leave channel"
+                        >
+                          <CallEnd fontSize="small" />
+                        </IconButton>
+                      )}
+                    </Box>
                   </ListItemButton>
                   {participantCount > 0 && (
                     <Box
@@ -617,4 +937,6 @@ export default function ChatRoomSidebarContent() {
       />
     </Box>
   );
-}
+});
+
+export default ChatRoomSidebarContent;

@@ -317,6 +317,14 @@ public class DbInitializer
                 new()
                 {
                     ChatRoomId = chatRoom.Id,
+                    Name = "general",
+                    Type = ChatChannelType.Text,
+                    Position = 0,
+                    CreatedAt = now
+                },
+                new()
+                {
+                    ChatRoomId = chatRoom.Id,
                     Name = "General",
                     Type = ChatChannelType.Voice,
                     Position = 0,

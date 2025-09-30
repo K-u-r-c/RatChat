@@ -79,7 +79,8 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
                 .HasForeignKey(c => c.ChatRoomId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasIndex(c => new { c.ChatRoomId, c.Name }).IsUnique();
+            entity.HasIndex(c => new { c.ChatRoomId, c.Type, c.Name }).IsUnique();
+            entity.HasIndex(c => new { c.ChatRoomId, c.Type, c.Position }).IsUnique();
         });
 
         builder.Entity<ChatRoomRole>(entity =>
@@ -348,18 +349,28 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
                 .HasForeignKey(n => n.EncryptedDirectChatId)
                 .OnDelete(DeleteBehavior.NoAction);
         });
+        
         builder.Entity<Message>(x =>
         {
             // Encrypt message body at rest
             x.Property(m => m.Body)
                 .HasConversion(EncryptedStringConverter.Instance);
 
+            x.Property(m => m.ChannelId)
+                .IsRequired();
+
             x.HasOne(m => m.ReplyToMessage)
                 .WithMany()
                 .HasForeignKey(m => m.ReplyToMessageId)
                 .OnDelete(DeleteBehavior.NoAction);
 
+            x.HasOne(m => m.Channel)
+                .WithMany()
+                .HasForeignKey(m => m.ChannelId)
+                .OnDelete(DeleteBehavior.NoAction);
+
             x.HasIndex(m => new { m.ChatRoomId, m.CreatedAt });
+            x.HasIndex(m => new { m.ChannelId, m.CreatedAt });
         });
 
         // Message reactions

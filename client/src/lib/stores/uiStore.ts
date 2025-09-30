@@ -5,6 +5,7 @@ export class UiStore {
   createJoinModalOpen = false;
   createJoinModalStep: "choose" | "create" | "join" = "choose";
   chatRoomViews = new Map<string, "chat" | "screen-share">();
+  selectedTextChannels = new Map<string, string>();
   private _suppressNextChatRoomForbiddenToast = false;
 
   constructor() {
@@ -72,5 +73,18 @@ export class UiStore {
 
   clearChatRoomView(chatRoomId: string) {
     this.chatRoomViews.delete(chatRoomId);
+  }
+
+  getSelectedTextChannel(chatRoomId: string, fallback?: string): string | undefined {
+    return this.selectedTextChannels.get(chatRoomId) ?? fallback;
+  }
+
+  setSelectedTextChannel(chatRoomId: string, channelId: string) {
+    if (this.selectedTextChannels.get(chatRoomId) === channelId) return;
+    this.selectedTextChannels.set(chatRoomId, channelId);
+  }
+
+  clearSelectedTextChannel(chatRoomId: string) {
+    this.selectedTextChannels.delete(chatRoomId);
   }
 }

@@ -28,7 +28,8 @@ public class HasPermissionRequirementHandler(
         "LoadMoreMessages",
         "ToggleMessageReaction",
         "JoinChatRoom",
-        "LeaveChatRoom"
+        "LeaveChatRoom",
+        "JoinChatChannel"
     };
 
     protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, HasPermissionRequirement requirement)
@@ -176,4 +177,3 @@ public class HasPermissionRequirementHandler(
             .FirstOrDefaultAsync(cancellationToken);
     }
 }
-
