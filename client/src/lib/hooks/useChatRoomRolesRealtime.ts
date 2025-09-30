@@ -107,7 +107,7 @@ export function useChatRoomRolesRealtime(
             return newMap;
           }
         );
-        // TODO optimistic permissions recalculation for current user
+
 
         queryClient.invalidateQueries({
           queryKey: chatRoomRolesQueryKeys.rolesKey(chatRoom.id),
@@ -143,7 +143,7 @@ export function useChatRoomRolesRealtime(
             return newMap;
           }
         );
-        // TODO optimistic permissions recalculation for current user
+
 
         queryClient.invalidateQueries({
           queryKey: chatRoomRolesQueryKeys.rolesKey(chatRoom.id),
@@ -176,9 +176,6 @@ export function useChatRoomRolesRealtime(
               return newMap;
             }
           );
-          if (assignedRole.userId === currentUserIdRef.current) {
-            // TODO optimistic permissions recalculation for current user
-          }
 
             queryClient.invalidateQueries({
               queryKey: chatRoomRolesQueryKeys.usersRolesKey(chatRoom.id),
@@ -211,9 +208,6 @@ export function useChatRoomRolesRealtime(
               return newMap;
             }
           );
-          if (unassignedRole.userId === currentUserIdRef.current) {
-            // TODO optimistic permissions recalculation for current user
-          }
 
           queryClient.invalidateQueries({
             queryKey: chatRoomRolesQueryKeys.usersRolesKey(chatRoom.id),
