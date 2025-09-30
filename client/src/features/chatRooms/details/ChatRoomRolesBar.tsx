@@ -1,10 +1,11 @@
-import { Box, Button, Typography } from "@mui/material";
+import {Box, Button, Typography} from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import { ChatRoomRoleButton } from "../../../app/shared/components/ChatRoomRoleButton";
-import { useState } from "react";
+import {ChatRoomRoleButton} from "../../../app/shared/components/ChatRoomRoleButton";
+import {useState} from "react";
 import ChatRoomRoleForm from "../forms/ChatRoomRoleForm";
-import type { CreateChatRoomRole } from "../../../lib/schemas/chatRoomRoleSchema";
-import { useChatRoomRoles } from "../../../lib/hooks/useChatRoomRoles";
+import type {CreateChatRoomRole} from "../../../lib/schemas/chatRoomRoleSchema";
+import {useChatRoomRoles} from "../../../lib/hooks/useChatRoomRoles";
+import {CHATROOM_PERMISSIONS} from "../../../lib/types/chatroomPermissions.ts";
 
 type Props = {
   chatRoomId?: string;
@@ -12,10 +13,10 @@ type Props = {
 };
 
 const ChatRoomRolesBar = function ChatRoomRolesBar({
-  chatRoomId,
-  currentUserId,
-}: Props) {
-  const { createRole, roles } = useChatRoomRoles(chatRoomId, currentUserId);
+                                                     chatRoomId,
+                                                     currentUserId,
+                                                   }: Props) {
+  const {createRole, roles, userPermissions, isLoadingUserPermissions} = useChatRoomRoles(chatRoomId, currentUserId);
   // Dialog state for creating
   const [open, setOpen] = useState(false);
 
@@ -44,8 +45,8 @@ const ChatRoomRolesBar = function ChatRoomRolesBar({
       }}
     >
       {/* Roles section */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: "bold", mr: 1 }}>
+      <Box sx={{display: "flex", alignItems: "center", gap: 2}}>
+        <Typography variant="subtitle1" sx={{fontWeight: "bold", mr: 1}}>
           Roles:
         </Typography>
         {roles &&
@@ -55,6 +56,7 @@ const ChatRoomRolesBar = function ChatRoomRolesBar({
               role={role}
               chatRoomId={chatRoomId}
               currentUserId={currentUserId}
+              isDisabled={isLoadingUserPermissions || !userPermissions[CHATROOM_PERMISSIONS.ManageChatRoomRoles]}
             />
           ))}
       </Box>
@@ -62,8 +64,9 @@ const ChatRoomRolesBar = function ChatRoomRolesBar({
       <Button
         variant="contained"
         color="primary"
-        startIcon={<AddIcon />}
+        startIcon={<AddIcon/>}
         onClick={handleAddRoleClick}
+        disabled={isLoadingUserPermissions || !userPermissions[CHATROOM_PERMISSIONS.ManageChatRoomRoles]}
       >
         Create Role
       </Button>

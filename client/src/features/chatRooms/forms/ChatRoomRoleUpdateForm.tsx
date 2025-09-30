@@ -1,24 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {useCallback, useEffect, useMemo, useState} from "react";
+import {Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, TextField, Typography,} from "@mui/material";
+import {zodResolver} from "@hookform/resolvers/zod";
+import {Controller, useForm} from "react-hook-form";
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  TextField,
-  Box,
-  Typography,
-} from "@mui/material";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Controller, useForm } from "react-hook-form";
-import {
-  UpdateChatRoomRoleSchema,
   type ChatRoomRole,
   type UpdateChatRoomRole,
+  UpdateChatRoomRoleSchema,
 } from "../../../lib/schemas/chatRoomRoleSchema";
-import { ChatRoomRolePermissionItem } from "../../../app/shared/components/ChatRoomPermissionItem";
-import { useChatRoomRoles } from "../../../lib/hooks/useChatRoomRoles";
-import { toast } from "react-toastify";
+import {ChatRoomRolePermissionItem} from "../../../app/shared/components/ChatRoomPermissionItem";
+import {useChatRoomRoles} from "../../../lib/hooks/useChatRoomRoles";
+import {toast} from "react-toastify";
 
 type Props = {
   open: boolean;
@@ -27,6 +18,7 @@ type Props = {
   chatRoomId?: string;
   currentUserId?: string;
   disableDelete?: boolean;
+  isDisabled?: boolean;
 };
 
 const COLOR_INPUT_STYLE: React.CSSProperties = {
@@ -38,15 +30,17 @@ const COLOR_INPUT_STYLE: React.CSSProperties = {
   cursor: "pointer",
 };
 
-export default function ChatRoomRoleUpdateForm({
-  open,
-  onClose,
-  role,
-  chatRoomId,
-  currentUserId,
-  disableDelete,
-}: Props) {
-  const { updateRole, deleteRole } = useChatRoomRoles(
+export default function ChatRoomRoleUpdateForm(
+  {
+    open,
+    onClose,
+    role,
+    chatRoomId,
+    currentUserId,
+    disableDelete,
+    isDisabled,
+  }: Props) {
+  const {updateRole, deleteRole} = useChatRoomRoles(
     chatRoomId,
     currentUserId
   );
@@ -74,7 +68,7 @@ export default function ChatRoomRoleUpdateForm({
     watch,
     reset,
     setValue,
-    formState: { errors, isDirty },
+    formState: {errors, isDirty},
   } = useForm<UpdateChatRoomRole>({
     mode: "onTouched",
     resolver: zodResolver(UpdateChatRoomRoleSchema),
@@ -95,10 +89,10 @@ export default function ChatRoomRoleUpdateForm({
         "permissions",
         permissions.map((permission) =>
           permission.id === permissionId
-            ? { ...permission, isAllowed }
+            ? {...permission, isAllowed}
             : permission
         ),
-        { shouldDirty: true }
+        {shouldDirty: true}
       );
     },
     [permissions, setValue]
@@ -125,7 +119,7 @@ export default function ChatRoomRoleUpdateForm({
     if (!deleteRole || disableDelete || role.isDefault) return;
     setDeleting(true);
     try {
-      await deleteRole({ id: role.id });
+      await deleteRole({id: role.id});
       onClose();
       toast.success("Role deleted");
     } catch (error) {
@@ -153,7 +147,7 @@ export default function ChatRoomRoleUpdateForm({
           <Controller
             name="name"
             control={control}
-            render={({ field }) => (
+            render={({field}) => (
               <TextField
                 {...field}
                 label="Name"
@@ -168,7 +162,7 @@ export default function ChatRoomRoleUpdateForm({
           <Controller
             name="description"
             control={control}
-            render={({ field }) => (
+            render={({field}) => (
               <TextField
                 {...field}
                 label="Description"
@@ -180,18 +174,18 @@ export default function ChatRoomRoleUpdateForm({
               />
             )}
           />
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2, mt: 1 }}>
+          <Box sx={{display: "flex", alignItems: "center", gap: 2, mt: 1}}>
             <Typography variant="subtitle2">Color</Typography>
             <Controller
               name="color"
               control={control}
-              render={({ field }) => (
-                <input type="color" {...field} style={COLOR_INPUT_STYLE} />
+              render={({field}) => (
+                <input type="color" {...field} style={COLOR_INPUT_STYLE}/>
               )}
             />
             <Typography
               variant="body2"
-              sx={{ fontFamily: "monospace", color: "text.secondary" }}
+              sx={{fontFamily: "monospace", color: "text.secondary"}}
             >
               {colorValue}
             </Typography>
@@ -202,8 +196,8 @@ export default function ChatRoomRoleUpdateForm({
             )}
           </Box>
 
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+          <Box sx={{mt: 2}}>
+            <Typography variant="subtitle2" sx={{mb: 1}}>
               Permissions
             </Typography>
             {permissions.map((permission) => {
@@ -220,6 +214,7 @@ export default function ChatRoomRoleUpdateForm({
                     isAllowed: permission.isAllowed,
                   }}
                   onChange={handlePermissionChange}
+                  isDisabled={isDisabled}
                 />
               );
             })}
@@ -230,14 +225,14 @@ export default function ChatRoomRoleUpdateForm({
             )}
           </Box>
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 3 }}>
+        <DialogActions sx={{px: 3, pb: 3}}>
           <Button onClick={onClose}>Cancel</Button>
           <Button
             color="error"
             variant="contained"
             onClick={handleDelete}
             disabled={
-              disableDelete || role.isDefault || deleting || !deleteRole
+              disableDelete || role.isDefault || deleting || !deleteRole || isDisabled
             }
           >
             Delete
@@ -245,7 +240,7 @@ export default function ChatRoomRoleUpdateForm({
           <Button
             type="submit"
             variant="contained"
-            disabled={!isDirty || submitting || !updateRole}
+            disabled={!isDirty || submitting || !updateRole || isDisabled}
           >
             Update
           </Button>

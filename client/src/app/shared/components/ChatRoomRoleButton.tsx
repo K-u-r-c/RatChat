@@ -1,15 +1,16 @@
-import { Box, Tooltip, Typography } from "@mui/material";
-import { useState } from "react";
-import type { ChatRoomRole } from "../../../lib/schemas/chatRoomRoleSchema";
+import {Box, Tooltip, Typography} from "@mui/material";
+import {useState} from "react";
+import type {ChatRoomRole} from "../../../lib/schemas/chatRoomRoleSchema";
 import ChatRoomRoleUpdateForm from "../../../features/chatRooms/forms/ChatRoomRoleUpdateForm";
 
 type Props = {
   chatRoomId?: string;
   currentUserId?: string;
   role: ChatRoomRole;
+  isDisabled?: boolean;
 };
 
-export function ChatRoomRoleButton({ chatRoomId, currentUserId, role }: Props) {
+export function ChatRoomRoleButton({chatRoomId, currentUserId, role, isDisabled}: Props) {
   const [open, setOpen] = useState(false);
 
   const handleClose = () => {
@@ -48,7 +49,7 @@ export function ChatRoomRoleButton({ chatRoomId, currentUserId, role }: Props) {
             minWidth: 60,
             textAlign: "center",
             userSelect: "none",
-            "&:hover": { filter: "brightness(0.9)" },
+            "&:hover": {filter: "brightness(0.9)"},
           }}
         >
           {role.name}
@@ -60,7 +61,8 @@ export function ChatRoomRoleButton({ chatRoomId, currentUserId, role }: Props) {
         role={role}
         chatRoomId={chatRoomId}
         currentUserId={currentUserId}
-        disableDelete={role.isDefault}
+        disableDelete={role.isDefault || isDisabled}
+        isDisabled={isDisabled}
       />
     </>
   );
