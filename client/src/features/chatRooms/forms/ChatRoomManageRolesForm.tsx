@@ -9,12 +9,13 @@ import {
   Checkbox,
 } from "@mui/material";
 import type { Profile } from "../../../lib/types";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import type {
   AssignChatRoomRole,
   UnassignChatRoomRole,
 } from "../../../lib/schemas/chatRoomRoleSchema";
 import { useChatRoomRoles } from "../../../lib/hooks/useChatRoomRoles";
+import {CHATROOM_PERMISSIONS} from "../../../lib/types/chatroomPermissions.ts";
 
 type Props = {
   open: boolean;
@@ -33,7 +34,7 @@ export default function ChatRoomManageRolesForm({
   members,
   loading,
 }: Props) {
-  const { roles, usersRolesMap, assignRole, unassignRole } = useChatRoomRoles(
+  const { roles, usersRolesMap, userPermissions, assignRole, unassignRole } = useChatRoomRoles(
     chatRoomId,
     currentUserId
   );
@@ -41,6 +42,12 @@ export default function ChatRoomManageRolesForm({
   const [localAssignments, setLocalAssignments] = useState<
     Map<string, Set<string>>
   >(new Map());
+  const canManageRoles = useMemo(() => userPermissions[CHATROOM_PERMISSIONS.ManageChatRoomRoles], [userPermissions]);
+
+  // Stable, memoized ordering of roles (alphabetical) so table columns don't jump
+  const orderedRoles = useMemo(() => {
+    return [...roles].sort((a, b) => a.name.localeCompare(b.name));
+  }, [roles]);
 
   useEffect(() => {
     const initial = new Map<string, Set<string>>();
@@ -70,21 +77,26 @@ export default function ChatRoomManageRolesForm({
     return false;
   }, [members, usersRolesMap, localAssignments]);
 
-  const handleToggle = (userId: string, roleId: string, checked: boolean) => {
-    setLocalAssignments((prev) => {
-      const updated = new Map(prev);
-      const userRoles = new Set(updated.get(userId) || []);
-      if (checked) {
-        userRoles.add(roleId);
-      } else {
-        userRoles.delete(roleId);
-      }
-      updated.set(userId, userRoles);
-      return updated;
-    });
-  };
+  const handleToggle = useCallback(
+    (userId: string, roleId: string, checked: boolean) => {
+      if (!canManageRoles) return; // gate interaction
+      setLocalAssignments((prev) => {
+        const updated = new Map(prev);
+        const userRoles = new Set(updated.get(userId) || []);
+        if (checked) {
+          userRoles.add(roleId);
+        } else {
+          userRoles.delete(roleId);
+        }
+        updated.set(userId, userRoles);
+        return updated;
+      });
+    },
+    [canManageRoles]
+  );
 
-  const handleConfirm = async () => {
+  const handleConfirm = useCallback(async () => {
+    if (!canManageRoles) return; // gate
     for (const member of members) {
       const prevRoles = new Set(
         (usersRolesMap.get(member.id) || []).map((r) => r.id)
@@ -111,23 +123,27 @@ export default function ChatRoomManageRolesForm({
       }
     }
     onClose();
-  };
+  }, [assignRole, unassignRole, canManageRoles, localAssignments, members, onClose, usersRolesMap]);
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
       <DialogTitle>Manage Roles</DialogTitle>
       <DialogContent>
         <Box sx={{ overflowX: "auto" }}>
-          {!roles || roles.length === 0 ? (
+          {!orderedRoles || orderedRoles.length === 0 ? (
             <Typography color="text.secondary" sx={{ p: 2 }}>
               No roles available.
+            </Typography>
+          ) : !canManageRoles ? (
+            <Typography color="text.secondary" sx={{ p: 2 }}>
+              You don't have permission to manage roles in this chat room.
             </Typography>
           ) : (
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr>
                   <th style={{ textAlign: "left", padding: 8 }}>User</th>
-                  {roles.map((role) => (
+                  {orderedRoles.map((role) => (
                     <th
                       key={role.id}
                       style={{
@@ -157,7 +173,7 @@ export default function ChatRoomManageRolesForm({
                         />
                       </Box>
                     </td>
-                    {roles.map((role) => {
+                    {orderedRoles.map((role) => {
                       const checked =
                         localAssignments.get(member.id)?.has(role.id) ?? false;
                       return (
@@ -167,7 +183,7 @@ export default function ChatRoomManageRolesForm({
                         >
                           <Checkbox
                             checked={checked}
-                            disabled={loading}
+                            disabled={loading || !canManageRoles}
                             onChange={(e) =>
                               handleToggle(member.id, role.id, e.target.checked)
                             }
@@ -184,12 +200,12 @@ export default function ChatRoomManageRolesForm({
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>Close</Button>
         <Button
           onClick={handleConfirm}
           variant="contained"
-          color="primary"
-          disabled={loading || !isDirty}
+            color="primary"
+            disabled={loading || !isDirty || !canManageRoles}
         >
           Confirm
         </Button>

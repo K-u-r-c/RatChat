@@ -232,28 +232,40 @@ public class ChatRoomsController(
         return HandleResult(result);
     }
 
-    //TODO add Create roles Permission
     [HttpPost("role")]
+    [Authorize(Policy = ChatRoomPermissions.ManageChatRoomRoles)]
     public async Task<ActionResult<Unit>> CreateRole(
+        [FromQuery] string chatRoomId,
         [FromBody] CreateChatRoomRoleDto dto)
     {
+        if (chatRoomId != dto.ChatRoomId)
+        {
+            return HandleResult(Result<Unit>.Failure("Wrong query data", 404));
+        }
+        
         var result = await Mediator.Send(
             new CreateChatRoomRole.Command { CreateChatRoomRoleDto = dto }
         );
 
         if (result.IsSuccess)
         {
-            await _rolesContext.Clients.Group(dto.ChatRoomId).SendAsync("RoleCreated", result.Value);
+            await _rolesContext.Clients.Group(chatRoomId).SendAsync("RoleCreated", result.Value);
         }
 
         return HandleResult(result);
     }
 
-    //TODO add Update roles Permission
     [HttpPut("role")]
+    [Authorize(Policy = ChatRoomPermissions.ManageChatRoomRoles)]
     public async Task<ActionResult<Unit>> UpdateRole(
+        [FromQuery] string chatRoomId,
         [FromBody] UpdateChatRoomRoleDto dto)
     {
+        if (chatRoomId is "" or null)
+        {
+            return HandleResult(Result<Unit>.Failure("Wrong query data", 404));
+        }
+        
         var result = await Mediator.Send(
             new UpdateChatRoomRole.Command { UpdateChatRoomRoleDto = dto });
 
@@ -265,8 +277,10 @@ public class ChatRoomsController(
 
         return HandleResult(result);
     }
-
+    
+    
     [HttpDelete("role")]
+    [Authorize(Policy = ChatRoomPermissions.ManageChatRoomRoles)]
     public async Task<ActionResult<Unit>> DeleteRole(
         [FromQuery] string roleId,
         [FromQuery] string chatRoomId)
@@ -284,10 +298,16 @@ public class ChatRoomsController(
 
 
     [HttpPost("assign-role")]
-    //TODO add Update roles Permission
+    [Authorize(Policy = ChatRoomPermissions.ManageChatRoomRoles)]
     public async Task<ActionResult<Unit>> AssignRole(
+        [FromQuery] string chatRoomId,
         [FromBody] AssignChatRoomRoleDto dto)
     {
+        if (chatRoomId is "" or null)
+        {
+            return HandleResult(Result<Unit>.Failure("Wrong query data", 404));
+        }
+        
         var result = await Mediator.Send(
             new AssignChatRoomRole.Command { AssignChatRoomRoleDto = dto });
 
@@ -300,9 +320,16 @@ public class ChatRoomsController(
     }
 
     [HttpPost("unassign-role")]
+    [Authorize(Policy = ChatRoomPermissions.ManageChatRoomRoles)]
     public async Task<ActionResult<Unit>> UnassignRole(
+        [FromQuery] string chatRoomId,
         [FromBody] UnassignChatRoomRoleDto dto)
     {
+        if (chatRoomId is "" or null)
+        {
+            return HandleResult(Result<Unit>.Failure("Wrong query data", 404));
+        }
+        
         var result = await Mediator.Send(
             new UnassignChatRoomRole.Command { UnassignChatRoomRoleDto = dto });
 

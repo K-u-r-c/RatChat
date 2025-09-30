@@ -10,6 +10,7 @@ public static class ChatRoomPermissions
     public const string BanFromChatRoom = "Ban from chatroom";
     public const string UnbanFromChatRoom = "Unban from chatroom";
     public const string ManageChannels = "Manage channels";
+    public const string ManageChatRoomRoles = "Manage chatroom roles";
 
 
     // TODO: Implement more permissions
@@ -32,5 +33,6 @@ public static class ChatRoomPermissions
             [BanFromChatRoom] = "Allows the user to ban others from the chat room",
             [UnbanFromChatRoom] = "Allows the user to unban banned user from the chat room",
             [ManageChannels] = "Allows the user to create, update, reorder, and delete chat channels.",
+            [ManageChatRoomRoles] = "Allows the user to manage roles from the chat room",
         };
 }

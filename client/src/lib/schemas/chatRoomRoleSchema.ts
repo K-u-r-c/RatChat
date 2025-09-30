@@ -93,7 +93,8 @@ export type UnassignedChatRoomRole = z.infer<
 export type ChatRoomRolePermissionFromServer = z.infer<
   typeof ChatRoomRolePermissionSchema
 >;
+export type ChatRoomPermission = z.infer<typeof ChatRoomPermissionSchema>;
 export type ChatRoomUserPermission = {
   isOwner: boolean;
-  permissions: ChatRoomRolePermissionFromServer[];
+  permissions: ChatRoomPermission[];
 };

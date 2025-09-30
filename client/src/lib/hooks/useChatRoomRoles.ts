@@ -75,7 +75,7 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
         Object.values(CHATROOM_PERMISSIONS).forEach((p) => (map[p] = true));
       } else {
         Object.values(CHATROOM_PERMISSIONS).forEach((p) => {
-          map[p] = res.data.permissions.some((perm) => perm.permission.name === p);
+          map[p] = res.data.permissions.some((perm) => perm.name === p);
         });
       }
       return map;
@@ -92,7 +92,7 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
         if (import.meta.env.DEV) console.error("chatRoomId is required");
         throw new Error("chatRoomId is required");
       }
-      await agent.post("/chatrooms/role", {
+      await agent.post(`/chatrooms/role?chatRoomId=${chatRoomId}`, {
         chatRoomId,
         ...payload,
       });
@@ -139,7 +139,7 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
         if (import.meta.env.DEV) console.error("chatRoomId is required");
         throw new Error("chatRoomId is required");
       }
-      await agent.put("/chatrooms/role", payload);
+      await agent.put(`/chatrooms/role?chatRoomId=${chatRoomId}`, payload);
     },
     onMutate: async (payload) => {
       if (!chatRoomId) return {};
@@ -302,7 +302,7 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
           console.error("chatRoomId and userId is required");
         throw new Error("chatRoomId and userId is required");
       }
-      await agent.post("/chatrooms/assign-role", {
+      await agent.post(`/chatrooms/assign-role?chatRoomId=${chatRoomId}`, {
         ...payload,
         chatRoomId,
         assignedById: userId,
@@ -365,7 +365,7 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
         if (import.meta.env.DEV) console.error("chatRoomId is required");
         throw new Error("chatRoomId is required");
       }
-      await agent.post("/chatrooms/unassign-role", {
+      await agent.post(`/chatrooms/unassign-role?chatRoomId=${chatRoomId}`, {
         ...payload,
         chatRoomId,
       });
