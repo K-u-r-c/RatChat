@@ -2,20 +2,15 @@ import { observer } from "mobx-react-lite";
 import { useMessages } from "../../../lib/hooks/useMessages";
 import MediaChatComponent from "../../../app/shared/components/mediaChatComponent/MediaChatComponent";
 import type { MessageType, MediaUploadResult } from "../../../lib/types";
-import type { useChatRoomRolesRealtime } from "../../../lib/hooks/useChatRoomRolesRealtime";
 
 type Props = {
   chatRoomId: string;
   channelId: string;
-  userPermissions: ReturnType<
-    typeof useChatRoomRolesRealtime
-  >["userPermissions"];
 };
 
 const ChatRoomDetailsChat = observer(function ChatRoomDetailsChat({
   chatRoomId,
   channelId,
-  userPermissions,
 }: Props) {
   const { messageStore } = useMessages(chatRoomId, channelId);
 
@@ -56,7 +51,6 @@ const ChatRoomDetailsChat = observer(function ChatRoomDetailsChat({
       showUserProfiles={true}
       chatRoomId={chatRoomId}
       channelId={channelId}
-      userPermissions={userPermissions}
     />
   );
 });

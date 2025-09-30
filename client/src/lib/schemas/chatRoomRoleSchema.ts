@@ -1,15 +1,15 @@
 import { z } from "zod";
 
-const ChatRoomPermissionFromServerSchema = z.object({
+const ChatRoomPermissionSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string(),
 });
 
-const ChatRoomRolePermissionFromServerSchema = z.object({
+const ChatRoomRolePermissionSchema = z.object({
   roleId: z.string(),
   isAllowed: z.boolean(),
-  permission: ChatRoomPermissionFromServerSchema,
+  permission: ChatRoomPermissionSchema,
 });
 
 export const ChatRoomRoleSchema = z.object({
@@ -17,20 +17,9 @@ export const ChatRoomRoleSchema = z.object({
   name: z.string(),
   description: z.string().nullable().optional(),
   color: z.string(),
-  createdAt: z.string().transform((str) => new Date(str)),
   isDefault: z.boolean(),
   chatRoomId: z.string(),
-  permissions: z
-    .array(ChatRoomRolePermissionFromServerSchema)
-    .transform((arr) =>
-      arr.map((val) => ({
-        roleId: val.roleId,
-        isAllowed: val.isAllowed,
-        id: val.permission.id,
-        name: val.permission.name,
-        description: val.permission.description,
-      }))
-    ),
+  permissions: z.array(ChatRoomRolePermissionSchema),
 });
 
 export const CreateChatRoomRoleSchema = z.object({
@@ -90,12 +79,7 @@ export const UnassignedChatRoomRoleSchema = z.object({
   userId: z.string(),
 });
 
-export const UserChatRoomPermissionsSchema = z.object({
-  isOwner: z.boolean(),
-  permissions: z.array(ChatRoomPermissionFromServerSchema),
-});
-
-export type ChatRoomRoleFromServer = z.input<typeof ChatRoomRoleSchema>;
+export type ChatRoomRole = z.input<typeof ChatRoomRoleSchema>;
 export type CreateChatRoomRole = z.infer<typeof CreateChatRoomRoleSchema>;
 export type UpdateRolePermission = z.infer<typeof UpdateRolePermissionSchema>;
 export type UpdateChatRoomRole = z.infer<typeof UpdateChatRoomRoleSchema>;
@@ -106,6 +90,11 @@ export type AssignedChatRoomRole = z.infer<typeof AssignedChatRoomRoleSchema>;
 export type UnassignedChatRoomRole = z.infer<
   typeof UnassignedChatRoomRoleSchema
 >;
-export type UserChatRoomPermissions = z.infer<
-  typeof UserChatRoomPermissionsSchema
+export type ChatRoomRolePermissionFromServer = z.infer<
+  typeof ChatRoomRolePermissionSchema
 >;
+export type ChatRoomPermission = z.infer<typeof ChatRoomPermissionSchema>;
+export type ChatRoomUserPermission = {
+  isOwner: boolean;
+  permissions: ChatRoomPermission[];
+};

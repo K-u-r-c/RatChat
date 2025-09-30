@@ -11,8 +11,9 @@ import {
 } from "@mui/material";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import type { ChatRoomRole, Profile } from "../../../lib/types";
+import type { Profile } from "../../../lib/types";
 import { formatUserTag } from "../../../lib/util/util";
+import type { ChatRoomRole } from "../../../lib/schemas/chatRoomRoleSchema";
 
 type Props = {
   open: boolean;

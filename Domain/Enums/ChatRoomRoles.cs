@@ -20,6 +20,7 @@ public class ChatRoomRoles
         [(Moderator, ChatRoomPermissions.KickFromChatRoom)] = true,
         [(Moderator, ChatRoomPermissions.BanFromChatRoom)] = true,
         [(Moderator, ChatRoomPermissions.UnbanFromChatRoom)] = true,
+        [(Moderator, ChatRoomPermissions.ManageChatRoomRoles)] = true,
 
         [(Member, ChatRoomPermissions.ViewChatRoom)] = true,
         [(Member, ChatRoomPermissions.SendMessages)] = true,
@@ -27,5 +28,6 @@ public class ChatRoomRoles
         [(Member, ChatRoomPermissions.KickFromChatRoom)] = false,
         [(Member, ChatRoomPermissions.BanFromChatRoom)] = false,
         [(Member, ChatRoomPermissions.UnbanFromChatRoom)] = false,
+        [(Moderator, ChatRoomPermissions.ManageChatRoomRoles)] = false,
     };
 }

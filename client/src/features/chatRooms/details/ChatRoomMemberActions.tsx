@@ -1,11 +1,11 @@
 import { Popover, Box, Button, Stack, Tooltip } from "@mui/material";
 import { useMemo, useEffect } from "react";
 import { useAccount } from "../../../lib/hooks/useAccount";
-import { useChatRoomRolesRealtime } from "../../../lib/hooks/useChatRoomRolesRealtime";
 import { CHATROOM_PERMISSIONS } from "../../../lib/types/chatroomPermissions";
 import agent from "../../../lib/api/agent";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "react-toastify";
+import { useChatRoomRoles } from "../../../lib/hooks/useChatRoomRoles";
 
 type MemberTarget = {
   id: string;
@@ -28,9 +28,7 @@ export default function ChatRoomMemberActions({
   member,
 }: Props) {
   const { currentUser } = useAccount();
-  const { rolesStore } = useChatRoomRolesRealtime(chatRoomId, currentUser?.id);
-
-  const userPermissions = rolesStore.userPermissions;
+  const { userPermissions } = useChatRoomRoles(chatRoomId, currentUser?.id);
 
   const isCurrentUser = useMemo(
     () => !!member && member.id === currentUser?.id,
@@ -45,11 +43,11 @@ export default function ChatRoomMemberActions({
   const canKick =
     !isCurrentUser &&
     !isChatRoomOwner &&
-    !!userPermissions[CHATROOM_PERMISSIONS.KickFromChatRoom];
+    userPermissions[CHATROOM_PERMISSIONS.KickFromChatRoom];
   const canBan =
     !isCurrentUser &&
     !isChatRoomOwner &&
-    !!userPermissions[CHATROOM_PERMISSIONS.BanFromChatRoom];
+    userPermissions[CHATROOM_PERMISSIONS.BanFromChatRoom];
 
   useEffect(() => {
     if (!open || !anchorEl) return;

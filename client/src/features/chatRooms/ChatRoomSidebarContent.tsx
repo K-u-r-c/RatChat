@@ -47,8 +47,8 @@ import ChatRoomSettings from "./settings/ChatRoomSettings";
 import InvitePeopleModal from "./invites/InvitePeopleModal";
 import { useAccount } from "../../lib/hooks/useAccount";
 import { useStore } from "../../lib/hooks/useStore";
-import { useChatRoomRolesRealtime } from "../../lib/hooks/useChatRoomRolesRealtime";
 import { CHATROOM_PERMISSIONS } from "../../lib/types/chatroomPermissions";
+import { useChatRoomRoles } from "../../lib/hooks/useChatRoomRoles";
 import { toast } from "react-toastify";
 import type { ChatChannel } from "../../lib/types";
 
@@ -82,10 +82,7 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
     updateChannel: updateChannelMutation,
     deleteChannel: deleteChannelMutation,
   } = useChatRooms(slug);
-  const { rolesStore } = useChatRoomRolesRealtime(
-    chatRoom?.id,
-    currentUser?.id
-  );
+  const { userPermissions } = useChatRoomRoles(chatRoom?.id, currentUser?.id);
   const { uiStore, messagesNotificationsStore } = useStore();
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -140,7 +137,7 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
   const canManageChannels =
     !!chatRoom &&
     (chatRoom.isOwner ||
-      rolesStore.userPermissions[CHATROOM_PERMISSIONS.ManageChannels]);
+      userPermissions[CHATROOM_PERMISSIONS.ManageChannels]);
   const mutedParticipantIdsSet = useMemo(
     () => new Set(voice.mutedParticipantIds),
     [voice.mutedParticipantIds]
@@ -356,9 +353,7 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
           }}
         >
           {(chatRoom.isOwner ||
-            rolesStore.userPermissions[
-              CHATROOM_PERMISSIONS.CreateInviteLinks
-            ]) && (
+            userPermissions[CHATROOM_PERMISSIONS.CreateInviteLinks]) && (
             <MenuItem
               onClick={() => {
                 setInviteOpen(true);
