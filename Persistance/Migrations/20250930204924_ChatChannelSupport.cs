@@ -1,11 +1,11 @@
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace Persistance.Migrations
 {
     /// <inheritdoc />
-    public partial class MultiChannelSupport : Migration
+    public partial class ChatChannelSupport : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -18,7 +18,13 @@ namespace Persistance.Migrations
                 name: "ChannelId",
                 table: "Messages",
                 type: "nvarchar(450)",
-                nullable: true);
+                nullable: false,
+                defaultValue: "");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Messages_ChannelId_CreatedAt",
+                table: "Messages",
+                columns: new[] { "ChannelId", "CreatedAt" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_ChatChannels_ChatRoomId_Type_Name",
@@ -32,57 +38,12 @@ namespace Persistance.Migrations
                 columns: new[] { "ChatRoomId", "Type", "Position" },
                 unique: true);
 
-            migrationBuilder.Sql(@"
-                INSERT INTO ChatChannels (Id, ChatRoomId, Name, Type, Position, CreatedAt)
-                SELECT NEWID(), cr.Id, 'general', 0, 0, SYSUTCDATETIME()
-                FROM ChatRooms cr
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM ChatChannels cc
-                    WHERE cc.ChatRoomId = cr.Id AND cc.Type = 0
-                );
-            ");
-
-            migrationBuilder.Sql(@"
-                WITH OrderedChannels AS (
-                    SELECT cc.Id,
-                           ROW_NUMBER() OVER (PARTITION BY cc.ChatRoomId, cc.Type ORDER BY cc.Position, cc.CreatedAt) - 1 AS NewPosition
-                    FROM ChatChannels cc
-                )
-                UPDATE cc
-                SET Position = oc.NewPosition
-                FROM ChatChannels cc
-                INNER JOIN OrderedChannels oc ON oc.Id = cc.Id;
-            ");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Messages_ChannelId_CreatedAt",
-                table: "Messages",
-                columns: new[] { "ChannelId", "CreatedAt" });
-
-            migrationBuilder.Sql(@"
-                UPDATE Messages
-                SET ChannelId = cc.Id
-                FROM Messages m
-                INNER JOIN ChatChannels cc ON cc.ChatRoomId = m.ChatRoomId AND cc.Type = 0
-                WHERE Messages.Id = m.Id AND Messages.ChannelId IS NULL;
-            ");
-
-            migrationBuilder.AlterColumn<string>(
-                name: "ChannelId",
-                table: "Messages",
-                type: "nvarchar(450)",
-                nullable: false,
-                oldClrType: typeof(string),
-                oldType: "nvarchar(450)",
-                oldNullable: true);
-
             migrationBuilder.AddForeignKey(
                 name: "FK_Messages_ChatChannels_ChannelId",
                 table: "Messages",
                 column: "ChannelId",
                 principalTable: "ChatChannels",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                principalColumn: "Id");
         }
 
         /// <inheritdoc />
