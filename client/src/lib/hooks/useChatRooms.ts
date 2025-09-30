@@ -8,7 +8,7 @@ import {
 import agent from "../api/agent";
 import { useNavigate } from "react-router";
 import { useAccount } from "./useAccount";
-import type { ChatRoom, ChatRoomIdentifier, PagedList } from "../types";
+import type { ChatRoom, ChatRoomIdentifier, PagedList, ChatChannel } from "../types";
 import { useStore } from "./useStore";
 import type { FieldValues } from "react-hook-form";
 import { useEffect, useState } from "react";
@@ -93,6 +93,43 @@ export const useChatRooms = (identifier?: string) => {
     queryClient.setQueryData(["chatRooms", chatRoom.id], chatRoom);
     queryClient.setQueryData(["chatRooms", chatRoom.slug], chatRoom);
   }, [chatRoom, queryClient]);
+
+  const updateRoomChannelsCache = (
+    roomId: string,
+    updater: (channels: ChatChannel[]) => ChatChannel[]
+  ) => {
+    const applyUpdate = (room?: ChatRoom) => {
+      if (!room) return room;
+      const updatedChannels = updater([...(room.channels ?? [])]);
+      return {
+        ...room,
+        channels: updatedChannels
+          .slice()
+          .sort((a, b) => a.position - b.position),
+      } as ChatRoom;
+    };
+
+    queryClient.setQueryData<ChatRoom>(["chatRooms", roomId], applyUpdate);
+
+    const cachedById = queryClient.getQueryData<ChatRoom>(["chatRooms", roomId]);
+    const slugKey = cachedById?.slug ?? (chatRoom?.id === roomId ? chatRoom.slug : undefined);
+    if (slugKey) {
+      queryClient.setQueryData<ChatRoom>(["chatRooms", slugKey], applyUpdate);
+    }
+
+    queryClient.setQueryData<any>(["chatRooms"], (prev: any) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        pages: prev.pages.map((page: any) => ({
+          ...page,
+          items: page.items.map((item: ChatRoom) =>
+            item.id === roomId ? applyUpdate(item)! : item
+          ),
+        })),
+      };
+    });
+  };
 
   const updateChatRoom = useMutation({
     mutationFn: async (chatRoom: ChatRoom) => {
@@ -229,6 +266,96 @@ export const useChatRooms = (identifier?: string) => {
     },
   });
 
+  const createChannel = useMutation({
+    mutationFn: async (params: {
+      chatRoomId: string;
+      name: string;
+      type: ChatChannel["type"];
+    }) => {
+      const response = await agent.post<ChatChannel>(
+        `/chatRooms/${params.chatRoomId}/channels`,
+        {
+          name: params.name,
+          type: params.type,
+        }
+      );
+      return response.data;
+    },
+    onSuccess: async (channel, variables) => {
+      const normalized: ChatChannel = {
+        ...channel,
+        chatRoomId: channel.chatRoomId ?? variables.chatRoomId,
+      };
+
+      updateRoomChannelsCache(variables.chatRoomId, (channels) => [
+        ...channels.filter((c) => c.id !== normalized.id),
+        normalized,
+      ]);
+      await queryClient.invalidateQueries({
+        queryKey: ["chatRooms"],
+        exact: false,
+      });
+    },
+    onError: () => {
+      toast.error("Failed to create channel");
+    },
+  });
+
+  const updateChannel = useMutation({
+    mutationFn: async (params: {
+      chatRoomId: string;
+      channelId: string;
+      name?: string;
+      position?: number;
+    }) => {
+      const response = await agent.put<ChatChannel>(
+        `/chatRooms/${params.chatRoomId}/channels/${params.channelId}`,
+        {
+          name: params.name,
+          position: params.position,
+        }
+      );
+      return response.data;
+    },
+    onSuccess: async (channel, variables) => {
+      const normalized: ChatChannel = {
+        ...channel,
+        chatRoomId: channel.chatRoomId ?? variables.chatRoomId,
+      };
+
+      updateRoomChannelsCache(variables.chatRoomId, (channels) =>
+        channels.map((c) => (c.id === normalized.id ? normalized : c))
+      );
+      await queryClient.invalidateQueries({
+        queryKey: ["chatRooms"],
+        exact: false,
+      });
+    },
+    onError: () => {
+      toast.error("Failed to update channel");
+    },
+  });
+
+  const deleteChannel = useMutation({
+    mutationFn: async (params: { chatRoomId: string; channelId: string }) => {
+      await agent.delete(
+        `/chatRooms/${params.chatRoomId}/channels/${params.channelId}`
+      );
+    },
+    onSuccess: async (_, variables) => {
+      updateRoomChannelsCache(variables.chatRoomId, (channels) =>
+        channels.filter((c) => c.id !== variables.channelId)
+      );
+      await queryClient.invalidateQueries({
+        queryKey: ["chatRooms"],
+        exact: false,
+      });
+    },
+    onError: () => {
+      toast.error("Failed to delete channel");
+    },
+  });
+
   const setChatRoomImage = useMutation({
     mutationFn: async (params: { id: string; imageUrl: string }) => {
       const response = await agent.put<ChatRoom>(
@@ -361,6 +488,9 @@ export const useChatRooms = (identifier?: string) => {
     isGeneratingInvite,
     joinChatRoom,
     leaveChatRoom,
+    createChannel,
+    updateChannel,
+    deleteChannel,
     setChatRoomImage,
     deleteChatRoomImage,
   };

@@ -6,6 +6,7 @@ import type { useChatRoomRolesRealtime } from "../../../lib/hooks/useChatRoomRol
 
 type Props = {
   chatRoomId: string;
+  channelId: string;
   userPermissions: ReturnType<
     typeof useChatRoomRolesRealtime
   >["userPermissions"];
@@ -13,9 +14,10 @@ type Props = {
 
 const ChatRoomDetailsChat = observer(function ChatRoomDetailsChat({
   chatRoomId,
+  channelId,
   userPermissions,
 }: Props) {
-  const { messageStore } = useMessages(chatRoomId);
+  const { messageStore } = useMessages(chatRoomId, channelId);
 
   const handleSendMessage = async (
     body: string,
@@ -23,8 +25,10 @@ const ChatRoomDetailsChat = observer(function ChatRoomDetailsChat({
     mediaData?: Partial<MediaUploadResult>,
     replyToMessageId?: string
   ) => {
+    if (!channelId) return;
     const messageData = {
       chatRoomId,
+      channelId,
       body,
       type,
       ...(mediaData && {
@@ -51,6 +55,7 @@ const ChatRoomDetailsChat = observer(function ChatRoomDetailsChat({
       onSendMessage={handleSendMessage}
       showUserProfiles={true}
       chatRoomId={chatRoomId}
+      channelId={channelId}
       userPermissions={userPermissions}
     />
   );

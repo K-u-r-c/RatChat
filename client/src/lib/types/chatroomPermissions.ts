@@ -10,6 +10,7 @@ export const CHATROOM_PERMISSIONS = {
   KickFromChatRoom: "Kick from chatroom",
   BanFromChatRoom: "Ban from chatroom",
   UnbanFromChatRoom: "Unban from chatroom",
+  ManageChannels: "Manage channels",
 } as const;
 
 export type CHATROOM_PERMISSION =

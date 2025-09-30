@@ -44,6 +44,14 @@ public class CreateChatRoom
             chatRoom.Channels.Add(new ChatChannel
             {
                 ChatRoomId = chatRoom.Id,
+                Name = "general",
+                Type = ChatChannelType.Text,
+                Position = 0
+            });
+
+            chatRoom.Channels.Add(new ChatChannel
+            {
+                ChatRoomId = chatRoom.Id,
                 Name = "General",
                 Type = ChatChannelType.Voice,
                 Position = 0

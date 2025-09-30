@@ -17,6 +17,7 @@ export interface FileUploadState {
 
 export interface UseFileUploadProps {
   chatRoomId?: string;
+  channelId?: string;
   onUpload: (
     body: string,
     type: MessageType,

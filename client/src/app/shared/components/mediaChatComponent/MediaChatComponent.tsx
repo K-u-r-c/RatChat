@@ -33,6 +33,7 @@ interface MediaChatComponentProps {
   ) => Promise<void>;
   showUserProfiles?: boolean;
   chatRoomId?: string;
+  channelId?: string;
   directChatId?: string;
   encryptedDirectChatId?: string;
   userPermissions?: ReturnType<
@@ -41,17 +42,19 @@ interface MediaChatComponentProps {
   directCanSend?: boolean;
 }
 
-const MediaChatComponent = observer(function MediaChatComponent({
-                                                                  title,
-                                                                  messageStore,
-                                                                  onSendMessage,
-                                                                  showUserProfiles = true,
-                                                                  chatRoomId,
-                                                                  directChatId,
-                                                                  encryptedDirectChatId,
-                                                                  userPermissions,
-                                                                  directCanSend,
-                                                                }: MediaChatComponentProps) {
+const MediaChatComponent = observer(function MediaChatComponent(
+  {
+    title,
+    messageStore,
+    onSendMessage,
+    showUserProfiles = true,
+    chatRoomId,
+    channelId,
+    directChatId,
+    encryptedDirectChatId,
+    userPermissions,
+    directCanSend,
+  }: MediaChatComponentProps) {
   const [imageDialog, setImageDialog] = useState<{
     open: boolean;
     src: string | null;
@@ -117,6 +120,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
   const scrollHandler = useScrollHandler({messageStore});
   const fileUpload = useFileUpload({
     chatRoomId,
+    channelId,
     onUpload: async (body, type, mediaData) =>
       onSendMessage(body, type, mediaData, replyToMessageId),
     onReset: () => {

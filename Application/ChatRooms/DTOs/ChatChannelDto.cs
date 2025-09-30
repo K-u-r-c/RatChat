@@ -2,6 +2,7 @@ namespace Application.ChatRooms.DTOs;
 
 public class ChatChannelDto
 {
+    public required string ChatRoomId { get; set; }
     public required string Id { get; set; }
     public required string Name { get; set; }
     public required string Type { get; set; }

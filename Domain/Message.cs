@@ -20,6 +20,8 @@ public class Message
     public User User { get; set; } = null!;
     public required string ChatRoomId { get; set; }
     public ChatRoom ChatRoom { get; set; } = null!;
+    public required string ChannelId { get; set; }
+    public ChatChannel Channel { get; set; } = null!;
 
     // Reply relationship (self-reference)
     public string? ReplyToMessageId { get; set; }

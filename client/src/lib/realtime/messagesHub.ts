@@ -45,6 +45,20 @@ export async function stopMessagesHub() {
   }
 }
 
+export async function joinChatChannel(
+  chatRoomId: string,
+  channelId: string,
+  initialPageSize?: number
+) {
+  if (!hubConnection) throw new Error("Messages hub is not started");
+  await hubConnection.invoke(
+    "JoinChatChannel",
+    chatRoomId,
+    channelId,
+    initialPageSize ?? null
+  );
+}
+
 export async function joinChatRoom(
   chatRoomId: string,
   initialPageSize?: number
@@ -57,10 +71,10 @@ export async function joinChatRoom(
   );
 }
 
-export async function leaveChatRoom(chatRoomId: string) {
+export async function leaveChatRoom(chatRoomId: string, channelId?: string) {
   if (!hubConnection) return;
   try {
-    await hubConnection.invoke("LeaveChatRoom", chatRoomId);
+    await hubConnection.invoke("LeaveChatRoom", chatRoomId, channelId ?? null);
   } catch {
     // ignore
   }
@@ -68,11 +82,18 @@ export async function leaveChatRoom(chatRoomId: string) {
 
 export async function loadMoreMessages(
   chatRoomId: string,
+  channelId: string,
   cursor: Date | null,
   pageSize: number
 ) {
   if (!hubConnection) throw new Error("Messages hub is not started");
-  await hubConnection.invoke("LoadMoreMessages", chatRoomId, cursor, pageSize);
+  await hubConnection.invoke(
+    "LoadMoreMessages",
+    chatRoomId,
+    channelId,
+    cursor,
+    pageSize
+  );
 }
 
 export function on<TPayload = unknown>(

@@ -65,6 +65,14 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
     return list.filter((m) => isOnlineStatus(m.status, m.isOnline));
   }, [chatRoom?.members]);
 
+  const textChannels = useMemo(
+    () =>
+      (chatRoom?.channels ?? [])
+        .filter((channel) => channel.type === "Text")
+        .sort((a, b) => a.position - b.position),
+    [chatRoom?.channels]
+  );
+
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [selectedMemberId, setSelectedMemberId] = useState<string | undefined>(
     undefined
@@ -131,12 +139,30 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
   };
 
   useEffect(() => {
+    if (!chatRoom?.id) return;
+    if (textChannels.length === 0) {
+      uiStore.clearSelectedTextChannel(chatRoom.id);
+      return;
+    }
+
+    const current = uiStore.getSelectedTextChannel(chatRoom.id);
+    if (!current) {
+      uiStore.setSelectedTextChannel(chatRoom.id, textChannels[0].id);
+    }
+  }, [chatRoom?.id, textChannels, uiStore]);
+
+  useEffect(() => {
     if (!anchorEl) return;
     const anchorGone = !document.body.contains(anchorEl);
     if (anchorGone || !selectedMember) {
       setAnchorEl(null);
     }
   }, [anchorEl, selectedMember]);
+
+  const activeTextChannelId =
+    chatRoom?.id != null
+      ? uiStore.getSelectedTextChannel(chatRoom.id) ?? textChannels[0]?.id
+      : undefined;
 
   if (isLoadingChatRoom) return <Typography>Loading...</Typography>;
   if (!chatRoom) return <Typography>Activity not found</Typography>;
@@ -190,10 +216,27 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
           {isScreenShareView ? (
             <ChatRoomScreenSharePanel chatRoomId={chatRoom.id}/>
           ) : (
-            <ChatRoomDetailsChat
-              chatRoomId={chatRoom.id}
-              userPermissions={rolesStore.userPermissions}
-            />
+            activeTextChannelId ? (
+              <ChatRoomDetailsChat
+                chatRoomId={chatRoom.id}
+                channelId={activeTextChannelId}
+                userPermissions={rolesStore.userPermissions}
+              />
+            ) : (
+              <Box
+                sx={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  p: 2,
+                }}
+              >
+                <Typography color="text.secondary">
+                  No text channels available in this chat room.
+                </Typography>
+              </Box>
+            )
           )}
         </Box>
 

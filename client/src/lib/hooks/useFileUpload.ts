@@ -7,6 +7,7 @@ import type { FileUploadState, SelectedItem, UseFileUploadProps } from "../types
 
 export function useFileUpload({
   chatRoomId,
+  channelId,
   onUpload,
   onReset,
 }: UseFileUploadProps) {
@@ -287,6 +288,7 @@ export function useFileUpload({
           file,
           category,
           ...(chatRoomId && { chatRoomId }),
+          ...(channelId && { channelId }),
         });
 
         const body = includeBody && trimmedBody ? trimmedBody : file.name;
@@ -342,6 +344,7 @@ export function useFileUpload({
         file,
         category,
         ...(chatRoomId && { chatRoomId }),
+        ...(channelId && { channelId }),
       });
 
       const body = messageBody.trim() || file.name || "Pasted file";

@@ -13,6 +13,7 @@ public class GetMessages
     public class Query : IRequest<Result<PagedList<MessageDto, DateTime?>>>
     {
         public required string ChatRoomId { get; set; }
+        public required string ChannelId { get; set; }
         public DateTime? Cursor { get; set; }
         public int PageSize { get; set; } = 20;
     }
@@ -27,11 +28,11 @@ public class GetMessages
             if (!request.Cursor.HasValue)
             {
                 var totalMessages = await context.Messages
-                    .Where(x => x.ChatRoomId == request.ChatRoomId)
+                    .Where(x => x.ChatRoomId == request.ChatRoomId && x.ChannelId == request.ChannelId)
                     .CountAsync(cancellationToken);
 
                 var query = context.Messages
-                    .Where(x => x.ChatRoomId == request.ChatRoomId)
+                    .Where(x => x.ChatRoomId == request.ChatRoomId && x.ChannelId == request.ChannelId)
                     .Include(x => x.Reactions)
                         .ThenInclude(r => r.User)
                     .OrderBy(x => x.CreatedAt);
@@ -72,7 +73,7 @@ public class GetMessages
             else
             {
                 var messages = await context.Messages
-                    .Where(x => x.ChatRoomId == request.ChatRoomId && x.CreatedAt < request.Cursor.Value)
+                    .Where(x => x.ChatRoomId == request.ChatRoomId && x.ChannelId == request.ChannelId && x.CreatedAt < request.Cursor.Value)
                     .Include(x => x.Reactions)
                         .ThenInclude(r => r.User)
                     .OrderByDescending(x => x.CreatedAt)
