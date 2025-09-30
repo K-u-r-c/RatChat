@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -10,83 +10,138 @@ import {
   Typography,
 } from "@mui/material";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, Controller } from "react-hook-form";
-import { UpdateChatRoomRoleSchema } from "../../../lib/schemas/chatRoomRoleSchema";
-import type { UpdateChatRoomRole } from "../../../lib/schemas/chatRoomRoleSchema";
-import type { ChatRoomRole } from "../../../lib/types";
+import { Controller, useForm } from "react-hook-form";
+import {
+  UpdateChatRoomRoleSchema,
+  type ChatRoomRole,
+  type UpdateChatRoomRole,
+} from "../../../lib/schemas/chatRoomRoleSchema";
 import { ChatRoomRolePermissionItem } from "../../../app/shared/components/ChatRoomPermissionItem";
+import { useChatRoomRoles } from "../../../lib/hooks/useChatRoomRoles";
+import { toast } from "react-toastify";
 
 type Props = {
   open: boolean;
   onClose: () => void;
   role: ChatRoomRole;
-  onSubmit: (data: UpdateChatRoomRole) => Promise<void>;
-  onDelete?: () => Promise<void>;
-  loading?: boolean;
+  chatRoomId?: string;
+  currentUserId?: string;
   disableDelete?: boolean;
+};
+
+const COLOR_INPUT_STYLE: React.CSSProperties = {
+  width: 40,
+  height: 40,
+  border: "none",
+  background: "none",
+  padding: 0,
+  cursor: "pointer",
 };
 
 export default function ChatRoomRoleUpdateForm({
   open,
   onClose,
   role,
-  onSubmit,
-  onDelete,
-  loading,
+  chatRoomId,
+  currentUserId,
   disableDelete,
 }: Props) {
+  const { updateRole, deleteRole } = useChatRoomRoles(
+    chatRoomId,
+    currentUserId
+  );
+
+  const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const defaults = useMemo<UpdateChatRoomRole>(
+    () => ({
+      id: role.id,
+      name: role.name,
+      color: role.color,
+      description: role.description ?? "",
+      permissions: role.permissions.map((permission) => ({
+        id: permission.permission.id,
+        isAllowed: permission.isAllowed,
+      })),
+    }),
+    [role]
+  );
+
   const {
     control,
     handleSubmit,
     watch,
-    setValue,
     reset,
+    setValue,
     formState: { errors, isDirty },
   } = useForm<UpdateChatRoomRole>({
+    mode: "onTouched",
     resolver: zodResolver(UpdateChatRoomRoleSchema),
-    defaultValues: {
-      id: role.id,
-      name: role.name,
-      color: role.color,
-      description: role.description ?? "",
-      permissions:
-        role.permissions?.map((p) => ({ id: p.id, isAllowed: p.isAllowed })) ??
-        [],
-    },
+    defaultValues: defaults,
   });
 
   useEffect(() => {
-    reset({
-      id: role.id,
-      name: role.name,
-      color: role.color,
-      description: role.description ?? "",
-      permissions:
-        role.permissions?.map((p) => ({ id: p.id, isAllowed: p.isAllowed })) ??
-        [],
-    });
-  }, [role, open, reset]);
+    if (!open) return;
+    reset(defaults);
+  }, [open, defaults, reset]);
 
-  const permissions = watch("permissions") || [];
+  const permissions = watch("permissions") ?? [];
+  const colorValue = watch("color");
 
-  const handlePermissionChange = (id: string, isAllowed: boolean) => {
-    setValue(
-      "permissions",
-      permissions.map((perm) =>
-        perm.id === id ? { ...perm, isAllowed } : perm
-      ),
-      { shouldDirty: true }
-    );
-  };
+  const handlePermissionChange = useCallback(
+    (permissionId: string, isAllowed: boolean) => {
+      setValue(
+        "permissions",
+        permissions.map((permission) =>
+          permission.id === permissionId
+            ? { ...permission, isAllowed }
+            : permission
+        ),
+        { shouldDirty: true }
+      );
+    },
+    [permissions, setValue]
+  );
 
-  const handleDelete = async () => {
-    if (onDelete) await onDelete();
-  };
+  const onSubmit = handleSubmit(async (formValues) => {
+    if (!updateRole) return;
+    setSubmitting(true);
+    try {
+      await updateRole(formValues);
+      onClose();
+      toast.success("Role updated");
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.error("Failed to update role", error);
+      }
+      toast.error("Failed to update role");
+    } finally {
+      setSubmitting(false);
+    }
+  });
+
+  const handleDelete = useCallback(async () => {
+    if (!deleteRole || disableDelete || role.isDefault) return;
+    setDeleting(true);
+    try {
+      await deleteRole({ id: role.id });
+      onClose();
+      toast.success("Role deleted");
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.error("Failed to delete role", error);
+      }
+      toast.error("Failed to delete role");
+    } finally {
+      setDeleting(false);
+    }
+  }, [deleteRole, disableDelete, role, onClose]);
 
   return (
-    <Dialog open={open} onClose={onClose}>
-      <DialogTitle>Edit Role</DialogTitle>
-      <form onSubmit={handleSubmit(onSubmit)}>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle>Edit role</DialogTitle>
+      <form onSubmit={onSubmit} noValidate>
         <DialogContent
           sx={{
             display: "flex",
@@ -100,12 +155,13 @@ export default function ChatRoomRoleUpdateForm({
             control={control}
             render={({ field }) => (
               <TextField
-                label="Name"
                 {...field}
-                error={!!errors.name}
+                label="Name"
+                error={Boolean(errors.name)}
                 helperText={errors.name?.message}
                 fullWidth
-                sx={{ mt: 2 }}
+                autoFocus
+                margin="normal"
               />
             )}
           />
@@ -114,72 +170,82 @@ export default function ChatRoomRoleUpdateForm({
             control={control}
             render={({ field }) => (
               <TextField
-                label="Description"
                 {...field}
-                error={!!errors.description}
+                label="Description"
+                error={Boolean(errors.description)}
                 helperText={errors.description?.message}
                 fullWidth
                 multiline
+                margin="normal"
               />
             )}
           />
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-            <span>Color:</span>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2, mt: 1 }}>
+            <Typography variant="subtitle2">Color</Typography>
             <Controller
               name="color"
               control={control}
               render={({ field }) => (
-                <input
-                  type="color"
-                  {...field}
-                  style={{
-                    width: 40,
-                    height: 40,
-                    border: "none",
-                    background: "none",
-                    padding: 0,
-                  }}
-                />
+                <input type="color" {...field} style={COLOR_INPUT_STYLE} />
               )}
             />
-            <span style={{ fontFamily: "monospace" }}>{watch("color")}</span>
+            <Typography
+              variant="body2"
+              sx={{ fontFamily: "monospace", color: "text.secondary" }}
+            >
+              {colorValue}
+            </Typography>
             {errors.color && (
-              <Typography color="error">{errors.color.message}</Typography>
+              <Typography color="error" variant="body2">
+                {errors.color.message}
+              </Typography>
             )}
           </Box>
+
           <Box sx={{ mt: 2 }}>
             <Typography variant="subtitle2" sx={{ mb: 1 }}>
               Permissions
             </Typography>
-            {permissions?.map((perm) => {
-              const rolePerm = role.permissions?.find((p) => p.id === perm.id);
-              if (!rolePerm) return null;
+            {permissions.map((permission) => {
+              const basePermission = role.permissions.find(
+                (item) => item.permission.id === permission.id
+              );
+              if (!basePermission) return null;
+
               return (
                 <ChatRoomRolePermissionItem
-                  key={perm.id}
-                  permission={{ ...rolePerm, ...perm }}
+                  key={permission.id}
+                  rolePermission={{
+                    ...basePermission,
+                    isAllowed: permission.isAllowed,
+                  }}
                   onChange={handlePermissionChange}
                 />
               );
             })}
+            {permissions.length === 0 && (
+              <Typography variant="body2" color="text.secondary">
+                This role has no permissions yet.
+              </Typography>
+            )}
           </Box>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 3 }}>
           <Button onClick={onClose}>Cancel</Button>
-          {onDelete && (
-            <Button
-              onClick={handleDelete}
-              color="error"
-              variant="contained"
-              disabled={disableDelete}
-            >
-              Delete
-            </Button>
-          )}
+          <Button
+            color="error"
+            variant="contained"
+            onClick={handleDelete}
+            disabled={
+              disableDelete || role.isDefault || deleting || !deleteRole
+            }
+          >
+            Delete
+          </Button>
           <Button
             type="submit"
             variant="contained"
-            disabled={!isDirty || loading}
+            disabled={!isDirty || submitting || !updateRole}
           >
             Update
           </Button>

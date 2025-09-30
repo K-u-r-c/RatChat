@@ -200,5 +200,5 @@ export const useChatRoomModerationEventsRealtime = (
     };
   }, [moderationEventStore]);
 
-  return { notificationsStore: moderationEventStore };
+  return { moderationEventStore };
 };

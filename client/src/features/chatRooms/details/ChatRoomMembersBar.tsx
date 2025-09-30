@@ -3,19 +3,21 @@ import { Link } from "react-router";
 import type { Profile } from "../../../lib/types";
 import { useState } from "react";
 import ChatRoomManageRolesForm from "../forms/ChatRoomManageRolesForm";
-import type { useChatRoomRolesRealtime } from "../../../lib/hooks/useChatRoomRolesRealtime";
+import { useChatRoomRoles } from "../../../lib/hooks/useChatRoomRoles";
 import { observer } from "mobx-react-lite";
 
 type Props = {
+  chatRoomId?: string;
+  currentUserId?: string;
   members: Profile[];
-  roles: ReturnType<typeof useChatRoomRolesRealtime>["roles"];
-  memberRoles: ReturnType<typeof useChatRoomRolesRealtime>["memberRoles"];
-  assignRole: ReturnType<typeof useChatRoomRolesRealtime>["assignRole"];
-  unassignRole: ReturnType<typeof useChatRoomRolesRealtime>["unassignRole"];
 };
 
 const ChatRoomMembersBar = observer(
-  ({ members, memberRoles, roles, assignRole, unassignRole }: Props) => {
+  ({ members, chatRoomId, currentUserId }: Props) => {
+    const { usersRolesMap, isLoading } = useChatRoomRoles(
+      chatRoomId,
+      currentUserId
+    );
     const [open, setOpen] = useState(false);
 
     return (
@@ -35,7 +37,7 @@ const ChatRoomMembersBar = observer(
         >
           <Box sx={{ display: "flex", gap: 2 }}>
             {members.map((member) => {
-              const roles = memberRoles.get(member.id) || [];
+              const memberRoleList = usersRolesMap.get(member.id) || [];
               return (
                 <Box
                   key={member.id}
@@ -76,7 +78,7 @@ const ChatRoomMembersBar = observer(
                       mt: 0.5,
                     }}
                   >
-                    {roles.map((role) => (
+                    {memberRoleList.map((role) => (
                       <Tooltip
                         key={role.id}
                         title={
@@ -117,7 +119,11 @@ const ChatRoomMembersBar = observer(
             })}
           </Box>
           <Box sx={{ ml: "auto" }}>
-            <Button variant="contained" onClick={() => setOpen(true)}>
+            <Button
+              variant="contained"
+              onClick={() => setOpen(true)}
+              disabled={isLoading}
+            >
               Manage Roles
             </Button>
           </Box>
@@ -126,10 +132,7 @@ const ChatRoomMembersBar = observer(
           open={open}
           onClose={() => setOpen(false)}
           members={members}
-          roles={roles}
-          memberRoles={memberRoles}
-          assignRole={assignRole}
-          unassignRole={unassignRole}
+          loading={isLoading}
         />
       </>
     );

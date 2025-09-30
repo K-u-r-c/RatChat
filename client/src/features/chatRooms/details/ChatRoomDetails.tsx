@@ -13,30 +13,27 @@ import {
   Typography,
 } from "@mui/material";
 import ChatRoomDetailsChat from "./ChatRoomDetailsChat";
-import ChatRoomScreenSharePanel from "./ChatRoomScreenSharePanel";
-import {useChatRoomRolesRealtime} from "../../../lib/hooks/useChatRoomRolesRealtime";
-import {observer} from "mobx-react-lite";
-import {useAccount} from "../../../lib/hooks/useAccount";
-import {useStore} from "../../../lib/hooks/useStore";
-import {useEffect, useMemo, useRef, useState} from "react";
+import ChatRoomScreenSharePanel from "./ChatRoomScreenSharePanel.tsx";
+import { observer } from "mobx-react-lite";
+import { useAccount } from "../../../lib/hooks/useAccount";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ChatRoomMemberPopover from "./ChatRoomMemberPopover";
 import {useChatRoomModerationEventsRealtime} from "../../../lib/hooks/useChatRoomModerationEventsRealtime";
+import { useChatRoomRolesRealtime } from "../../../lib/hooks/useChatRoomRolesRealtime.ts";
+import {useStore} from "../../../lib/hooks/useStore.ts";
 
 const ChatRoomDetails = observer(function ChatRoomDetails() {
   const {slug} = useParams();
   const navigate = useNavigate();
   const {currentUser} = useAccount();
   const {uiStore} = useStore();
-  const {chatRoom, isLoadingChatRoom} = useChatRooms(slug);
-  const {rolesStore} = useChatRoomRolesRealtime(
-    chatRoom?.id,
-    currentUser?.id
-  );
+  const {chatRoom, isLoadingChatRoom } = useChatRooms(slug);
 
   const activeRoomView = chatRoom ? uiStore.getChatRoomView(chatRoom.id) : "chat";
   const isScreenShareView = activeRoomView === "screen-share";
 
   useChatRoomModerationEventsRealtime(chatRoom, currentUser?.id);
+  useChatRoomRolesRealtime(chatRoom, currentUser?.id);
 
   useEffect(() => {
     if (chatRoom && slug && slug !== chatRoom.slug) {
@@ -220,7 +217,6 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
               <ChatRoomDetailsChat
                 chatRoomId={chatRoom.id}
                 channelId={activeTextChannelId}
-                userPermissions={rolesStore.userPermissions}
               />
             ) : (
               <Box
@@ -372,8 +368,7 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
         anchorEl={anchorEl}
         onClose={() => setAnchorEl(null)}
         member={selectedMember}
-        loadRoles={rolesStore.getUserRoles}
-        chatRoomId={chatRoom.id ?? ""}
+        chatRoomId={chatRoom?.id}
         ownerId={chatRoom.ownerId}
       />
     </Box>

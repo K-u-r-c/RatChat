@@ -9,34 +9,34 @@ import {
   Checkbox,
 } from "@mui/material";
 import type { Profile } from "../../../lib/types";
-import type { useChatRoomRolesRealtime } from "../../../lib/hooks/useChatRoomRolesRealtime";
 import { useState, useEffect, useMemo } from "react";
 import type {
   AssignChatRoomRole,
   UnassignChatRoomRole,
 } from "../../../lib/schemas/chatRoomRoleSchema";
+import { useChatRoomRoles } from "../../../lib/hooks/useChatRoomRoles";
 
 type Props = {
   open: boolean;
   onClose: () => void;
+  chatRoomId?: string;
+  currentUserId?: string;
   members: Profile[];
-  roles: ReturnType<typeof useChatRoomRolesRealtime>["roles"];
-  memberRoles: ReturnType<typeof useChatRoomRolesRealtime>["memberRoles"];
-  assignRole: ReturnType<typeof useChatRoomRolesRealtime>["assignRole"];
-  unassignRole: ReturnType<typeof useChatRoomRolesRealtime>["unassignRole"];
   loading?: boolean;
 };
 
 export default function ChatRoomManageRolesForm({
   open,
   onClose,
+  chatRoomId,
+  currentUserId,
   members,
-  roles,
-  memberRoles,
-  assignRole,
-  unassignRole,
   loading,
 }: Props) {
+  const { roles, usersRolesMap, assignRole, unassignRole } = useChatRoomRoles(
+    chatRoomId,
+    currentUserId
+  );
   // Local state for role assignments
   const [localAssignments, setLocalAssignments] = useState<
     Map<string, Set<string>>
@@ -47,16 +47,16 @@ export default function ChatRoomManageRolesForm({
     members.forEach((member) => {
       initial.set(
         member.id,
-        new Set((memberRoles.get(member.id) || []).map((r) => r.id))
+        new Set((usersRolesMap.get(member.id) || []).map((r) => r.id))
       );
     });
     setLocalAssignments(initial);
-  }, [open, members, memberRoles, roles]);
+  }, [open, members, usersRolesMap, roles]);
 
   const isDirty = useMemo(() => {
     for (const member of members) {
       const prevRoles = new Set(
-        (memberRoles.get(member.id) || []).map((r) => r.id)
+        (usersRolesMap.get(member.id) || []).map((r) => r.id)
       );
       const newRoles = localAssignments.get(member.id) || new Set();
       if (prevRoles.size !== newRoles.size) return true;
@@ -68,7 +68,7 @@ export default function ChatRoomManageRolesForm({
       }
     }
     return false;
-  }, [members, memberRoles, localAssignments]);
+  }, [members, usersRolesMap, localAssignments]);
 
   const handleToggle = (userId: string, roleId: string, checked: boolean) => {
     setLocalAssignments((prev) => {
@@ -87,7 +87,7 @@ export default function ChatRoomManageRolesForm({
   const handleConfirm = async () => {
     for (const member of members) {
       const prevRoles = new Set(
-        (memberRoles.get(member.id) || []).map((r) => r.id)
+        (usersRolesMap.get(member.id) || []).map((r) => r.id)
       );
       const newRoles = localAssignments.get(member.id) || new Set();
 
@@ -155,9 +155,6 @@ export default function ChatRoomManageRolesForm({
                           height={32}
                           style={{ borderRadius: "50%" }}
                         />
-                        <Typography variant="body2" sx={{ ml: 1 }}>
-                          {member.displayName}
-                        </Typography>
                       </Box>
                     </td>
                     {roles.map((role) => {

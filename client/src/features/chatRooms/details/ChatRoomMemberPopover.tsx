@@ -8,19 +8,20 @@ import {
   Typography,
   IconButton,
 } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
-import type { ChatRoomRole, Profile } from "../../../lib/types";
+import type { Profile } from "../../../lib/types";
+import type { ChatRoomRole } from "../../../lib/schemas/chatRoomRoleSchema";
 import { formatUserTag } from "../../../lib/util/util";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import ChatRoomMemberActions from "./ChatRoomMemberActions";
+import { useChatRoomRoles } from "../../../lib/hooks/useChatRoomRoles";
 
 type Props = {
   open: boolean;
   anchorEl: HTMLElement | null;
   onClose: () => void;
   member?: Profile;
-  loadRoles: (userId: string) => Promise<ChatRoomRole[]>;
   chatRoomId: string;
   ownerId: string;
 };
@@ -30,35 +31,19 @@ export default function ChatRoomMemberPopover({
   anchorEl,
   onClose,
   member,
-  loadRoles,
   chatRoomId,
   ownerId,
 }: Props) {
-  const [roles, setRoles] = useState<ChatRoomRole[]>([]);
-  const [loading, setLoading] = useState(false);
-
+  const { usersRolesMap, isLoading } = useChatRoomRoles(chatRoomId);
   const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
+  const memberRoles = useMemo<ChatRoomRole[]>(() => {
+    if (!member) return [];
+    return usersRolesMap.get(member.id) ?? [];
+  }, [member, usersRolesMap]);
+
   const openActions = (e: React.MouseEvent<HTMLElement>) =>
     setActionsAnchor(e.currentTarget);
   const closeActions = () => setActionsAnchor(null);
-
-  useEffect(() => {
-    let ignore = false;
-    const run = async () => {
-      if (!member) return;
-      setLoading(true);
-      try {
-        const r = await loadRoles(member.id);
-        if (!ignore) setRoles(r);
-      } finally {
-        if (!ignore) setLoading(false);
-      }
-    };
-    if (open && member) run();
-    return () => {
-      ignore = true;
-    };
-  }, [open, member, loadRoles]);
 
   const formattedTag = member ? formatUserTag(member.tag) : undefined;
 
@@ -208,17 +193,17 @@ export default function ChatRoomMemberPopover({
               <Typography variant="subtitle2" sx={{ mb: 1 }}>
                 Roles
               </Typography>
-              {loading ? (
+              {isLoading ? (
                 <Typography variant="body2" color="text.secondary">
                   Loading roles...
                 </Typography>
-              ) : roles.length === 0 ? (
+              ) : memberRoles.length === 0 ? (
                 <Typography variant="body2" color="text.secondary">
                   No roles assigned.
                 </Typography>
               ) : (
                 <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                  {roles.map((r) => (
+                  {memberRoles.map((r) => (
                     <Chip
                       key={r.id}
                       size="small"
