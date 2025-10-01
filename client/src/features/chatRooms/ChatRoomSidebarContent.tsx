@@ -1,56 +1,57 @@
 import {
   Avatar,
-  Box,
   Badge,
+  Box,
   Button,
-  Divider,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   IconButton,
   List,
   ListItem,
   ListItemButton,
   ListItemIcon,
-  ListItemText,
   ListItemSecondaryAction,
+  ListItemText,
   Menu,
   MenuItem,
   Slider,
+  TextField,
   Tooltip,
   Typography,
-  TextField,
 } from "@mui/material";
-import { useEffect, useMemo, useState } from "react";
-import { observer } from "mobx-react-lite";
+import {useEffect, useMemo, useState} from "react";
+import {observer} from "mobx-react-lite";
 import {
-  CallEnd,
   Add,
-  Delete,
+  CallEnd,
   Chat,
+  Delete,
+  Edit,
   ExitToApp,
   ExpandLess,
   ExpandMore,
-  Edit,
   MicOff,
+  MoreVert,
   People,
   Settings,
-  MoreVert,
   VolumeUp,
 } from "@mui/icons-material";
-import { useParams } from "react-router";
-import { useChatRooms } from "../../lib/hooks/useChatRooms";
-import { useVoiceChannel } from "../../lib/hooks/useVoiceChannel";
-import type { VoiceParticipant } from "../../lib/realtime/voiceHub";
+import {useParams} from "react-router";
+import {useChatRooms} from "../../lib/hooks/useChatRooms";
+import {useVoiceChannel} from "../../lib/hooks/useVoiceChannel";
+import type {VoiceParticipant} from "../../lib/realtime/voiceHub";
 import ChatRoomSettings from "./settings/ChatRoomSettings";
 import InvitePeopleModal from "./invites/InvitePeopleModal";
-import { useAccount } from "../../lib/hooks/useAccount";
-import { useStore } from "../../lib/hooks/useStore";
-import { CHATROOM_PERMISSIONS } from "../../lib/types/chatroomPermissions";
-import { useChatRoomRoles } from "../../lib/hooks/useChatRoomRoles";
-import { toast } from "react-toastify";
-import type { ChatChannel } from "../../lib/types";
+import {useAccount} from "../../lib/hooks/useAccount";
+import {useStore} from "../../lib/hooks/useStore";
+import {CHATROOM_PERMISSIONS} from "../../lib/types/chatroomPermissions";
+import {useChatRoomRoles} from "../../lib/hooks/useChatRoomRoles";
+import {toast} from "react-toastify";
+import type {ChatChannel} from "../../lib/types";
+import ConfirmDialog from "../../app/shared/components/ConfirmDialog";
 
 function uniqueVoiceParticipants(
   participants: VoiceParticipant[]
@@ -71,8 +72,8 @@ function uniqueVoiceParticipants(
 }
 
 const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
-  const { slug } = useParams();
-  const { currentUser } = useAccount();
+  const {slug} = useParams();
+  const {currentUser} = useAccount();
   const {
     chatRoom,
     isLoadingChatRoom,
@@ -82,8 +83,8 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
     updateChannel: updateChannelMutation,
     deleteChannel: deleteChannelMutation,
   } = useChatRooms(slug);
-  const { userPermissions } = useChatRoomRoles(chatRoom?.id, currentUser?.id);
-  const { uiStore, messagesNotificationsStore } = useStore();
+  const {userPermissions} = useChatRoomRoles(chatRoom?.id, currentUser?.id);
+  const {uiStore, messagesNotificationsStore} = useStore();
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -93,20 +94,23 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
   } | null>(null);
   const [channelDialog, setChannelDialog] = useState<
     | {
-        mode: "create" | "edit";
-        type: ChatChannel["type"];
-        channel?: ChatChannel;
-      }
+    mode: "create" | "edit";
+    type: ChatChannel["type"];
+    channel?: ChatChannel;
+  }
     | null
   >(null);
   const [channelName, setChannelName] = useState("");
   const [channelMenu, setChannelMenu] = useState<
     | {
-        anchor: HTMLElement;
-        channel: ChatChannel;
-      }
+    anchor: HTMLElement;
+    channel: ChatChannel;
+  }
     | null
   >(null);
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [deleteServerDialogOpen, setDeleteServerDialogOpen] = useState(false);
+  const [deleteChannelTarget, setDeleteChannelTarget] = useState<ChatChannel | null>(null);
 
   const menuOpen = Boolean(menuAnchorEl);
   const textChannels = useMemo(
@@ -178,14 +182,7 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
   };
 
   const handleLeave = async () => {
-    const message = chatRoom?.isOwner
-      ? "Are you sure you want to leave this chat room?\n\nAs the owner, leaving will transfer ownership to the oldest user or delete the room if you are the last member."
-      : "Are you sure you want to leave this chat room?";
-
-    if (window.confirm(message)) {
-      if (!chatRoom?.id) return;
-      await leaveChatRoom.mutateAsync(chatRoom.id);
-    }
+    setLeaveDialogOpen(true);
   };
 
   if (!chatRoom || isLoadingChatRoom) {
@@ -222,18 +219,11 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
       toast.error("At least one text channel is required.");
       return;
     }
-
-    const confirmed = window.confirm(
-      `Delete #${channel.name}? This cannot be undone.`
-    );
-    if (!confirmed) return;
-
     try {
       await deleteChannelMutation.mutateAsync({
         chatRoomId: chatRoom.id,
         channelId: channel.id,
       });
-
       if (channel.type === "Text") {
         const remaining = textChannels.filter((c) => c.id !== channel.id);
         if (remaining.length > 0) {
@@ -243,10 +233,11 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
         }
         uiStore.setChatRoomView(chatRoom.id, "chat");
       }
-
       toast.success("Channel deleted");
     } catch {
       // handled by mutation onError
+    } finally {
+      setDeleteChannelTarget(null);
     }
   };
 
@@ -310,9 +301,9 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
     setChannelName("");
   };
   return (
-    <Box sx={{ width: "100%", p: 2 }}>
+    <Box sx={{width: "100%", p: 2}}>
       {/* Server name and menu */}
-      <Box sx={{ mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
+      <Box sx={{mb: 2, display: "flex", alignItems: "center", gap: 1}}>
         <Typography
           variant="h6"
           sx={{
@@ -324,7 +315,7 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
             py: 1,
             width: "100%",
             borderRadius: 2,
-            "&:hover": { bgcolor: "#2e2f33ff" },
+            "&:hover": {bgcolor: "#2e2f33ff"},
             display: "flex",
             alignItems: "center",
             gap: 1,
@@ -333,9 +324,9 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
         >
           {chatRoom?.title}
           {menuOpen ? (
-            <ExpandLess sx={{ ml: 1, fontSize: 22 }} />
+            <ExpandLess sx={{ml: 1, fontSize: 22}}/>
           ) : (
-            <ExpandMore sx={{ ml: 1, fontSize: 22 }} />
+            <ExpandMore sx={{ml: 1, fontSize: 22}}/>
           )}
         </Typography>
         <Menu
@@ -361,14 +352,14 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
               }}
             >
               <ListItemIcon>
-                <People fontSize="small" />
+                <People fontSize="small"/>
               </ListItemIcon>
               Invite people
             </MenuItem>
           )}
-          <MenuItem onClick={handleMenuClose} sx={{ display: "none" }}>
+          <MenuItem onClick={handleMenuClose} sx={{display: "none"}}>
             <ListItemIcon>
-              <People fontSize="small" />
+              <People fontSize="small"/>
             </ListItemIcon>
             Invite people
           </MenuItem>
@@ -379,27 +370,20 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
             }}
           >
             <ListItemIcon>
-              <Settings fontSize="small" />
+              <Settings fontSize="small"/>
             </ListItemIcon>
             Server settings
           </MenuItem>
           {chatRoom.isOwner ? (
             <MenuItem
-              onClick={async () => {
-                if (
-                  window.confirm(
-                    "Are you sure you want to delete this chat room?"
-                  )
-                ) {
-                  if (!chatRoom?.id) return;
-                  await deleteChatRooms.mutateAsync(chatRoom.id);
-                }
+              onClick={() => {
+                setDeleteServerDialogOpen(true);
                 handleMenuClose();
               }}
-              sx={{ color: "error.main" }}
+              sx={{color: "error.main"}}
             >
               <ListItemIcon>
-                <ExitToApp fontSize="small" sx={{ color: "error.main" }} />
+                <ExitToApp fontSize="small" sx={{color: "error.main"}}/>
               </ListItemIcon>
               Delete server
             </MenuItem>
@@ -409,10 +393,10 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
                 handleLeave();
                 handleMenuClose();
               }}
-              sx={{ color: "error.main" }}
+              sx={{color: "error.main"}}
             >
               <ListItemIcon>
-                <ExitToApp fontSize="small" sx={{ color: "error.main" }} />
+                <ExitToApp fontSize="small" sx={{color: "error.main"}}/>
               </ListItemIcon>
               Leave server
             </MenuItem>
@@ -421,8 +405,8 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
       </Box>
 
       {/* Text channels */}
-      <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
-        <Typography variant="subtitle2" color="text.secondary" sx={{ flex: 1 }}>
+      <Box sx={{display: "flex", alignItems: "center", mb: 1}}>
+        <Typography variant="subtitle2" color="text.secondary" sx={{flex: 1}}>
           Text Channels
         </Typography>
         {canManageChannels && (
@@ -431,10 +415,10 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
               size="small"
               onClick={() => {
                 setChannelName("");
-                setChannelDialog({ mode: "create", type: "Text" });
+                setChannelDialog({mode: "create", type: "Text"});
               }}
             >
-              <Add fontSize="small" />
+              <Add fontSize="small"/>
             </IconButton>
           </Tooltip>
         )}
@@ -454,9 +438,9 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
           textChannels.map((channel) => {
             const unreadCount = chatRoom
               ? messagesNotificationsStore.getChannelUnread(
-                  chatRoom.id,
-                  channel.id
-                )
+                chatRoom.id,
+                channel.id
+              )
               : 0;
 
             const isSelected =
@@ -465,51 +449,51 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
             return (
               <ListItem disablePadding key={channel.id}>
                 <ListItemButton
-                selected={isSelected}
-                onClick={() => {
-                  if (!chatRoom?.id) return;
-                  uiStore.setSelectedTextChannel(chatRoom.id, channel.id);
-                  messagesNotificationsStore.setActiveChannel(
-                    chatRoom.id,
-                    channel.id
-                  );
-                  uiStore.setChatRoomView(chatRoom.id, "chat");
-                }}
-              >
-                <ListItemIcon>
-                  <Badge
-                    color="primary"
-                    badgeContent={unreadCount}
-                    invisible={!unreadCount}
-                    overlap="circular"
-                  >
-                    <Chat />
-                  </Badge>
-                </ListItemIcon>
-                <ListItemText
-                  primary={`# ${channel.name}`}
-                  primaryTypographyProps={{
-                    fontSize: 14,
-                    fontWeight: unreadCount > 0 && !isSelected ? 600 : 500,
+                  selected={isSelected}
+                  onClick={() => {
+                    if (!chatRoom?.id) return;
+                    uiStore.setSelectedTextChannel(chatRoom.id, channel.id);
+                    messagesNotificationsStore.setActiveChannel(
+                      chatRoom.id,
+                      channel.id
+                    );
+                    uiStore.setChatRoomView(chatRoom.id, "chat");
                   }}
-                />
-              </ListItemButton>
-              {canManageChannels && (
-                <ListItemSecondaryAction>
-                  <IconButton
-                    edge="end"
-                    size="small"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setChannelMenu({ anchor: event.currentTarget, channel });
+                >
+                  <ListItemIcon>
+                    <Badge
+                      color="primary"
+                      badgeContent={unreadCount}
+                      invisible={!unreadCount}
+                      overlap="circular"
+                    >
+                      <Chat/>
+                    </Badge>
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={`# ${channel.name}`}
+                    primaryTypographyProps={{
+                      fontSize: 14,
+                      fontWeight: unreadCount > 0 && !isSelected ? 600 : 500,
                     }}
-                  >
-                    <MoreVert fontSize="small" />
-                  </IconButton>
-                </ListItemSecondaryAction>
-              )}
-            </ListItem>
-          );
+                  />
+                </ListItemButton>
+                {canManageChannels && (
+                  <ListItemSecondaryAction>
+                    <IconButton
+                      edge="end"
+                      size="small"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setChannelMenu({anchor: event.currentTarget, channel});
+                      }}
+                    >
+                      <MoreVert fontSize="small"/>
+                    </IconButton>
+                  </ListItemSecondaryAction>
+                )}
+              </ListItem>
+            );
           })
         )}
       </List>
@@ -541,7 +525,7 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
           }}
         >
           <ListItemIcon>
-            <Edit fontSize="small" />
+            <Edit fontSize="small"/>
           </ListItemIcon>
           Rename
         </MenuItem>
@@ -550,12 +534,16 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
             if (!channelMenu) return;
             const target = channelMenu.channel;
             setChannelMenu(null);
-            void handleDeleteChannel(target);
+            if (target.type === "Text" && textChannels.length <= 1) {
+              toast.error("At least one text channel is required.");
+              return;
+            }
+            setDeleteChannelTarget(target);
           }}
-          sx={{ color: "error.main" }}
+          sx={{color: "error.main"}}
         >
           <ListItemIcon>
-            <Delete fontSize="small" sx={{ color: "error.main" }} />
+            <Delete fontSize="small" sx={{color: "error.main"}}/>
           </ListItemIcon>
           Delete
         </MenuItem>
@@ -597,10 +585,10 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
         </DialogActions>
       </Dialog>
 
-      <Divider sx={{ my: 2 }} />
+      <Divider sx={{my: 2}}/>
       {/* Voice channels */}
-      <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
-        <Typography variant="subtitle2" color="text.secondary" sx={{ flex: 1 }}>
+      <Box sx={{display: "flex", alignItems: "center", mb: 1}}>
+        <Typography variant="subtitle2" color="text.secondary" sx={{flex: 1}}>
           Voice Channels
         </Typography>
         {canManageChannels && (
@@ -609,17 +597,17 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
               size="small"
               onClick={() => {
                 setChannelName("");
-                setChannelDialog({ mode: "create", type: "Voice" });
+                setChannelDialog({mode: "create", type: "Voice"});
               }}
             >
-              <Add fontSize="small" />
+              <Add fontSize="small"/>
             </IconButton>
           </Tooltip>
         )}
       </Box>
-      <List sx={{ listStyle: "none", pl: 0 }}>
+      <List sx={{listStyle: "none", pl: 0}}>
         {voiceChannels.length === 0 ? (
-          <Box component="li" sx={{ px: 2, py: 1, color: "text.secondary" }}>
+          <Box component="li" sx={{px: 2, py: 1, color: "text.secondary"}}>
             <Typography variant="body2" color="text.secondary">
               No voice channels yet.
             </Typography>
@@ -635,14 +623,14 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
               ? voice.isJoining
                 ? "Connecting..."
                 : participantCount > 0
-                ? participantCount + " connected"
-                : undefined
+                  ? participantCount + " connected"
+                  : undefined
               : participantCount > 0
-              ? participantCount + " connected"
-              : undefined;
+                ? participantCount + " connected"
+                : undefined;
 
             return (
-              <Box component="li" key={channel.id} sx={{ mb: 0.75 }}>
+              <Box component="li" key={channel.id} sx={{mb: 0.75}}>
                 <Box
                   sx={{
                     borderRadius: 1.5,
@@ -674,9 +662,9 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
                       },
                     }}
                   >
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                      <ListItemIcon sx={{ minWidth: 32 }}>
-                        <VolumeUp fontSize="small" />
+                    <Box sx={{display: "flex", alignItems: "center", gap: 1}}>
+                      <ListItemIcon sx={{minWidth: 32}}>
+                        <VolumeUp fontSize="small"/>
                       </ListItemIcon>
                       <ListItemText
                         primary={channel.name}
@@ -691,7 +679,7 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
                         }}
                       />
                     </Box>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                    <Box sx={{display: "flex", alignItems: "center", gap: 0.5}}>
                       {canManageChannels && (
                         <IconButton
                           size="small"
@@ -705,7 +693,7 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
                           }}
                           aria-label="Channel options"
                         >
-                          <MoreVert fontSize="small" />
+                          <MoreVert fontSize="small"/>
                         </IconButton>
                       )}
                       {isActive && (
@@ -719,10 +707,10 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
                             }
                             void voice.leave();
                           }}
-                          sx={{ color: "error.main" }}
+                          sx={{color: "error.main"}}
                           aria-label="Leave channel"
                         >
-                          <CallEnd fontSize="small" />
+                          <CallEnd fontSize="small"/>
                         </IconButton>
                       )}
                     </Box>
@@ -757,7 +745,7 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
                         ) => {
                           event.preventDefault();
                           setVolumeMenu({
-                            anchor: { left: event.clientX, top: event.clientY },
+                            anchor: {left: event.clientX, top: event.clientY},
                             participant,
                           });
                         };
@@ -785,11 +773,11 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
                                     : "#2f3136",
                                   border: isSelfActive
                                     ? `2px solid ${
-                                        isSpeaking ? "#43b581" : "#5865f2"
-                                      }`
+                                      isSpeaking ? "#43b581" : "#5865f2"
+                                    }`
                                     : `1px solid ${
-                                        isSpeaking ? "#43b581" : "#3b3d43"
-                                      }`,
+                                      isSpeaking ? "#43b581" : "#3b3d43"
+                                    }`,
                                   boxShadow: isSpeaking
                                     ? "0 0 0 2px rgba(67,181,129,0.35)"
                                     : "none",
@@ -821,7 +809,7 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
                                   }}
                                 >
                                   <MicOff
-                                    sx={{ fontSize: 12, color: "#ff7a7a" }}
+                                    sx={{fontSize: 12, color: "#ff7a7a"}}
                                   />
                                 </Box>
                               )}
@@ -841,7 +829,7 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
         <Typography
           variant="caption"
           color="error"
-          sx={{ display: "block", mt: 1 }}
+          sx={{display: "block", mt: 1}}
         >
           {voice.error}
         </Typography>
@@ -852,15 +840,15 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
         anchorReference="anchorPosition"
         anchorPosition={
           volumeMenu
-            ? { left: volumeMenu.anchor.left, top: volumeMenu.anchor.top }
+            ? {left: volumeMenu.anchor.left, top: volumeMenu.anchor.top}
             : undefined
         }
-        MenuListProps={{ disablePadding: true }}
+        MenuListProps={{disablePadding: true}}
       >
         {volumeMenu && (
           <>
-            <Box sx={{ px: 2, pt: 1.5, width: 220 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+            <Box sx={{px: 2, pt: 1.5, width: 220}}>
+              <Typography variant="body2" sx={{fontWeight: 600, mb: 1}}>
                 {volumeMenu.participant.displayName}
               </Typography>
               <Slider
@@ -903,7 +891,7 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
                 valueLabelDisplay="auto"
                 min={0}
                 max={100}
-                sx={{ mt: 1 }}
+                sx={{mt: 1}}
               />
             </Box>
             <MenuItem
@@ -929,6 +917,51 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
         open={inviteOpen}
         onClose={() => setInviteOpen(false)}
         chatRoomId={chatRoom.id}
+      />
+      <ConfirmDialog
+        open={leaveDialogOpen}
+        onClose={() => !leaveChatRoom.isPending && setLeaveDialogOpen(false)}
+        onConfirm={async () => {
+          if (leaveChatRoom.isPending || !chatRoom?.id) return;
+          await leaveChatRoom.mutateAsync(chatRoom.id);
+          setLeaveDialogOpen(false);
+        }}
+        title="Confirm leave"
+        message={chatRoom?.isOwner
+          ? "Are you sure you want to leave this chat room?\nAs the owner, leaving will transfer ownership to the oldest user or delete the room if you are the last member."
+          : "Are you sure you want to leave this chat room?"}
+        confirmText="Leave"
+        confirmColor="error"
+        isProcessing={leaveChatRoom.isPending}
+        ariaLabel="confirm-leave-server"
+      />
+      <ConfirmDialog
+        open={deleteServerDialogOpen}
+        onClose={() => !deleteChatRooms.isPending && setDeleteServerDialogOpen(false)}
+        onConfirm={async () => {
+          if (deleteChatRooms.isPending || !chatRoom?.id) return;
+          await deleteChatRooms.mutateAsync(chatRoom.id);
+          setDeleteServerDialogOpen(false);
+        }}
+        title="Delete server"
+        message="Are you sure you want to delete this chat room?"
+        confirmText="Delete"
+        confirmColor="error"
+        isProcessing={deleteChatRooms.isPending}
+        ariaLabel="confirm-delete-server"
+      />
+      <ConfirmDialog
+        open={!!deleteChannelTarget}
+        onClose={() => !deleteChannelMutation.isPending && setDeleteChannelTarget(null)}
+        onConfirm={() => {
+          if (deleteChannelTarget) void handleDeleteChannel(deleteChannelTarget);
+        }}
+        title="Delete channel"
+        message={deleteChannelTarget ? `Delete #${deleteChannelTarget.name}? This cannot be undone.` : ''}
+        confirmText="Delete"
+        confirmColor="error"
+        isProcessing={deleteChannelMutation.isPending}
+        ariaLabel="confirm-delete-channel"
       />
     </Box>
   );
