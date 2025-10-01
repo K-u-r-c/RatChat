@@ -63,7 +63,9 @@ public class MappingProfiles : Profile
                 o => o.MapFrom(s => s.User.Status.IsConsideredOnline())
             )
             .ForMember(d => d.LastSeen, o => o.MapFrom(s => s.User.LastSeen))
-            .ForMember(d => d.Status, o => o.MapFrom(s => s.User.Status.ToString()));
+            .ForMember(d => d.Status, o => o.MapFrom(s => s.User.Status.ToString()))
+            .ForMember(d => d.ChatRoomDisplayRoleId, o => o.MapFrom(s => s.DisplayRoleId))
+            .ForMember(d => d.ChatRoomDisplayRoleColor, o => o.MapFrom(s => s.DisplayRole != null ? s.DisplayRole.Color : null));
 
         CreateMap<User, UserProfileDto>()
             .ForMember(d => d.Tag, o => o.MapFrom(s => s.Tag))

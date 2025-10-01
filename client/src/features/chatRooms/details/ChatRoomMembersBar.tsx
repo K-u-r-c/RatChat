@@ -132,6 +132,8 @@ const ChatRoomMembersBar = observer(
           open={open}
           onClose={() => setOpen(false)}
           members={members}
+          chatRoomId={chatRoomId}
+          currentUserId={currentUserId}
           loading={isLoading}
         />
       </>
@@ -140,3 +142,4 @@ const ChatRoomMembersBar = observer(
 );
 
 export default ChatRoomMembersBar;
+

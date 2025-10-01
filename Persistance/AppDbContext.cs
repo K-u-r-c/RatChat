@@ -1,4 +1,4 @@
-using Domain;
+﻿using Domain;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
@@ -50,6 +50,12 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
             .WithMany(x => x.Members)
             .HasForeignKey(x => x.ChatRoomId);
 
+        builder.Entity<ChatRoomMember>()
+            .HasOne(x => x.DisplayRole)
+            .WithMany()
+            .HasForeignKey(x => x.DisplayRoleId)
+            .OnDelete(DeleteBehavior.NoAction);
+
         builder.Entity<ChatRoom>(entity =>
         {
             entity.Property(cr => cr.Slug)
@@ -90,6 +96,7 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
             entity.Property(r => r.Name).IsRequired().HasMaxLength(50);
             entity.Property(r => r.Color).IsRequired().HasMaxLength(7);
             entity.Property(r => r.Description).HasMaxLength(200);
+            entity.Property(r => r.Importance).IsRequired();
 
             entity.HasOne(r => r.ChatRoom)
                 .WithMany(cr => cr.Roles)
@@ -97,6 +104,7 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(r => new { r.ChatRoomId, r.Name }).IsUnique();
+            entity.HasIndex(r => new { r.ChatRoomId, r.Importance }).IsUnique();
         });
 
         builder.Entity<ChatRoomMemberRole>(entity =>

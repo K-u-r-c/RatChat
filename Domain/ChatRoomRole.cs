@@ -8,6 +8,7 @@ public class ChatRoomRole
     public required string Color { get; set; } = "#ffffff"; // Default color white
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public bool IsDefault { get; set; } = false;
+    public int Importance { get; set; } = 0;
 
     // Navigation properties
     public required string ChatRoomId { get; set; }

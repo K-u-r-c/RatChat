@@ -29,6 +29,7 @@ interface ChatMessageListProps {
   defaultEmoji?: string;
   directChatId?: string;
   encryptedDirectChatId?: string;
+  resolveAccentColor?: (userId?: string) => string | undefined;
 }
 
 export default function ChatMessageList({
@@ -44,6 +45,7 @@ export default function ChatMessageList({
                                           defaultEmoji = "👍",
                                           directChatId,
                                           encryptedDirectChatId,
+                                          resolveAccentColor,
                                         }: ChatMessageListProps) {
   const {currentUser} = useAccount();
   const renderItems: RenderItem[] = buildRenderItems(
@@ -197,6 +199,9 @@ export default function ChatMessageList({
           const message = item.message;
           const isOwn =
             (message.senderId || message.userId) === currentUser?.id;
+          const accentColor = resolveAccentColor?.(
+            message.senderId || message.userId
+          );
           return (
             <SingleMessageRow
               key={message.id}
@@ -217,6 +222,7 @@ export default function ChatMessageList({
               }
               reactions={message.reactions as MessageReaction[]}
               currentUserId={currentUser?.id}
+              accentColor={accentColor}
             />
           );
         }
@@ -226,6 +232,7 @@ export default function ChatMessageList({
         const displayName =
           first.senderDisplayName || first.displayName || "Unknown";
         const isOwn = (first.senderId || first.userId) === currentUser?.id;
+        const accentColor = resolveAccentColor?.(first.senderId || first.userId);
         return (
           <Box
             key={`group-${first.id}-${idx}`}
@@ -271,7 +278,11 @@ export default function ChatMessageList({
               >
                 <Typography
                   variant="subtitle1"
-                  sx={{fontWeight: "bold", textDecoration: "none"}}
+                  sx={{
+                    fontWeight: "bold",
+                    textDecoration: "none",
+                    color: accentColor ?? "inherit",
+                  }}
                 >
                   {displayName}
                 </Typography>

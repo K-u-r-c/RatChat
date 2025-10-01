@@ -16,3 +16,7 @@ public class UserAlreadyHasRoleException(string message) : Exception(message) { 
 
 public class ContextSaveOperationFailedException(string message) : Exception(message) { }
 
+public class ChatRoomMemberNotFoundException(string message) : Exception(message) { }
+
+public class UserDoesNotHaveRoleException(string message) : Exception(message) { }
+

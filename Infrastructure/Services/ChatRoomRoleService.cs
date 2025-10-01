@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 using System.Data;
 using Application.ChatRoomRoles.DTOs;
 using Application.Core;
@@ -15,19 +18,23 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
     {
         await EnsureChatRoomExistsAsync(chatRoomId);
 
+        if (await context.ChatRoomRoles.AnyAsync(r => r.ChatRoomId == chatRoomId))
+            return;
+
         var storedPermissions = await context.ChatRoomPermissions.ToListAsync();
 
         if (storedPermissions.Count == 0)
             throw new ChatRoomPermissionsNotFoundException("No permissions to initiate roles in the given context");
 
         var roles = ChatRoomRoles.Defaults
-            .Select(r => new ChatRoomRole
+            .Select((r, index) => new ChatRoomRole
             {
                 Name = r.Key,
                 Description = r.Value.Description,
                 Color = r.Value.Color,
                 IsDefault = true,
-                ChatRoomId = chatRoomId
+                ChatRoomId = chatRoomId,
+                Importance = index
             })
             .ToList();
 
@@ -58,6 +65,11 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
             throw new ChatRoomRoleAlreadyExistsException($"ChatRoom with id {createRoleDto.ChatRoomId}" +
                 $" already contains role named {createRoleDto.Name}");
 
+        var nextImportance = (await context.ChatRoomRoles
+            .Where(crr => crr.ChatRoomId == createRoleDto.ChatRoomId)
+            .Select(crr => (int?)crr.Importance)
+            .MaxAsync() ?? -1) + 1;
+
         var chatRoomRole = new ChatRoomRole
         {
             Name = createRoleDto.Name,
@@ -83,6 +95,8 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
             IsDefault = chatRoomRole.IsDefault,
             CreatedAt = chatRoomRole.CreatedAt,
             ChatRoomId = chatRoomRole.ChatRoomId,
+            Importance = chatRoomRole.Importance,
+            IsDisplayRole = false
         };
     }
 
@@ -100,7 +114,9 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
                 Description = crr.Description,
                 IsDefault = crr.IsDefault,
                 CreatedAt = crr.CreatedAt,
-                ChatRoomId = crr.ChatRoomId
+                ChatRoomId = crr.ChatRoomId,
+                Importance = crr.Importance,
+                IsDisplayRole = false
             })
             .FirstAsync();
 
@@ -113,6 +129,7 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
 
         var roles = await context.ChatRoomRoles
             .Where(crr => crr.ChatRoomId == chatRoomId)
+            .OrderBy(crr => crr.Importance)
             .Select(crr => new ChatRoomRoleDto
             {
                 Id = crr.Id,
@@ -121,7 +138,9 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
                 Description = crr.Description,
                 IsDefault = crr.IsDefault,
                 CreatedAt = crr.CreatedAt,
-                ChatRoomId = crr.ChatRoomId
+                ChatRoomId = crr.ChatRoomId,
+                Importance = crr.Importance,
+                IsDisplayRole = false
             })
             .ToListAsync();
 
@@ -136,6 +155,7 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
         var roles = await context.ChatRoomMemberRoles
             .Where(mr => mr.ChatRoomId == chatRoomId && mr.UserId == userId)
             .Include(mr => mr.Role)
+            .OrderBy(mr => mr.Role.Importance)
             .Select(mr => new ChatRoomRoleDto
             {
                 Id = mr.Role.Id,
@@ -144,9 +164,23 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
                 Description = mr.Role.Description,
                 IsDefault = mr.Role.IsDefault,
                 CreatedAt = mr.Role.CreatedAt,
-                ChatRoomId = mr.ChatRoomId
+                ChatRoomId = mr.ChatRoomId,
+                IsDisplayRole = false
             })
             .ToListAsync();
+
+        var preferredRoleId = await context.ChatRoomMembers
+            .Where(m => m.ChatRoomId == chatRoomId && m.UserId == userId)
+            .Select(m => m.DisplayRoleId)
+            .FirstOrDefaultAsync();
+
+        if (!string.IsNullOrEmpty(preferredRoleId))
+        {
+            foreach (var role in roles)
+            {
+                role.IsDisplayRole = role.Id == preferredRoleId;
+            }
+        }
 
         return roles;
     }
@@ -155,9 +189,24 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
     {
         await EnsureChatRoomExistsAsync(chatRoomId);
 
+        var displayRoleAssignments = await context.ChatRoomMembers
+            .Where(m => m.ChatRoomId == chatRoomId && m.DisplayRoleId != null && m.UserId != null)
+            .Select(m => new { m.UserId, m.DisplayRoleId })
+            .ToListAsync();
+
+        var displayRoleMap = new Dictionary<string, string>();
+        foreach (var assignment in displayRoleAssignments)
+        {
+            if (assignment.UserId != null && assignment.DisplayRoleId != null)
+            {
+                displayRoleMap[assignment.UserId] = assignment.DisplayRoleId;
+            }
+        }
+
         var memberRoles = await context.ChatRoomMemberRoles
             .Where(mr => mr.ChatRoomId == chatRoomId)
             .Include(mr => mr.Role)
+            .OrderBy(mr => mr.Role.Importance)
             .Select(mr => new
             {
                 UserId = mr.UserId,
@@ -169,14 +218,31 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
                     Description = mr.Role.Description,
                     IsDefault = mr.Role.IsDefault,
                     CreatedAt = mr.Role.CreatedAt,
-                    ChatRoomId = mr.ChatRoomId
+                    ChatRoomId = mr.ChatRoomId,
+                    Importance = mr.Role.Importance
                 }
             })
             .ToListAsync();
 
+        foreach (var entry in memberRoles)
+        {
+            if (entry.UserId != null &&
+                displayRoleMap.TryGetValue(entry.UserId, out var preferredRoleId) &&
+                preferredRoleId == entry.Role.Id)
+            {
+                entry.Role.IsDisplayRole = true;
+            }
+        }
+
         return memberRoles
             .GroupBy(x => x.UserId)
-            .ToDictionary(g => g.Key, g => g.Select(x => x.Role).ToList());
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(x => x.Role)
+                    .OrderByDescending(r => r.IsDisplayRole)
+                    .ThenBy(r => r.Importance)
+                    .ThenBy(r => r.CreatedAt)
+                    .ToList());
     }
 
     public async Task UpdateRoleAsync(UpdateChatRoomRoleDto updateRoleDto)
@@ -210,10 +276,10 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
             }
         }
 
-        var saved = await context.SaveChangesAsync() > 0;
-        if (!saved)
-            throw new ContextSaveOperationFailedException("Failed to update chat room role. " +
-            "Database save operation did not succeed.");
+        if (context.ChangeTracker.HasChanges())
+        {
+            await context.SaveChangesAsync();
+        }
     }
 
     public async Task DeleteRoleAsync(string chatRoomRoleId)
@@ -225,6 +291,15 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
 
         if (chatRoomRole.IsDefault)
             throw new CannotDeleteDefaultRoleException("Cannot delete a default role");
+
+        var displayMembers = await context.ChatRoomMembers
+            .Where(m => m.ChatRoomId == chatRoomRole.ChatRoomId && m.DisplayRoleId == chatRoomRoleId)
+            .ToListAsync();
+
+        foreach (var member in displayMembers)
+        {
+            member.DisplayRoleId = null;
+        }
 
         context.ChatRoomRoles.Remove(chatRoomRole);
 
@@ -279,10 +354,63 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
                 Description = chatRoomRole.Description,
                 IsDefault = chatRoomRole.IsDefault,
                 CreatedAt = chatRoomRole.CreatedAt,
-                ChatRoomId = chatRoomRole.ChatRoomId
+                ChatRoomId = chatRoomRole.ChatRoomId,
+                Importance = chatRoomRole.Importance,
+                IsDisplayRole = false
             },
         };
     }
+
+    public async Task<MemberDisplayRoleDto> SetMemberDisplayRoleAsync(SetMemberDisplayRoleDto dto)
+    {
+        await EnsureChatRoomExistsAsync(dto.ChatRoomId);
+        await EnsureUserExistsAsync(dto.UserId);
+
+        var member = await context.ChatRoomMembers
+            .FirstOrDefaultAsync(m => m.ChatRoomId == dto.ChatRoomId && m.UserId == dto.UserId)
+            ?? throw new ChatRoomMemberNotFoundException($"User {dto.UserId} is not a member of chat room {dto.ChatRoomId}");
+
+        string? effectiveRoleId = null;
+
+        if (!string.IsNullOrEmpty(dto.RoleId))
+        {
+            await EnsureRoleExistsAsync(dto.RoleId);
+
+            var roleChatRoomId = await context.ChatRoomRoles
+                .Where(r => r.Id == dto.RoleId)
+                .Select(r => r.ChatRoomId)
+                .FirstAsync();
+
+            if (roleChatRoomId != dto.ChatRoomId)
+            {
+                throw new ChatRoomRoleNotFoundException($"Role {dto.RoleId} does not belong to chat room {dto.ChatRoomId}");
+            }
+
+            var hasRole = await context.ChatRoomMemberRoles
+                .AnyAsync(mr =>
+                    mr.ChatRoomId == dto.ChatRoomId &&
+                    mr.UserId == dto.UserId &&
+                    mr.RoleId == dto.RoleId);
+
+            if (!hasRole)
+            {
+                throw new UserDoesNotHaveRoleException($"User {dto.UserId} does not have role {dto.RoleId} in chat room {dto.ChatRoomId}");
+            }
+
+            effectiveRoleId = dto.RoleId;
+        }
+
+        member.DisplayRoleId = effectiveRoleId;
+
+        await context.SaveChangesAsync();
+
+        return new MemberDisplayRoleDto
+        {
+            UserId = dto.UserId,
+            RoleId = effectiveRoleId
+        };
+    }
+
 
     public async Task AssignMemberRoleAsync(string userId, string chatRoomId, CancellationToken cancellationToken)
     {
@@ -311,10 +439,27 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
         await EnsureUserExistsAsync(unassignRoleDto.UserId);
         await EnsureRoleExistsAsync(unassignRoleDto.Id);
 
+        var membership = await context.ChatRoomMemberRoles
+            .Where(mr => mr.UserId == unassignRoleDto.UserId && mr.RoleId == unassignRoleDto.Id)
+            .Select(mr => new { mr.ChatRoomId })
+            .FirstOrDefaultAsync();
+
         await context.ChatRoomMemberRoles
             .Where(mr => mr.UserId == unassignRoleDto.UserId &&
                                        mr.RoleId == unassignRoleDto.Id)
             .ExecuteDeleteAsync();
+
+        if (membership != null)
+        {
+            var member = await context.ChatRoomMembers
+                .FirstOrDefaultAsync(m => m.ChatRoomId == membership.ChatRoomId && m.UserId == unassignRoleDto.UserId);
+
+            if (member != null && member.DisplayRoleId == unassignRoleDto.Id)
+            {
+                member.DisplayRoleId = null;
+                await context.SaveChangesAsync();
+            }
+        }
 
         return new UnassignedChatRoomRoleDto
         {
@@ -340,6 +485,79 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
         await context.SaveChangesAsync(cancellationToken);
     }
 
+
+    public async Task<List<ChatRoomRoleDto>> ReorderRolesAsync(string chatRoomId, IReadOnlyList<string> orderedRoleIds)
+    {
+        await EnsureChatRoomExistsAsync(chatRoomId);
+
+        if (orderedRoleIds == null || orderedRoleIds.Count == 0)
+        {
+            throw new ArgumentException("You must provide at least one role id to reorder.", nameof(orderedRoleIds));
+        }
+
+        var roles = await context.ChatRoomRoles
+            .Where(r => r.ChatRoomId == chatRoomId)
+            .ToListAsync();
+
+        if (roles.Count == 0)
+        {
+            return new List<ChatRoomRoleDto>();
+        }
+
+        var existingIds = roles.Select(r => r.Id).ToHashSet();
+        var providedIds = orderedRoleIds.ToHashSet();
+
+        if (providedIds.Count != orderedRoleIds.Count)
+        {
+            throw new ArgumentException("Role ids must be unique.", nameof(orderedRoleIds));
+        }
+
+        var unknownIds = providedIds.Except(existingIds).ToList();
+        if (unknownIds.Count > 0)
+        {
+            throw new ChatRoomRoleNotFoundException($"Some roles do not belong to chat room {chatRoomId}: {string.Join(", ", unknownIds)}");
+        }
+
+        var missingIds = existingIds.Except(providedIds).ToList();
+
+        var orderedList = new List<ChatRoomRole>();
+        var position = 0;
+        foreach (var roleId in orderedRoleIds)
+        {
+            var role = roles.First(r => r.Id == roleId);
+            role.Importance = position++;
+            orderedList.Add(role);
+        }
+
+        if (missingIds.Count > 0)
+        {
+            foreach (var role in roles
+                         .Where(r => missingIds.Contains(r.Id))
+                         .OrderBy(r => r.Importance))
+            {
+                role.Importance = position++;
+                orderedList.Add(role);
+            }
+        }
+
+        await context.SaveChangesAsync();
+
+        return orderedList
+            .OrderBy(r => r.Importance)
+            .Select(r => new ChatRoomRoleDto
+            {
+                Id = r.Id,
+                Name = r.Name,
+                Color = r.Color,
+                Description = r.Description,
+                IsDefault = r.IsDefault,
+                CreatedAt = r.CreatedAt,
+                ChatRoomId = r.ChatRoomId,
+                Importance = r.Importance,
+                IsDisplayRole = false
+            })
+            .ToList();
+    }
     private async Task EnsureChatRoomExistsAsync(string chatRoomId)
     {
         if (!await context.ChatRooms.AnyAsync(cr => cr.Id == chatRoomId))
@@ -358,3 +576,5 @@ public class ChatRoomRoleService(AppDbContext context) : IChatRoomRoleService
             throw new ChatRoomRoleNotFoundException($"Role with ID {roleId} does not exist.");
     }
 }
+
+

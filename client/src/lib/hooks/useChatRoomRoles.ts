@@ -10,6 +10,7 @@ import type {
   DeleteChatRoomRole,
   AssignChatRoomRole,
   UnassignChatRoomRole,
+  SetMemberDisplayRole,
 } from "../schemas/chatRoomRoleSchema";
 
 const rolesKey = (chatRoomId?: string) => [
@@ -26,6 +27,23 @@ const userPermsKey = (chatRoomId?: string, userId?: string) => [
   userId ? userId : null,
 ];
 
+const sortRolesByImportance = (roles: ChatRoomRole[]) =>
+  roles.slice().sort((a, b) => a.importance - b.importance);
+
+const sortMemberRoles = (roles: ChatRoomRole[]) =>
+  roles
+    .slice()
+    .sort((a, b) => {
+      if (a.isDisplayRole !== b.isDisplayRole) return a.isDisplayRole ? -1 : 1;
+      return a.importance - b.importance;
+    });
+
+type ReorderRolesContext = {
+  previousRoles?: ChatRoomRole[];
+  previousUsersRoles?: Map<string, ChatRoomRole[]>;
+  chatRoomId?: string;
+};
+
 export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
   const queryClient = useQueryClient();
 
@@ -40,7 +58,7 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
       const res = await agent.get<ChatRoomRole[]>(
         `/chatrooms/roles?chatRoomId=${chatRoomId}`
       );
-      return res.data;
+      return sortRolesByImportance(res.data);
     },
   });
 
@@ -55,7 +73,13 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
       const res = await agent.get<Record<string, ChatRoomRole[]>>(
         `/chatrooms/users-roles?chatRoomId=${chatRoomId}`
       );
-      return new Map<string, ChatRoomRole[]>(Object.entries(res.data));
+      const entries = Object.entries(res.data).map(
+        ([userId, roles]): [string, ChatRoomRole[]] => [
+          userId,
+          sortMemberRoles(roles),
+        ]
+      );
+      return new Map<string, ChatRoomRole[]>(entries);
     },
   });
 
@@ -103,6 +127,10 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
       const previousRoles = queryClient.getQueryData<ChatRoomRole[]>(
         rolesKey(chatRoomId)
       );
+      const nextImportance = (previousRoles ?? []).reduce(
+        (max, role) => Math.max(max, role.importance ?? -1),
+        -1
+      ) + 1;
       const optimisticRole: ChatRoomRole = {
         id: `temp-${Date.now()}-${Math.random().toString(16).slice(2)}`,
         chatRoomId,
@@ -111,12 +139,14 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
           payload.description === undefined ? null : payload.description,
         color: payload.color,
         isDefault: false,
+        importance: nextImportance,
+        isDisplayRole: false,
+        createdAt: new Date(),
         permissions: [],
       };
-      queryClient.setQueryData(rolesKey(chatRoomId), (old?: ChatRoomRole[]) => [
-        optimisticRole,
-        ...(old ?? []),
-      ]);
+      queryClient.setQueryData(rolesKey(chatRoomId), (old?: ChatRoomRole[]) =>
+        sortRolesByImportance([...(old ?? []), optimisticRole])
+      );
       return { previousRoles, chatRoomId };
     },
     onError: (_error, _payload, context) => {
@@ -126,7 +156,7 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
         context.previousRoles ?? undefined
       );
     },
-    onSettled: (_data, _error, _payload, context) => {
+    onSettled: (_data, _error, _variables, context) => {
       const roomId = context?.chatRoomId ?? chatRoomId;
       if (!roomId) return;
       queryClient.invalidateQueries({ queryKey: rolesKey(roomId) });
@@ -153,54 +183,50 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
       const previousUsersRoles = queryClient.getQueryData<
         Map<string, ChatRoomRole[]>
       >(usersRolesKey(chatRoomId));
-      let updatedRole: ChatRoomRole | undefined;
 
-      queryClient.setQueryData<ChatRoomRole[]>(rolesKey(chatRoomId), (old?: ChatRoomRole[]) => {
-        if (!old) return [];
-        return old.map((role) => {
+      if (previousRoles) {
+        const updatedRoles = previousRoles.map((role) => {
           if (role.id !== payload.id) return role;
-          const nextPermissions = payload.permissions
-            ? role.permissions.map((perm) => {
-                const update = payload.permissions?.find(
-                  (p) => p.id === perm.permission.id
-                );
-                return update ? { ...perm, isAllowed: update.isAllowed } : perm;
-              })
-            : role.permissions;
-          updatedRole = {
+          return {
             ...role,
             name: payload.name ?? role.name,
-            color: payload.color ?? role.color,
             description:
-              payload.description !== undefined
-                ? payload.description
-                : role.description,
-            permissions: nextPermissions,
+              payload.description === undefined
+                ? role.description ?? null
+                : payload.description,
+            color: payload.color ?? role.color,
           };
-          return updatedRole;
         });
-      });
-
-      if (previousUsersRoles && updatedRole) {
-        const nextUsersRoles = new Map(previousUsersRoles);
-        nextUsersRoles.forEach((list, key) => {
-          if (list.some((role) => role.id === updatedRole?.id)) {
-            nextUsersRoles.set(
-              key,
-              list.map((role) =>
-                role.id === updatedRole?.id ? updatedRole! : role
-              )
-            );
-          }
-        });
-        queryClient.setQueryData(usersRolesKey(chatRoomId), nextUsersRoles);
+        queryClient.setQueryData(
+          rolesKey(chatRoomId),
+          sortRolesByImportance(updatedRoles)
+        );
       }
 
-      return {
-        previousRoles,
-        previousUsersRoles,
-        chatRoomId,
-      };
+      if (previousUsersRoles) {
+        const updatedUsersRoles = new Map(previousUsersRoles);
+        updatedUsersRoles.forEach((list, key) => {
+          const mapped = list.map((role) => {
+            if (role.id !== payload.id) return role;
+            return {
+              ...role,
+              name: payload.name ?? role.name,
+              description:
+                payload.description === undefined
+                  ? role.description ?? null
+                  : payload.description,
+              color: payload.color ?? role.color,
+            };
+          });
+          updatedUsersRoles.set(key, sortMemberRoles(mapped));
+        });
+        queryClient.setQueryData(
+          usersRolesKey(chatRoomId),
+          updatedUsersRoles
+        );
+      }
+
+      return { previousRoles, previousUsersRoles, chatRoomId };
     },
     onError: (_error, _payload, context) => {
       if (!context?.chatRoomId) return;
@@ -213,7 +239,7 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
         context.previousUsersRoles ?? undefined
       );
     },
-    onSettled: (_data, _error, _payload, context) => {
+    onSettled: (_data, _error, _variables, context) => {
       const roomId = context?.chatRoomId ?? chatRoomId;
       if (!roomId) return;
       queryClient.invalidateQueries({ queryKey: rolesKey(roomId) });
@@ -281,7 +307,7 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
         context.previousUsersRoles ?? undefined
       );
     },
-    onSettled: (_data, _error, _payload, context) => {
+    onSettled: (_data, _error, _variables, context) => {
       const roomId = context?.chatRoomId ?? chatRoomId;
       if (!roomId) return;
       queryClient.invalidateQueries({ queryKey: rolesKey(roomId) });
@@ -328,10 +354,10 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
       const current = nextUsersRoles.get(payload.userId) ?? [];
       const withoutDuplicate = current.filter((role) => role.id !== payload.id);
       const updatedList = assignedRole
-        ? [assignedRole, ...withoutDuplicate]
+        ? [{ ...assignedRole, isDisplayRole: false }, ...withoutDuplicate]
         : withoutDuplicate;
 
-      nextUsersRoles.set(payload.userId, updatedList);
+      nextUsersRoles.set(payload.userId, sortMemberRoles(updatedList));
       queryClient.setQueryData(usersRolesKey(chatRoomId), nextUsersRoles);
 
       return {
@@ -347,13 +373,13 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
         context.previousUsersRoles ?? undefined
       );
     },
-    onSettled: (_data, _error, variables, context) => {
+    onSettled: (_data, _error, _variables, context) => {
       const roomId = context?.chatRoomId ?? chatRoomId;
       if (!roomId) return;
       queryClient.invalidateQueries({ queryKey: usersRolesKey(roomId) });
-      if (variables?.userId) {
+      if (_variables?.userId) {
         queryClient.invalidateQueries({
-          queryKey: userPermsKey(roomId, variables.userId),
+          queryKey: userPermsKey(roomId, _variables.userId),
         });
       }
     },
@@ -387,7 +413,7 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
       const current = nextUsersRoles.get(payload.userId) ?? [];
       nextUsersRoles.set(
         payload.userId,
-        current.filter((role) => role.id !== payload.id)
+        sortMemberRoles(current.filter((role) => role.id !== payload.id))
       );
 
       queryClient.setQueryData(usersRolesKey(chatRoomId), nextUsersRoles);
@@ -405,23 +431,225 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
         context.previousUsersRoles ?? undefined
       );
     },
-    onSettled: (_data, _error, variables, context) => {
+    onSettled: (_data, _error, _variables, context) => {
       const roomId = context?.chatRoomId ?? chatRoomId;
       if (!roomId) return;
       queryClient.invalidateQueries({ queryKey: usersRolesKey(roomId) });
-      if (variables?.userId) {
+      if (_variables?.userId) {
         queryClient.invalidateQueries({
-          queryKey: userPermsKey(roomId, variables.userId),
+          queryKey: userPermsKey(roomId, _variables.userId),
         });
       }
     },
   });
 
+  const setDisplayRoleMutation = useMutation({
+    mutationFn: async (payload: SetMemberDisplayRole) => {
+      if (!chatRoomId) {
+        if (import.meta.env.DEV) console.error("chatRoomId is required");
+        throw new Error("chatRoomId is required");
+      }
+      await agent.post(`/chatrooms/member-display-role?chatRoomId=${chatRoomId}`, payload);
+    },
+    onMutate: async (payload) => {
+      if (!chatRoomId) return {};
+      await queryClient.cancelQueries({ queryKey: usersRolesKey(chatRoomId) });
+
+      const previousUsersRoles = queryClient.getQueryData<
+        Map<string, ChatRoomRole[]>
+      >(usersRolesKey(chatRoomId));
+
+      const nextUsersRoles = previousUsersRoles
+        ? new Map(previousUsersRoles)
+        : new Map<string, ChatRoomRole[]>();
+
+      const currentRoles = nextUsersRoles.get(payload.userId) ?? [];
+      const updatedRoles = currentRoles.map((role) => ({
+        ...role,
+        isDisplayRole: payload.roleId ? role.id === payload.roleId : false,
+      }));
+      nextUsersRoles.set(payload.userId, sortMemberRoles(updatedRoles));
+      queryClient.setQueryData(usersRolesKey(chatRoomId), nextUsersRoles);
+
+      const chatRoomCache = queryClient.getQueryData<any>([
+        "chatRooms",
+        chatRoomId,
+      ]);
+      const slugKey = chatRoomCache?.slug;
+      const chatRoomBySlug = slugKey
+        ? queryClient.getQueryData<any>(["chatRooms", slugKey])
+        : undefined;
+
+      const applyMemberUpdate = (room?: any) => {
+        if (!room || !room.members) return room;
+        const targetRole = updatedRoles.find((role) => role.isDisplayRole);
+        const nextMembers = room.members.map((member: any) =>
+          member.id === payload.userId
+            ? {
+                ...member,
+                chatRoomDisplayRoleId: payload.roleId ?? null,
+                chatRoomDisplayRoleColor: targetRole?.color ?? null,
+              }
+            : member
+        );
+        return { ...room, members: nextMembers };
+      };
+
+      if (chatRoomCache) {
+        queryClient.setQueryData(["chatRooms", chatRoomId], (old: any) =>
+          applyMemberUpdate(old)
+        );
+        if (slugKey) {
+          queryClient.setQueryData(["chatRooms", slugKey], (old: any) =>
+            applyMemberUpdate(old)
+          );
+        }
+      }
+
+      return {
+        previousUsersRoles,
+        previousChatRoom: chatRoomCache,
+        previousChatRoomBySlug: chatRoomBySlug,
+        chatRoomSlug: slugKey,
+        chatRoomId,
+        userId: payload.userId,
+      };
+    },
+    onError: (_error, _payload, context) => {
+      if (!chatRoomId) return;
+      if (context?.previousUsersRoles) {
+        queryClient.setQueryData(
+          usersRolesKey(chatRoomId),
+          context.previousUsersRoles
+        );
+      }
+      if (context?.previousChatRoom) {
+        queryClient.setQueryData(
+          ["chatRooms", chatRoomId],
+          context.previousChatRoom
+        );
+      }
+      if (context?.chatRoomSlug && context?.previousChatRoomBySlug) {
+        queryClient.setQueryData(
+          ["chatRooms", context.chatRoomSlug],
+          context.previousChatRoomBySlug
+        );
+      }
+    },
+    onSettled: (_data, _error, _variables, context) => {
+      const roomId = context?.chatRoomId ?? chatRoomId;
+      if (!roomId) return;
+      queryClient.invalidateQueries({ queryKey: usersRolesKey(roomId) });
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0] === "chatRooms" &&
+          (query.queryKey[1] === roomId ||
+            (context?.chatRoomSlug && query.queryKey[1] === context.chatRoomSlug)),
+      });
+
+    },
+  });
+
+  const reorderRolesMutation = useMutation<void, unknown, string[], ReorderRolesContext>({
+    mutationFn: async (orderedRoleIds: string[]) => {
+      if (!chatRoomId) {
+        if (import.meta.env.DEV) console.error("chatRoomId is required");
+        throw new Error("chatRoomId is required");
+      }
+      await agent.post(`/chatrooms/roles/reorder?chatRoomId=${chatRoomId}`, {
+        chatRoomId,
+        orderedRoleIds,
+      });
+    },
+    onMutate: async (orderedRoleIds) => {
+      if (!chatRoomId) return {};
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: rolesKey(chatRoomId) }),
+        queryClient.cancelQueries({ queryKey: usersRolesKey(chatRoomId) }),
+      ]);
+
+      const previousRoles = queryClient.getQueryData<ChatRoomRole[]>(
+        rolesKey(chatRoomId)
+      );
+      const previousUsersRoles = queryClient.getQueryData<
+        Map<string, ChatRoomRole[]>
+      >(usersRolesKey(chatRoomId));
+
+      const importanceOrder = new Map<string, number>();
+      orderedRoleIds.forEach((id, index) => importanceOrder.set(id, index));
+
+      if (previousRoles) {
+        let counter = orderedRoleIds.length;
+        const updatedRoles = previousRoles.map((role) => {
+          if (!importanceOrder.has(role.id)) {
+            importanceOrder.set(role.id, counter++);
+          }
+          return {
+            ...role,
+            importance: importanceOrder.get(role.id) ?? role.importance,
+          };
+        });
+        queryClient.setQueryData(
+          rolesKey(chatRoomId),
+          sortRolesByImportance(updatedRoles)
+        );
+      }
+
+      if (previousUsersRoles && previousUsersRoles.size > 0) {
+        const importanceLookup = new Map(importanceOrder);
+        if (previousRoles) {
+          previousRoles.forEach((role) => {
+            if (!importanceLookup.has(role.id)) {
+              importanceLookup.set(role.id, role.importance);
+            }
+          });
+        }
+
+        const updatedUsersRoles = new Map(previousUsersRoles);
+        updatedUsersRoles.forEach((list, key) => {
+          const mapped = list.map((role) => ({
+            ...role,
+            importance: importanceLookup.get(role.id) ?? role.importance,
+          }));
+          updatedUsersRoles.set(key, sortMemberRoles(mapped));
+        });
+
+        queryClient.setQueryData(
+          usersRolesKey(chatRoomId),
+          updatedUsersRoles
+        );
+      }
+
+      return { previousRoles, previousUsersRoles, chatRoomId };
+    },
+    onError: (_error, _variables, context) => {
+      if (!chatRoomId) return;
+      if (context?.previousRoles) {
+        queryClient.setQueryData(
+          rolesKey(chatRoomId),
+          context.previousRoles
+        );
+      }
+      if (context?.previousUsersRoles) {
+        queryClient.setQueryData(
+          usersRolesKey(chatRoomId),
+          context.previousUsersRoles
+        );
+      }
+    },
+    onSettled: (_data, _error, _variables, _context) => {
+      if (!chatRoomId) return;
+      queryClient.invalidateQueries({ queryKey: rolesKey(chatRoomId) });
+      queryClient.invalidateQueries({ queryKey: usersRolesKey(chatRoomId) });
+    },
+  });
   const { mutateAsync: createRoleRaw } = createRoleMutation;
   const { mutateAsync: updateRoleRaw } = updateRoleMutation;
   const { mutateAsync: deleteRoleRaw } = deleteRoleMutation;
   const { mutateAsync: assignRoleRaw } = assignRoleMutation;
   const { mutateAsync: unassignRoleRaw } = unassignRoleMutation;
+  const { mutateAsync: setDisplayRoleRaw } = setDisplayRoleMutation;
+  const { mutateAsync: reorderRolesRaw } = reorderRolesMutation;
 
   const createRole = useCallback(
     (payload: CreateChatRoomRole) => createRoleRaw(payload),
@@ -443,6 +671,15 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
     (payload: UnassignChatRoomRole) => unassignRoleRaw(payload),
     [unassignRoleRaw]
   );
+  const setDisplayRole = useCallback(
+    (payload: SetMemberDisplayRole) => setDisplayRoleRaw(payload),
+    [setDisplayRoleRaw]
+  );
+
+  const reorderRoles = useCallback(
+    (orderedRoleIds: string[]) => reorderRolesRaw(orderedRoleIds),
+    [reorderRolesRaw]
+  );
 
   return {
     roles, // always an array via query default
@@ -458,6 +695,8 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
     deleteRole,
     assignRole,
     unassignRole,
+    setDisplayRole,
+    reorderRoles,
   };
 }
 
@@ -466,4 +705,6 @@ export const chatRoomRolesQueryKeys = {
   usersRolesKey,
   userPermsKey,
 };
+
+
 

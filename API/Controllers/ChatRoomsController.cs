@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using API.SignalR;
 using Application.ChatRoomRoles.Commands;
 using Application.ChatRoomRoles.DTOs;
@@ -256,6 +257,26 @@ public class ChatRoomsController(
         return HandleResult(result);
     }
 
+    [HttpPost("roles/reorder")]
+    [Authorize(Policy = IsOwnerStrings.IsChatRoomOwner)]
+    public async Task<ActionResult<List<ChatRoomRoleDto>>> ReorderRoles(
+        [FromQuery] string chatRoomId,
+        [FromBody] ReorderChatRoomRolesDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(chatRoomId) || chatRoomId != dto.ChatRoomId)
+        {
+            return HandleResult(Result<List<ChatRoomRoleDto>>.Failure("Wrong query data", 404));
+        }
+
+        var result = await Mediator.Send(
+            new ReorderChatRoomRoles.Command { Dto = dto });
+
+        if (result.IsSuccess && result.Value != null)
+            await rolesContext.Clients.Group(chatRoomId).SendAsync("RolesReordered", result.Value);
+
+        return HandleResult(result);
+    }
+
 
     [HttpDelete("role")]
     [Authorize(Policy = ChatRoomPermissions.ManageChatRoomRoles)]
@@ -304,4 +325,24 @@ public class ChatRoomsController(
 
         return HandleResult(result);
     }
+    [HttpPost("member-display-role")]
+    [Authorize(Policy = ChatRoomPermissions.ManageChatRoomRoles)]
+    public async Task<ActionResult<MemberDisplayRoleDto>> SetMemberDisplayRole(
+        [FromQuery] string chatRoomId,
+        [FromBody] SetMemberDisplayRoleDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(chatRoomId) || chatRoomId != dto.ChatRoomId)
+            return HandleResult(Result<MemberDisplayRoleDto>.Failure("Wrong query data", 404));
+
+        var result = await Mediator.Send(new SetMemberDisplayRole.Command { Dto = dto });
+
+        if (result.IsSuccess)
+        {
+            await rolesContext.Clients.Group(dto.ChatRoomId)
+                .SendAsync("MemberDisplayRoleChanged", result.Value);
+        }
+
+        return HandleResult(result);
+    }
+
 }

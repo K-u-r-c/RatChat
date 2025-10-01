@@ -22,6 +22,7 @@ type Props = {
   onToggleReaction: (emoji: string) => void;
   reactions?: MessageReaction[];
   currentUserId?: string;
+  accentColor?: string;
 };
 
 export default function SingleMessageRow({
@@ -38,6 +39,7 @@ export default function SingleMessageRow({
   onToggleReaction,
   reactions,
   currentUserId,
+  accentColor,
 }: Props) {
   const displayName =
     message.senderDisplayName || message.displayName || "Unknown";
@@ -87,6 +89,7 @@ export default function SingleMessageRow({
             messageType={message.type}
             profileSlug={profileSlug}
             showUserProfiles={showUserProfiles}
+            accentColor={accentColor}
           />
         )}
 
