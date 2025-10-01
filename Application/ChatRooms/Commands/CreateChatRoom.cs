@@ -6,7 +6,7 @@ using AutoMapper;
 using Domain;
 using Domain.Enums;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Persistance;
 
 namespace Application.ChatRooms.Commands;
@@ -18,38 +18,26 @@ public class CreateChatRoom
         public required CreateChatRoomDto CreateChatRoomDto { get; set; }
     }
 
-    public class Handler : IRequestHandler<Command, Result<ChatRoomIdentifierDto>>
+    public class Handler(
+        AppDbContext context,
+        IUserAccessor userAccessor,
+        IMapper mapper,
+        IChatRoomRoleService chatRoomRoleService)
+        : IRequestHandler<Command, Result<ChatRoomIdentifierDto>>
     {
-        private readonly AppDbContext context;
-        private readonly IUserAccessor userAccessor;
-        private readonly IMapper mapper;
-        private readonly IChatRoomRoleService chatRoomRoleService;
-
-        public Handler(
-            AppDbContext context,
-            IUserAccessor userAccessor,
-            IMapper mapper,
-            IChatRoomRoleService chatRoomRoleService)
-        {
-            this.context = context;
-            this.userAccessor = userAccessor;
-            this.mapper = mapper;
-            this.chatRoomRoleService = chatRoomRoleService;
-        }
-
         public async Task<Result<ChatRoomIdentifierDto>> Handle(
             Command request,
             CancellationToken cancellationToken)
         {
-            var user = await userAccessor.GetUserAsync();
+            User user = await userAccessor.GetUserAsync();
 
-            var chatRoom = mapper.Map<ChatRoom>(request.CreateChatRoomDto);
+            ChatRoom? chatRoom = mapper.Map<ChatRoom>(request.CreateChatRoomDto);
             chatRoom.OwnerId = user.Id;
             chatRoom.Slug = await ChatRoomSlugGenerator.GenerateUniqueSlugAsync(
                 context,
                 cancellationToken: cancellationToken);
 
-            var member = new ChatRoomMember
+            ChatRoomMember member = new()
             {
                 ChatRoomId = chatRoom.Id,
                 UserId = user.Id,
@@ -74,11 +62,12 @@ public class CreateChatRoom
                 Position = 0
             });
 
-            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+            await using IDbContextTransaction transaction =
+                await context.Database.BeginTransactionAsync(cancellationToken);
 
             context.ChatRooms.Add(chatRoom);
 
-            var created = await context.SaveChangesAsync(cancellationToken) > 0;
+            bool created = await context.SaveChangesAsync(cancellationToken) > 0;
 
             if (!created)
             {

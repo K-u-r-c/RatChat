@@ -8,7 +8,7 @@ public static class ChatRoomRoles
     public static readonly Dictionary<string, (string Description, string Color)> Defaults = new()
     {
         [Moderator] = ("Moderator with moderation permissions", "#00ff00"), // Green
-        [Member] = ("Regular member with basic permissions", "#333333"), // Dark grey
+        [Member] = ("Regular member with basic permissions", "#c7c7c7") // Light gray
     };
 
     public static readonly Dictionary<(string role, string permission), bool> DefaultsPermissions = new()
@@ -22,6 +22,6 @@ public static class ChatRoomRoles
         [(Moderator, ChatRoomPermissions.ManageChatRoomRoles)] = true,
 
         [(Member, ChatRoomPermissions.ViewChatRoom)] = true,
-        [(Member, ChatRoomPermissions.SendMessages)] = true,
+        [(Member, ChatRoomPermissions.SendMessages)] = true
     };
 }

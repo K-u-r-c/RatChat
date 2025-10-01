@@ -1,4 +1,3 @@
-using System.Linq;
 using Application.ChatRoomRoles.Commands;
 using FluentValidation;
 
@@ -20,4 +19,3 @@ public class ReorderChatRoomRolesValidator : AbstractValidator<ReorderChatRoomRo
             .WithMessage("Role ids must be unique");
     }
 }
-

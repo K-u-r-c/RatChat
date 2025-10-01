@@ -682,7 +682,7 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
   );
 
   return {
-    roles, // always an array via query default
+    roles,
     usersRolesMap,
     userPermissions,
     isLoading,

@@ -420,5 +420,3 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
 });
 
 export default ChatRoomDetails;
-
-
