@@ -57,42 +57,63 @@ export default function ChatRoomMemberActions(
   }, [open, anchorEl, onClose]);
 
   const kickMutation = useMutation({
-    mutationFn: async () =>
-      agent.post(`/chatRooms/${chatRoomId}/kick/${member!.id}`),
-    onSuccess: () => toast.success("User kicked."),
+    mutationFn: async (targetId: string) =>
+      agent.post(`/chatRooms/${chatRoomId}/kick/${targetId}`),
+    onSuccess: () => {
+      const name = kickTarget?.displayName;
+      toast.success(name ? `${name} kicked.` : "User kicked.");
+    },
     onError: () => toast.error("Failed to kick user."),
   });
 
   const banMutation = useMutation({
-    mutationFn: async () =>
-      agent.post(`/chatRooms/${chatRoomId}/ban/${member!.id}`),
-    onSuccess: () => toast.success("User banned."),
+    mutationFn: async (targetId: string) =>
+      agent.post(`/chatRooms/${chatRoomId}/ban/${targetId}`),
+    onSuccess: () => {
+      const name = banTarget?.displayName;
+      toast.success(name ? `${name} banned.` : "User banned.");
+    },
     onError: () => toast.error("Failed to ban user."),
   });
 
+  // Capture target data at dialog open so it stays stable if parent clears member
   const [kickDialogOpen, setKickDialogOpen] = useState(false);
   const [banDialogOpen, setBanDialogOpen] = useState(false);
+  const [kickTarget, setKickTarget] = useState<{ id: string; displayName: string } | null>(null);
+  const [banTarget, setBanTarget] = useState<{ id: string; displayName: string } | null>(null);
 
   const handleKick = () => {
     if (!member || !canKick || kickMutation.isPending) return;
+    setKickTarget({id: member.id, displayName: member.displayName});
     onClose();
     setKickDialogOpen(true);
   };
 
   const handleBan = () => {
     if (!member || !canBan || banMutation.isPending) return;
+    setBanTarget({id: member.id, displayName: member.displayName});
     onClose();
     setBanDialogOpen(true);
   };
 
   const confirmKick = () => {
-    if (!member || kickMutation.isPending) return;
-    kickMutation.mutate(undefined, {onSettled: () => setKickDialogOpen(false)});
+    if (!kickTarget || kickMutation.isPending) return;
+    kickMutation.mutate(kickTarget.id, {
+      onSettled: () => {
+        setKickDialogOpen(false);
+        setKickTarget(null);
+      }
+    });
   };
 
   const confirmBan = () => {
-    if (!member || banMutation.isPending) return;
-    banMutation.mutate(undefined, {onSettled: () => setBanDialogOpen(false)});
+    if (!banTarget || banMutation.isPending) return;
+    banMutation.mutate(banTarget.id, {
+      onSettled: () => {
+        setBanDialogOpen(false);
+        setBanTarget(null);
+      }
+    });
   };
 
   const loading = kickMutation.isPending || banMutation.isPending;
@@ -186,10 +207,10 @@ export default function ChatRoomMemberActions(
 
       <ConfirmDialog
         open={kickDialogOpen}
-        onClose={() => !kickMutation.isPending && setKickDialogOpen(false)}
+        onClose={() => !kickMutation.isPending && (setKickDialogOpen(false), setKickTarget(null))}
         onConfirm={confirmKick}
         title="Confirm Kick"
-        message={`Kick ${member?.displayName} from this chat room?\nThey can rejoin if invited again.`}
+        message={kickTarget ? `Kick ${kickTarget.displayName} from this chat room?\nThey can rejoin if invited again.` : ''}
         confirmText="Kick"
         confirmColor="error"
         isProcessing={kickMutation.isPending}
@@ -198,10 +219,10 @@ export default function ChatRoomMemberActions(
 
       <ConfirmDialog
         open={banDialogOpen}
-        onClose={() => !banMutation.isPending && setBanDialogOpen(false)}
+        onClose={() => !banMutation.isPending && (setBanDialogOpen(false), setBanTarget(null))}
         onConfirm={confirmBan}
         title="Confirm Ban"
-        message={`Ban ${member?.displayName} from this chat room?\nThey will not be able to rejoin until unbanned.`}
+        message={banTarget ? `Ban ${banTarget.displayName} from this chat room?\nThey will not be able to rejoin until unbanned.` : ''}
         confirmText="Ban"
         confirmColor="error"
         isProcessing={banMutation.isPending}
