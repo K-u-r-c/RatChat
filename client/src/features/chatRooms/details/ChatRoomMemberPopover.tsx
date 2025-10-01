@@ -1,21 +1,13 @@
 import Popover from "@mui/material/Popover";
-import {
-  Avatar,
-  Box,
-  Chip,
-  Divider,
-  Stack,
-  Typography,
-  IconButton,
-} from "@mui/material";
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router";
-import type { Profile } from "../../../lib/types";
-import type { ChatRoomRole } from "../../../lib/schemas/chatRoomRoleSchema";
-import { formatUserTag } from "../../../lib/util/util";
+import {Avatar, Box, Chip, Divider, IconButton, Stack, Typography,} from "@mui/material";
+import {useEffect, useMemo, useState} from "react";
+import {Link} from "react-router";
+import type {Profile} from "../../../lib/types";
+import type {ChatRoomRole} from "../../../lib/schemas/chatRoomRoleSchema";
+import {formatUserTag} from "../../../lib/util/util";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import ChatRoomMemberActions from "./ChatRoomMemberActions";
-import { useChatRoomRoles } from "../../../lib/hooks/useChatRoomRoles";
+import {useChatRoomRoles} from "../../../lib/hooks/useChatRoomRoles";
 
 type Props = {
   open: boolean;
@@ -26,15 +18,16 @@ type Props = {
   ownerId: string;
 };
 
-export default function ChatRoomMemberPopover({
-  open,
-  anchorEl,
-  onClose,
-  member,
-  chatRoomId,
-  ownerId,
-}: Props) {
-  const { usersRolesMap, isLoading } = useChatRoomRoles(chatRoomId);
+export default function ChatRoomMemberPopover(
+  {
+    open,
+    anchorEl,
+    onClose,
+    member,
+    chatRoomId,
+    ownerId,
+  }: Props) {
+  const {usersRolesMap, isLoading} = useChatRoomRoles(chatRoomId);
   const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
   const memberRoles = useMemo<ChatRoomRole[]>(() => {
     if (!member) return [];
@@ -69,8 +62,8 @@ export default function ChatRoomMemberPopover({
           closeActions();
           onClose();
         }}
-        anchorOrigin={{ vertical: "center", horizontal: "left" }}
-        transformOrigin={{ vertical: "center", horizontal: "right" }}
+        anchorOrigin={{vertical: "center", horizontal: "left"}}
+        transformOrigin={{vertical: "center", horizontal: "right"}}
         slotProps={{
           paper: {
             sx: {
@@ -84,7 +77,7 @@ export default function ChatRoomMemberPopover({
         }}
       >
         {member && (
-          <Box sx={{ width: 340 }}>
+          <Box sx={{width: 340}}>
             {/* Banner */}
             <Box
               sx={{
@@ -107,18 +100,18 @@ export default function ChatRoomMemberPopover({
                     right: 6,
                     bgcolor: "rgba(0,0,0,0.35)",
                     color: "white",
-                    "&:hover": { bgcolor: "rgba(0,0,0,0.55)" },
+                    "&:hover": {bgcolor: "rgba(0,0,0,0.55)"},
                   }}
                 >
-                  <MoreHorizIcon fontSize="small" />
+                  <MoreHorizIcon fontSize="small"/>
                 </IconButton>
               </span>
             </Box>
             {/* Avatar + name */}
-            <Box sx={{ px: 2, pb: 2, position: "relative" }}>
+            <Box sx={{px: 2, pb: 2, position: "relative"}}>
               <Link
                 to={`/profiles/${member.slug}`}
-                style={{ textDecoration: "none" }}
+                style={{textDecoration: "none"}}
               >
                 <Avatar
                   src={member.imageUrl || "/images/user.png"}
@@ -133,7 +126,7 @@ export default function ChatRoomMemberPopover({
                   }}
                 />
               </Link>
-              <Box sx={{ mt: -2 }}>
+              <Box sx={{mt: -2}}>
                 <Box
                   sx={{
                     display: "flex",
@@ -150,7 +143,7 @@ export default function ChatRoomMemberPopover({
                     sx={{
                       color: "text.primary",
                       textDecoration: "none",
-                      "&:hover": { textDecoration: "underline" },
+                      "&:hover": {textDecoration: "underline"},
                       lineHeight: 1.2,
                       display: "flex",
                       alignItems: "center",
@@ -179,7 +172,7 @@ export default function ChatRoomMemberPopover({
                   <Typography
                     variant="body2"
                     color="text.secondary"
-                    sx={{ mt: 1.5 }}
+                    sx={{mt: 1.5}}
                   >
                     {member.bio}
                   </Typography>
@@ -187,10 +180,10 @@ export default function ChatRoomMemberPopover({
               </Box>
             </Box>
 
-            <Divider />
+            <Divider/>
             {/* Roles */}
-            <Box sx={{ p: 1.5 }}>
-              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            <Box sx={{p: 1.5}}>
+              <Typography variant="subtitle2" sx={{mb: 1}}>
                 Roles
               </Typography>
               {isLoading ? (
@@ -230,14 +223,8 @@ export default function ChatRoomMemberPopover({
         anchorEl={actionsAnchor}
         onClose={closeActions}
         chatRoomId={chatRoomId}
-        member={
-          member
-            ? {
-                id: member.id,
-                isOwner: member.id === ownerId,
-              }
-            : null
-        }
+        member={member}
+        isOwner={member?.id === ownerId}
       />
     </>
   );
