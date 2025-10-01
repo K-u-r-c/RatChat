@@ -32,21 +32,22 @@ interface ChatMessageListProps {
   resolveAccentColor?: (userId?: string) => string | undefined;
 }
 
-export default function ChatMessageList({
-                                          messageStore,
-                                          showUserProfiles = true,
-                                          onImageClick,
-                                          onFileDownload,
-                                          loadMoreRef,
-                                          messagesEndRef,
-                                          onReplyClick,
-                                          onJumpToMessage,
-                                          chatRoomId,
-                                          defaultEmoji = "👍",
-                                          directChatId,
-                                          encryptedDirectChatId,
-                                          resolveAccentColor,
-                                        }: ChatMessageListProps) {
+export default function ChatMessageList(
+  {
+    messageStore,
+    showUserProfiles = true,
+    onImageClick,
+    onFileDownload,
+    loadMoreRef,
+    messagesEndRef,
+    onReplyClick,
+    onJumpToMessage,
+    chatRoomId,
+    defaultEmoji = "👍",
+    directChatId,
+    encryptedDirectChatId,
+    resolveAccentColor,
+  }: ChatMessageListProps) {
   const {currentUser} = useAccount();
   const renderItems: RenderItem[] = buildRenderItems(
     messageStore.messages as BaseMessage[]

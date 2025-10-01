@@ -1,5 +1,3 @@
-import {useNavigate, useParams} from "react-router";
-import {useChatRooms} from "../../../lib/hooks/useChatRooms";
 import {
   Avatar,
   Badge,
@@ -12,63 +10,32 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import ChatRoomDetailsChat from "./ChatRoomDetailsChat";
-import ChatRoomScreenSharePanel from "./ChatRoomScreenSharePanel.tsx";
-import { observer } from "mobx-react-lite";
-import { useAccount } from "../../../lib/hooks/useAccount";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import ChatRoomMemberPopover from "./ChatRoomMemberPopover";
+import {observer} from "mobx-react-lite";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {useNavigate, useParams} from "react-router";
+import {useAccount} from "../../../lib/hooks/useAccount";
 import {useChatRoomModerationEventsRealtime} from "../../../lib/hooks/useChatRoomModerationEventsRealtime";
-import { useChatRoomRolesRealtime } from "../../../lib/hooks/useChatRoomRolesRealtime.ts";
-import { useChatRoomRoles } from "../../../lib/hooks/useChatRoomRoles";
-import type { ChatRoomRole } from "../../../lib/schemas/chatRoomRoleSchema";
+import {useChatRoomRoles} from "../../../lib/hooks/useChatRoomRoles";
+import {useChatRoomRolesRealtime} from "../../../lib/hooks/useChatRoomRolesRealtime.ts";
+import {useChatRooms} from "../../../lib/hooks/useChatRooms";
 import {useStore} from "../../../lib/hooks/useStore.ts";
-const MEMBER_ROLE_NAME = "member";
-const MODERATOR_ROLE_NAME = "moderator";
+import ChatRoomDetailsChat from "./ChatRoomDetailsChat";
+import ChatRoomMemberPopover from "./ChatRoomMemberPopover";
+import ChatRoomScreenSharePanel from "./ChatRoomScreenSharePanel.tsx";
 
-const parseCreatedAtValue = (value: ChatRoomRole["createdAt"]) => {
-  if (!value) return Number.POSITIVE_INFINITY;
-  if (value instanceof Date) return value.getTime();
-  const timestamp = Date.parse(value);
-  return Number.isNaN(timestamp) ? Number.POSITIVE_INFINITY : timestamp;
-};
-
-const rolePriority = (role?: ChatRoomRole) => {
-  if (!role) return -1;
-  if (!role.isDefault) return 3;
-  const normalized = role.name.trim().toLowerCase();
-  if (normalized === MODERATOR_ROLE_NAME) return 2;
-  if (normalized === MEMBER_ROLE_NAME) return 1;
-  return 1;
-};
-
-const pickPrimaryRole = (roles?: ChatRoomRole[]): ChatRoomRole | undefined => {
-  if (!roles || roles.length === 0) return undefined;
-  const displayRole = roles.find((role) => role.isDisplayRole);
-  if (displayRole) return displayRole;
-  return roles.reduce((best, current) => {
-    const currentPriority = rolePriority(current);
-    const bestPriority = rolePriority(best);
-    if (currentPriority > bestPriority) return current;
-    if (currentPriority < bestPriority) return best;
-    return parseCreatedAtValue(current.createdAt) < parseCreatedAtValue(best.createdAt)
-      ? current
-      : best;
-  }, roles[0]);
-};
 const ChatRoomDetails = observer(function ChatRoomDetails() {
   const {slug} = useParams();
   const navigate = useNavigate();
   const {currentUser} = useAccount();
   const {uiStore} = useStore();
-  const {chatRoom, isLoadingChatRoom } = useChatRooms(slug);
+  const {chatRoom, isLoadingChatRoom} = useChatRooms(slug);
 
   const activeRoomView = chatRoom ? uiStore.getChatRoomView(chatRoom.id) : "chat";
   const isScreenShareView = activeRoomView === "screen-share";
 
   useChatRoomModerationEventsRealtime(chatRoom, currentUser?.id);
   useChatRoomRolesRealtime(chatRoom, currentUser?.id);
-  const { usersRolesMap } = useChatRoomRoles(chatRoom?.id, currentUser?.id);
+  const {usersRolesMap} = useChatRoomRoles(chatRoom?.id, currentUser?.id);
 
   useEffect(() => {
     if (chatRoom && slug && slug !== chatRoom.slug) {
@@ -76,26 +43,20 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
     }
   }, [chatRoom, chatRoom?.slug, slug, navigate]);
 
-  const memberRoleColorMap = useMemo(() => {
+  const memberAccentColors = useMemo(() => {
+    if (!chatRoom) return new Map<string, string>();
     const map = new Map<string, string>();
-    (chatRoom?.members ?? []).forEach((member) => {
-      if (member.chatRoomDisplayRoleColor) {
-        map.set(member.id, member.chatRoomDisplayRoleColor);
-      }
-    });
-    usersRolesMap.forEach((roles, userId) => {
-      if (map.has(userId)) return;
-      const primary = pickPrimaryRole(roles);
-      if (primary?.color) {
-        map.set(userId, primary.color);
+    usersRolesMap.forEach((roles, userKey) => {
+      if (roles.length > 0 && roles[0]?.color) {
+        map.set(userKey, roles[0].color);
       }
     });
     return map;
-  }, [chatRoom?.members, usersRolesMap]);
+  }, [chatRoom, usersRolesMap]);
 
   const resolveMemberAccent = useCallback(
-    (memberId: string) => memberRoleColorMap.get(memberId),
-    [memberRoleColorMap]
+    (userKey?: string) => (userKey ? memberAccentColors.get(userKey) : undefined),
+    [memberAccentColors]
   );
 
   const isOnlineStatus = (status?: string, fallbackIsOnline?: boolean) => {
@@ -380,7 +341,7 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
                       },
                     }}
                     secondaryTypographyProps={{
-                      sx: { color: "text.secondary" },
+                      sx: {color: "text.secondary"},
                     }}
                   />
                 </ListItemButton>
@@ -437,7 +398,7 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
                       },
                     }}
                     secondaryTypographyProps={{
-                      sx: { color: "text.secondary" },
+                      sx: {color: "text.secondary"},
                     }}
                   />
                 </ListItemButton>
