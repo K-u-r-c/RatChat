@@ -1,17 +1,17 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useCallback } from "react";
+import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
+import {useCallback} from "react";
 import agent from "../api/agent";
-import { CHATROOM_PERMISSIONS } from "../types/chatroomPermissions";
 import type {
+  AssignChatRoomRole,
   ChatRoomRole,
   ChatRoomUserPermission,
   CreateChatRoomRole,
-  UpdateChatRoomRole,
   DeleteChatRoomRole,
-  AssignChatRoomRole,
-  UnassignChatRoomRole,
   SetMemberDisplayRole,
+  UnassignChatRoomRole,
+  UpdateChatRoomRole,
 } from "../schemas/chatRoomRoleSchema";
+import {CHATROOM_PERMISSIONS} from "../types/chatroomPermissions";
 
 const rolesKey = (chatRoomId?: string) => [
   "chatroom-roles",
@@ -123,7 +123,7 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
     },
     onMutate: async (payload) => {
       if (!chatRoomId) return {};
-      await queryClient.cancelQueries({ queryKey: rolesKey(chatRoomId) });
+      await queryClient.cancelQueries({queryKey: rolesKey(chatRoomId)});
       const previousRoles = queryClient.getQueryData<ChatRoomRole[]>(
         rolesKey(chatRoomId)
       );
@@ -147,7 +147,7 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
       queryClient.setQueryData(rolesKey(chatRoomId), (old?: ChatRoomRole[]) =>
         sortRolesByImportance([...(old ?? []), optimisticRole])
       );
-      return { previousRoles, chatRoomId };
+      return {previousRoles, chatRoomId};
     },
     onError: (_error, _payload, context) => {
       if (!context?.chatRoomId) return;
@@ -159,7 +159,7 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
     onSettled: (_data, _error, _variables, context) => {
       const roomId = context?.chatRoomId ?? chatRoomId;
       if (!roomId) return;
-      queryClient.invalidateQueries({ queryKey: rolesKey(roomId) });
+      queryClient.invalidateQueries({queryKey: rolesKey(roomId)});
     },
   });
 
@@ -174,8 +174,8 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
     onMutate: async (payload) => {
       if (!chatRoomId) return {};
       await Promise.all([
-        queryClient.cancelQueries({ queryKey: rolesKey(chatRoomId) }),
-        queryClient.cancelQueries({ queryKey: usersRolesKey(chatRoomId) }),
+        queryClient.cancelQueries({queryKey: rolesKey(chatRoomId)}),
+        queryClient.cancelQueries({queryKey: usersRolesKey(chatRoomId)}),
       ]);
       const previousRoles = queryClient.getQueryData<ChatRoomRole[]>(
         rolesKey(chatRoomId)
@@ -226,7 +226,7 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
         );
       }
 
-      return { previousRoles, previousUsersRoles, chatRoomId };
+      return {previousRoles, previousUsersRoles, chatRoomId};
     },
     onError: (_error, _payload, context) => {
       if (!context?.chatRoomId) return;
@@ -242,8 +242,8 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
     onSettled: (_data, _error, _variables, context) => {
       const roomId = context?.chatRoomId ?? chatRoomId;
       if (!roomId) return;
-      queryClient.invalidateQueries({ queryKey: rolesKey(roomId) });
-      queryClient.invalidateQueries({ queryKey: usersRolesKey(roomId) });
+      queryClient.invalidateQueries({queryKey: rolesKey(roomId)});
+      queryClient.invalidateQueries({queryKey: usersRolesKey(roomId)});
       queryClient.invalidateQueries({
         predicate: (query) =>
           Array.isArray(query.queryKey) &&
@@ -254,7 +254,7 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
   });
 
   const deleteRoleMutation = useMutation({
-    mutationFn: async ({ id }: DeleteChatRoomRole) => {
+    mutationFn: async ({id}: DeleteChatRoomRole) => {
       if (!chatRoomId) {
         if (import.meta.env.DEV) console.error("chatRoomId is required");
         throw new Error("chatRoomId is required");
@@ -263,11 +263,11 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
         `/chatrooms/role?roleId=${id}&chatRoomId=${chatRoomId}`
       );
     },
-    onMutate: async ({ id }) => {
+    onMutate: async ({id}) => {
       if (!chatRoomId) return {};
       await Promise.all([
-        queryClient.cancelQueries({ queryKey: rolesKey(chatRoomId) }),
-        queryClient.cancelQueries({ queryKey: usersRolesKey(chatRoomId) }),
+        queryClient.cancelQueries({queryKey: rolesKey(chatRoomId)}),
+        queryClient.cancelQueries({queryKey: usersRolesKey(chatRoomId)}),
       ]);
       const previousRoles = queryClient.getQueryData<ChatRoomRole[]>(
         rolesKey(chatRoomId)
@@ -310,8 +310,8 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
     onSettled: (_data, _error, _variables, context) => {
       const roomId = context?.chatRoomId ?? chatRoomId;
       if (!roomId) return;
-      queryClient.invalidateQueries({ queryKey: rolesKey(roomId) });
-      queryClient.invalidateQueries({ queryKey: usersRolesKey(roomId) });
+      queryClient.invalidateQueries({queryKey: rolesKey(roomId)});
+      queryClient.invalidateQueries({queryKey: usersRolesKey(roomId)});
       queryClient.invalidateQueries({
         predicate: (query) =>
           Array.isArray(query.queryKey) &&
@@ -354,7 +354,7 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
       const current = nextUsersRoles.get(payload.userId) ?? [];
       const withoutDuplicate = current.filter((role) => role.id !== payload.id);
       const updatedList = assignedRole
-        ? [{ ...assignedRole, isDisplayRole: false }, ...withoutDuplicate]
+        ? [{...assignedRole, isDisplayRole: false}, ...withoutDuplicate]
         : withoutDuplicate;
 
       nextUsersRoles.set(payload.userId, sortMemberRoles(updatedList));
@@ -376,7 +376,7 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
     onSettled: (_data, _error, _variables, context) => {
       const roomId = context?.chatRoomId ?? chatRoomId;
       if (!roomId) return;
-      queryClient.invalidateQueries({ queryKey: usersRolesKey(roomId) });
+      queryClient.invalidateQueries({queryKey: usersRolesKey(roomId)});
       if (_variables?.userId) {
         queryClient.invalidateQueries({
           queryKey: userPermsKey(roomId, _variables.userId),
@@ -434,7 +434,7 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
     onSettled: (_data, _error, _variables, context) => {
       const roomId = context?.chatRoomId ?? chatRoomId;
       if (!roomId) return;
-      queryClient.invalidateQueries({ queryKey: usersRolesKey(roomId) });
+      queryClient.invalidateQueries({queryKey: usersRolesKey(roomId)});
       if (_variables?.userId) {
         queryClient.invalidateQueries({
           queryKey: userPermsKey(roomId, _variables.userId),
@@ -453,7 +453,7 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
     },
     onMutate: async (payload) => {
       if (!chatRoomId) return {};
-      await queryClient.cancelQueries({ queryKey: usersRolesKey(chatRoomId) });
+      await queryClient.cancelQueries({queryKey: usersRolesKey(chatRoomId)});
 
       const previousUsersRoles = queryClient.getQueryData<
         Map<string, ChatRoomRole[]>
@@ -486,13 +486,13 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
         const nextMembers = room.members.map((member: any) =>
           member.id === payload.userId
             ? {
-                ...member,
-                chatRoomDisplayRoleId: payload.roleId ?? null,
-                chatRoomDisplayRoleColor: targetRole?.color ?? null,
-              }
+              ...member,
+              chatRoomDisplayRoleId: payload.roleId ?? null,
+              chatRoomDisplayRoleColor: targetRole?.color ?? null,
+            }
             : member
         );
-        return { ...room, members: nextMembers };
+        return {...room, members: nextMembers};
       };
 
       if (chatRoomCache) {
@@ -539,7 +539,7 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
     onSettled: (_data, _error, _variables, context) => {
       const roomId = context?.chatRoomId ?? chatRoomId;
       if (!roomId) return;
-      queryClient.invalidateQueries({ queryKey: usersRolesKey(roomId) });
+      queryClient.invalidateQueries({queryKey: usersRolesKey(roomId)});
       queryClient.invalidateQueries({
         predicate: (query) =>
           query.queryKey[0] === "chatRooms" &&
@@ -556,7 +556,7 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
         if (import.meta.env.DEV) console.error("chatRoomId is required");
         throw new Error("chatRoomId is required");
       }
-      await agent.post(`/chatrooms/roles/reorder?chatRoomId=${chatRoomId}`, {
+      await agent.post(`/chatrooms/${chatRoomId}/roles/reorder`, {
         chatRoomId,
         orderedRoleIds,
       });
@@ -564,8 +564,8 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
     onMutate: async (orderedRoleIds) => {
       if (!chatRoomId) return {};
       await Promise.all([
-        queryClient.cancelQueries({ queryKey: rolesKey(chatRoomId) }),
-        queryClient.cancelQueries({ queryKey: usersRolesKey(chatRoomId) }),
+        queryClient.cancelQueries({queryKey: rolesKey(chatRoomId)}),
+        queryClient.cancelQueries({queryKey: usersRolesKey(chatRoomId)}),
       ]);
 
       const previousRoles = queryClient.getQueryData<ChatRoomRole[]>(
@@ -620,7 +620,7 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
         );
       }
 
-      return { previousRoles, previousUsersRoles, chatRoomId };
+      return {previousRoles, previousUsersRoles, chatRoomId};
     },
     onError: (_error, _variables, context) => {
       if (!chatRoomId) return;
@@ -639,17 +639,17 @@ export function useChatRoomRoles(chatRoomId?: string, userId?: string) {
     },
     onSettled: (_data, _error, _variables, _context) => {
       if (!chatRoomId) return;
-      queryClient.invalidateQueries({ queryKey: rolesKey(chatRoomId) });
-      queryClient.invalidateQueries({ queryKey: usersRolesKey(chatRoomId) });
+      queryClient.invalidateQueries({queryKey: rolesKey(chatRoomId)});
+      queryClient.invalidateQueries({queryKey: usersRolesKey(chatRoomId)});
     },
   });
-  const { mutateAsync: createRoleRaw } = createRoleMutation;
-  const { mutateAsync: updateRoleRaw } = updateRoleMutation;
-  const { mutateAsync: deleteRoleRaw } = deleteRoleMutation;
-  const { mutateAsync: assignRoleRaw } = assignRoleMutation;
-  const { mutateAsync: unassignRoleRaw } = unassignRoleMutation;
-  const { mutateAsync: setDisplayRoleRaw } = setDisplayRoleMutation;
-  const { mutateAsync: reorderRolesRaw } = reorderRolesMutation;
+  const {mutateAsync: createRoleRaw} = createRoleMutation;
+  const {mutateAsync: updateRoleRaw} = updateRoleMutation;
+  const {mutateAsync: deleteRoleRaw} = deleteRoleMutation;
+  const {mutateAsync: assignRoleRaw} = assignRoleMutation;
+  const {mutateAsync: unassignRoleRaw} = unassignRoleMutation;
+  const {mutateAsync: setDisplayRoleRaw} = setDisplayRoleMutation;
+  const {mutateAsync: reorderRolesRaw} = reorderRolesMutation;
 
   const createRole = useCallback(
     (payload: CreateChatRoomRole) => createRoleRaw(payload),
@@ -705,6 +705,3 @@ export const chatRoomRolesQueryKeys = {
   usersRolesKey,
   userPermsKey,
 };
-
-
-

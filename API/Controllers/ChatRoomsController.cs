@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using API.SignalR;
 using Application.ChatRoomRoles.Commands;
 using Application.ChatRoomRoles.DTOs;
@@ -111,7 +110,7 @@ public class ChatRoomsController(
     public async Task<ActionResult<string>> GenerateInviteLink(string id,
         [FromBody] GenerateInviteLink.Command? command)
     {
-        var resolvedCommand = command ?? new GenerateInviteLink.Command { Id = id };
+        GenerateInviteLink.Command resolvedCommand = command ?? new GenerateInviteLink.Command { Id = id };
         resolvedCommand.Id = id;
         return HandleResult(await Mediator.Send(resolvedCommand));
     }
@@ -257,22 +256,20 @@ public class ChatRoomsController(
         return HandleResult(result);
     }
 
-    [HttpPost("roles/reorder")]
+    [HttpPost("{id}/roles/reorder")]
     [Authorize(Policy = IsOwnerStrings.IsChatRoomOwner)]
     public async Task<ActionResult<List<ChatRoomRoleDto>>> ReorderRoles(
-        [FromQuery] string chatRoomId,
+        string id,
         [FromBody] ReorderChatRoomRolesDto dto)
     {
-        if (string.IsNullOrWhiteSpace(chatRoomId) || chatRoomId != dto.ChatRoomId)
-        {
+        if (string.IsNullOrWhiteSpace(id) || id != dto.ChatRoomId)
             return HandleResult(Result<List<ChatRoomRoleDto>>.Failure("Wrong query data", 404));
-        }
 
         var result = await Mediator.Send(
             new ReorderChatRoomRoles.Command { Dto = dto });
 
         if (result.IsSuccess && result.Value != null)
-            await rolesContext.Clients.Group(chatRoomId).SendAsync("RolesReordered", result.Value);
+            await rolesContext.Clients.Group(id).SendAsync("RolesReordered", result.Value);
 
         return HandleResult(result);
     }
@@ -325,6 +322,7 @@ public class ChatRoomsController(
 
         return HandleResult(result);
     }
+
     [HttpPost("member-display-role")]
     [Authorize(Policy = ChatRoomPermissions.ManageChatRoomRoles)]
     public async Task<ActionResult<MemberDisplayRoleDto>> SetMemberDisplayRole(
@@ -337,12 +335,9 @@ public class ChatRoomsController(
         var result = await Mediator.Send(new SetMemberDisplayRole.Command { Dto = dto });
 
         if (result.IsSuccess)
-        {
             await rolesContext.Clients.Group(dto.ChatRoomId)
                 .SendAsync("MemberDisplayRoleChanged", result.Value);
-        }
 
         return HandleResult(result);
     }
-
 }

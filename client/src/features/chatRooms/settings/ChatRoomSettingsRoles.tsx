@@ -1,4 +1,28 @@
 import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {restrictToVerticalAxis} from "@dnd-kit/modifiers";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import {CSS} from "@dnd-kit/utilities";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
+import EditIcon from "@mui/icons-material/Edit";
+import GroupIcon from "@mui/icons-material/Group";
+import SearchIcon from "@mui/icons-material/Search";
+import {
   Avatar,
   Box,
   Button,
@@ -11,40 +35,16 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import SearchIcon from "@mui/icons-material/Search";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import GroupIcon from "@mui/icons-material/Group";
-import AddIcon from "@mui/icons-material/Add";
-import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
-import { CSS } from "@dnd-kit/utilities";
-import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
-import {
-  DndContext,
-  PointerSensor,
-  KeyboardSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  arrayMove,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import {useCallback, useMemo, useState} from "react";
 import type {CSSProperties} from "react";
+import {useCallback, useMemo, useState} from "react";
 import {toast} from "react-toastify";
 import {useAccount} from "../../../lib/hooks/useAccount";
-import {useChatRooms} from "../../../lib/hooks/useChatRooms";
 import {useChatRoomRoles} from "../../../lib/hooks/useChatRoomRoles";
-import {CHATROOM_PERMISSIONS} from "../../../lib/types/chatroomPermissions.ts";
-import ChatRoomRoleForm from "../forms/ChatRoomRoleForm";
-import ChatRoomRoleEditorModal from "../forms/ChatRoomRoleEditorModal";
+import {useChatRooms} from "../../../lib/hooks/useChatRooms";
 import type {ChatRoomRole, CreateChatRoomRole} from "../../../lib/schemas/chatRoomRoleSchema";
+import {CHATROOM_PERMISSIONS} from "../../../lib/types/chatroomPermissions.ts";
+import ChatRoomRoleEditorModal from "../forms/ChatRoomRoleEditorModal";
+import ChatRoomRoleForm from "../forms/ChatRoomRoleForm";
 
 const ensureReadableColor = (hex?: string) => {
   const fallback = "#5865F2";
@@ -144,23 +144,23 @@ export default function ChatRoomSettingsRoles({chatRoomId}: Props) {
   };
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    useSensor(PointerSensor, {activationConstraint: {distance: 6}}),
+    useSensor(KeyboardSensor, {coordinateGetter: sortableKeyboardCoordinates})
   );
 
   const isFiltering = searchValue.trim().length > 0;
   const isReorderEnabled = Boolean(
     chatRoom?.isOwner &&
-      !isFiltering &&
-      filteredRoles.length === roles.length &&
-      roles.length > 1 &&
-      reorderRoles
+    !isFiltering &&
+    filteredRoles.length === roles.length &&
+    roles.length > 1 &&
+    reorderRoles
   );
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       if (!isReorderEnabled) return;
-      const { active, over } = event;
+      const {active, over} = event;
       if (!over || active.id === over.id) return;
       const activeId = String(active.id);
       const overId = String(over.id);
@@ -194,14 +194,14 @@ export default function ChatRoomSettingsRoles({chatRoomId}: Props) {
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchIcon fontSize="small" />
+                <SearchIcon fontSize="small"/>
               </InputAdornment>
             ),
           }}
         />
         <Button
           variant="contained"
-          startIcon={<AddIcon />}
+          startIcon={<AddIcon/>}
           onClick={() => setCreateOpen(true)}
           disabled={!canManageRoles}
         >
@@ -216,7 +216,7 @@ export default function ChatRoomSettingsRoles({chatRoomId}: Props) {
       <Paper variant="outlined" sx={{p: 2, bgcolor: "background.paper", flex: 1, overflow: "auto"}}>
         <Stack spacing={1.5}>
           <Typography variant="subtitle2" color="text.secondary">
-            Roles — {filteredRoles.length}
+            Roles: {filteredRoles.length}
           </Typography>
 
           {isLoading || isLoadingChatRoom ? (
@@ -288,7 +288,6 @@ export default function ChatRoomSettingsRoles({chatRoomId}: Props) {
 }
 
 
-
 type SortableRoleRowProps = {
   role: ChatRoomRole;
   memberCount: number;
@@ -298,15 +297,16 @@ type SortableRoleRowProps = {
   onDelete: () => void;
 };
 
-function SortableRoleRow({
-  role,
-  memberCount,
-  canManageRoles,
-  canReorder,
-  onEdit,
-  onDelete,
-}: SortableRoleRowProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+function SortableRoleRow(
+  {
+    role,
+    memberCount,
+    canManageRoles,
+    canReorder,
+    onEdit,
+    onDelete,
+  }: SortableRoleRowProps) {
+  const {attributes, listeners, setNodeRef, transform, transition, isDragging} = useSortable({
     id: role.id,
     disabled: !canReorder,
   });
@@ -319,7 +319,7 @@ function SortableRoleRow({
 
   const color = ensureReadableColor(role.color);
   const dragHandleProps = canReorder
-    ? ({ ...listeners, ...attributes } as Record<string, unknown>)
+    ? ({...listeners, ...attributes} as Record<string, unknown>)
     : undefined;
   const deleteDisabled = role.isDefault || !canManageRoles;
 
@@ -354,7 +354,7 @@ function SortableRoleRow({
                   color: canReorder ? "text.secondary" : "text.disabled",
                 }}
               >
-                <DragIndicatorIcon fontSize="small" />
+                <DragIndicatorIcon fontSize="small"/>
               </IconButton>
             </span>
           </Tooltip>
@@ -375,11 +375,11 @@ function SortableRoleRow({
               {role.name}
             </Typography>
             <Stack direction="row" spacing={1} alignItems="center" sx={{color: "text.secondary"}}>
-              <GroupIcon fontSize="small" />
+              <GroupIcon fontSize="small"/>
               <Typography variant="caption">
                 {memberCount} {memberCount === 1 ? "member" : "members"}
               </Typography>
-              {role.isDefault && <Chip label="Default" size="small" />}
+              {role.isDefault && <Chip label="Default" size="small"/>}
             </Stack>
           </Box>
         </Stack>
@@ -392,7 +392,7 @@ function SortableRoleRow({
                 aria-label={`Edit ${role.name}`}
                 size="small"
               >
-                <EditIcon fontSize="small" />
+                <EditIcon fontSize="small"/>
               </IconButton>
             </span>
           </Tooltip>
@@ -406,7 +406,7 @@ function SortableRoleRow({
                 aria-label={`Delete ${role.name}`}
                 size="small"
               >
-                <DeleteOutlineIcon fontSize="small" />
+                <DeleteOutlineIcon fontSize="small"/>
               </IconButton>
             </span>
           </Tooltip>
