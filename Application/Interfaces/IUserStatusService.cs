@@ -10,4 +10,5 @@ public interface IUserStatusService
     Task<Dictionary<string, (UserStatus Status, bool IsOnline, DateTime LastSeen)>> GetActualStatusesAsync(
         IEnumerable<string> userIds);
     Task<bool> IsUserOnlineAsync(string userId);
+    Task<UserStatus> GetActualUserStatusAsync(string userId);
 }

@@ -4,7 +4,6 @@ using Application.Interfaces;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Persistance;
-using Domain.Extensions;
 
 namespace Application.Friends.Queries;
 
@@ -33,19 +32,24 @@ public class GetFriends
                     FriendsSince = uf.FriendsSince,
                     Status = uf.Friend.Status.ToString(),
                     LastSeen = uf.Friend.LastSeen,
-                    IsOnline = false // Updated below
+                    IsOnline = false
                 })
                 .OrderBy(f => f.DisplayName)
                 .ToListAsync(cancellationToken);
 
+            if (friends.Count == 0)
+                return Result<List<FriendDto>>.Success(friends);
+
+            var statusMap = await userStatusService.GetActualStatusesAsync(friends.Select(f => f.Id));
+
             foreach (var friend in friends)
             {
-                var actualStatuses = await userStatusService.GetActualStatusesAsync(new[] { friend.Id });
-                var actualStatus = actualStatuses[friend.Id];
-                var isConnected = await userStatusService.IsUserOnlineAsync(friend.Id);
-
-                friend.Status = actualStatus.ToString();
-                friend.IsOnline = isConnected && actualStatus.IsOnline;
+                if (statusMap.TryGetValue(friend.Id, out var tuple))
+                {
+                    friend.Status = tuple.Status.ToString();
+                    friend.IsOnline = tuple.IsOnline;
+                    friend.LastSeen = tuple.LastSeen;
+                }
             }
 
             return Result<List<FriendDto>>.Success(friends);
