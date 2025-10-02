@@ -16,6 +16,7 @@ public class AddMessage
     {
         public required string Body { get; set; }
         public required string ChatRoomId { get; set; }
+        public required string ChannelId { get; set; }
         public string Type { get; set; } = "Text";
 
         public string? ReplyToMessageId { get; set; }
@@ -42,8 +43,6 @@ public class AddMessage
                 return Result<MessageDto>.Failure("Media URL is required for media messages", 422);
 
             var chatRoom = await context.ChatRooms
-                .Include(x => x.Messages)
-                .ThenInclude(x => x.User)
                 .FirstOrDefaultAsync(x => x.Id == request.ChatRoomId, cancellationToken);
 
             if (chatRoom == null) return Result<MessageDto>.Failure("Could not find chat room", 404);
@@ -60,10 +59,23 @@ public class AddMessage
             if (!Enum.TryParse<MessageType>(request.Type, out var messageType))
                 messageType = MessageType.Text;
 
+            var channel = await context.ChatChannels
+                .AsNoTracking()
+                .FirstOrDefaultAsync(
+                    c => c.Id == request.ChannelId && c.ChatRoomId == chatRoom.Id,
+                    cancellationToken);
+
+            if (channel == null)
+                return Result<MessageDto>.Failure("Channel not found", 404);
+
+            if (channel.Type != ChatChannelType.Text)
+                return Result<MessageDto>.Failure("Cannot send messages to a voice channel", 400);
+
             var message = new Message
             {
                 UserId = user.Id,
                 ChatRoomId = chatRoom.Id,
+                ChannelId = channel.Id,
                 Body = request.Body,
                 Type = messageType,
                 MediaUrl = request.MediaUrl,
@@ -79,14 +91,14 @@ public class AddMessage
                 var repliedTo = await context.Messages
                     .AsNoTracking()
                     .FirstOrDefaultAsync(m => m.Id == request.ReplyToMessageId, cancellationToken);
-                if (repliedTo == null || repliedTo.ChatRoomId != chatRoom.Id)
+                if (repliedTo == null || repliedTo.ChatRoomId != chatRoom.Id || repliedTo.ChannelId != channel.Id)
                 {
                     return Result<MessageDto>.Failure("Invalid replied message", 400);
                 }
                 message.ReplyToMessageId = repliedTo.Id;
             }
 
-            chatRoom.Messages.Add(message);
+            context.Messages.Add(message);
 
             var result = await context.SaveChangesAsync(cancellationToken) > 0;
 

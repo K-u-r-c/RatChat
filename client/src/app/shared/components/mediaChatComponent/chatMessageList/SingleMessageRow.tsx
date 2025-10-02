@@ -22,6 +22,7 @@ type Props = {
   onToggleReaction: (emoji: string) => void;
   reactions?: MessageReaction[];
   currentUserId?: string;
+  accentColor?: string;
 };
 
 export default function SingleMessageRow({
@@ -38,9 +39,12 @@ export default function SingleMessageRow({
   onToggleReaction,
   reactions,
   currentUserId,
+  accentColor,
 }: Props) {
   const displayName =
     message.senderDisplayName || message.displayName || "Unknown";
+
+  const profileSlug = message.senderSlug || message.userSlug;
 
   return (
     <Box
@@ -63,6 +67,7 @@ export default function SingleMessageRow({
       {!continuation ? (
         <MessageAvatar
           userId={message.senderId || message.userId || ""}
+          userSlug={profileSlug}
           imageUrl={message.senderImageUrl || message.imageUrl}
           displayName={displayName}
           showUserProfiles={showUserProfiles}
@@ -82,6 +87,9 @@ export default function SingleMessageRow({
             displayName={displayName}
             createdAt={message.createdAt}
             messageType={message.type}
+            profileSlug={profileSlug}
+            showUserProfiles={showUserProfiles}
+            accentColor={accentColor}
           />
         )}
 

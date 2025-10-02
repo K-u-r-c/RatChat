@@ -1,6 +1,8 @@
+using System;
 using Application.Core;
 using Application.Interfaces;
 using Application.Profiles.DTOs;
+using Application.Users.Helpers;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Domain;
@@ -22,7 +24,21 @@ public class UpdateProfile
             var user = await userAccessor.GetUserAsync();
 
             if (!string.IsNullOrEmpty(request.UpdateProfileDto.DisplayName))
-                user.DisplayName = request.UpdateProfileDto.DisplayName;
+            {
+                var newDisplayName = request.UpdateProfileDto.DisplayName.Trim();
+                if (!string.Equals(newDisplayName, user.DisplayName, StringComparison.Ordinal))
+                {
+                    user.DisplayName = newDisplayName;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(user.Slug))
+            {
+                user.Slug = await UserSlugGenerator.GenerateUniqueSlugAsync(
+                    userManager.Users,
+                    user.Id,
+                    cancellationToken);
+            }
 
             if (request.UpdateProfileDto.Bio != null)
                 user.Bio = request.UpdateProfileDto.Bio;

@@ -1,5 +1,8 @@
+using Application.ChatRooms.Helpers;
 using Application.Interfaces;
+using Application.Users.Helpers;
 using Domain;
+using Domain.Enums;
 using Microsoft.AspNetCore.Identity;
 using Persistance;
 
@@ -12,21 +15,21 @@ public class DbInitializer
         UserManager<User> userManager,
         IRolePermissionService rolePermissionService,
         IChatRoomRoleService chatRoomRoleService
-        )
+    )
     {
         var users = new List<User>
         {
-            new() {Id="jakub-id", DisplayName = "Jakub", UserName = "jakub@test.com", Email = "jakub@test.com"},
-            new() {Id="jan-id",DisplayName = "Jan", UserName = "jan@test.com", Email = "jan@test.com"},
+            new() { Id = "jakub-id", DisplayName = "Jakub", UserName = "jakub@test.com", Email = "jakub@test.com" },
+            new() { Id = "jan-id", DisplayName = "Jan", UserName = "jan@test.com", Email = "jan@test.com" }
         };
 
         if (!userManager.Users.Any())
-        {
             foreach (var user in users)
             {
+                user.Slug = await UserSlugGenerator.GenerateUniqueSlugAsync(userManager.Users,
+                    cancellationToken: CancellationToken.None);
                 await userManager.CreateAsync(user, "Password123@");
             }
-        }
 
         if (context.ChatRooms.Any()) return;
 
@@ -34,269 +37,300 @@ public class DbInitializer
 
         var chatRooms = new List<ChatRoom>
         {
-            new ()
+            new()
             {
-            Title = "Sewers chat",
-            OwnerId = users[0].Id,
-            Members =
-            [
-                new()
-                {
-                UserId = users[0].Id,
-                IsOwner = true,
-                },
-                new()
-                {
-                UserId = users[1].Id,
-                IsOwner = false,
-                }
-            ],
+                Title = "Sewers chat",
+                OwnerId = users[0].Id,
+                Members =
+                [
+                    new ChatRoomMember
+                    {
+                        UserId = users[0].Id,
+                        IsOwner = true
+                    },
+                    new ChatRoomMember
+                    {
+                        UserId = users[1].Id,
+                        IsOwner = false
+                    }
+                ]
             },
-            new ()
+            new()
             {
-            Title = "Trash chat",
-            OwnerId = users[0].Id,
-            Members =
-            [
-                new()
-                {
-                UserId = users[0].Id,
-                IsOwner = true,
-                }
-            ]
+                Title = "Trash chat",
+                OwnerId = users[0].Id,
+                Members =
+                [
+                    new ChatRoomMember
+                    {
+                        UserId = users[0].Id,
+                        IsOwner = true
+                    }
+                ]
             },
-            new ()
+            new()
             {
-            Title = "Cheese lovers",
-            OwnerId = users[0].Id,
-            Members =
-            [
-                new()
-                {
-                UserId = users[0].Id,
-                IsOwner = true,
-                }
-            ]
+                Title = "Cheese lovers",
+                OwnerId = users[0].Id,
+                Members =
+                [
+                    new ChatRoomMember
+                    {
+                        UserId = users[0].Id,
+                        IsOwner = true
+                    }
+                ]
             },
-            new ()
+            new()
             {
-            Title = "Stinky pipers",
-            OwnerId = users[0].Id,
-            Members =
-            [
-                new()
-                {
-                UserId = users[0].Id,
-                IsOwner = true,
-                },
-                new()
-                {
-                UserId = users[1].Id,
-                IsOwner = false,
-                }
-            ]
+                Title = "Stinky pipers",
+                OwnerId = users[0].Id,
+                Members =
+                [
+                    new ChatRoomMember
+                    {
+                        UserId = users[0].Id,
+                        IsOwner = true
+                    },
+                    new ChatRoomMember
+                    {
+                        UserId = users[1].Id,
+                        IsOwner = false
+                    }
+                ]
             },
-            new ()
+            new()
             {
-            Title = "Trafic enjoyers",
-            OwnerId = users[1].Id,
-            Members =
-            [
-                new()
-                {
-                UserId = users[1].Id,
-                IsOwner = true,
-                }
-            ]
+                Title = "Trafic enjoyers",
+                OwnerId = users[1].Id,
+                Members =
+                [
+                    new ChatRoomMember
+                    {
+                        UserId = users[1].Id,
+                        IsOwner = true
+                    }
+                ]
             },
-            new ()
+            new()
             {
-            Title = "Palm oil eaters",
-            OwnerId = users[1].Id,
-            Members =
-            [
-                new()
-                {
-                UserId = users[1].Id,
-                IsOwner = true,
-                }
-            ]
+                Title = "Palm oil eaters",
+                OwnerId = users[1].Id,
+                Members =
+                [
+                    new ChatRoomMember
+                    {
+                        UserId = users[1].Id,
+                        IsOwner = true
+                    }
+                ]
             },
-            new ()
+            new()
             {
-            Title = "Trash chat",
-            OwnerId = users[0].Id,
-            Members =
-            [
-                new()
-                {
-                UserId = users[0].Id,
-                IsOwner = true,
-                }
-            ]
+                Title = "Trash chat",
+                OwnerId = users[0].Id,
+                Members =
+                [
+                    new ChatRoomMember
+                    {
+                        UserId = users[0].Id,
+                        IsOwner = true
+                    }
+                ]
             },
-            new ()
+            new()
             {
-            Title = "Movie watchers",
-            OwnerId = users[0].Id,
-            Members =
-            [
-                new()
-                {
-                UserId = users[0].Id,
-                IsOwner = true,
-                }
-            ]
+                Title = "Movie watchers",
+                OwnerId = users[0].Id,
+                Members =
+                [
+                    new ChatRoomMember
+                    {
+                        UserId = users[0].Id,
+                        IsOwner = true
+                    }
+                ]
             },
-            new ()
+            new()
             {
-            Title = "Degenerates",
-            OwnerId = users[0].Id,
-            Members =
-            [
-                new()
-                {
-                UserId = users[0].Id,
-                IsOwner = true,
-                },
-                new()
-                {
-                UserId = users[1].Id,
-                IsOwner = false,
-                }
-            ]
+                Title = "Degenerates",
+                OwnerId = users[0].Id,
+                Members =
+                [
+                    new ChatRoomMember
+                    {
+                        UserId = users[0].Id,
+                        IsOwner = true
+                    },
+                    new ChatRoomMember
+                    {
+                        UserId = users[1].Id,
+                        IsOwner = false
+                    }
+                ]
             },
-            new ()
+            new()
             {
-            Title = "Magic rats",
-            OwnerId = users[0].Id,
-            Members =
-            [
-                new()
-                {
-                UserId = users[0].Id,
-                IsOwner = true,
-                }
-            ]
+                Title = "Magic rats",
+                OwnerId = users[0].Id,
+                Members =
+                [
+                    new ChatRoomMember
+                    {
+                        UserId = users[0].Id,
+                        IsOwner = true
+                    }
+                ]
             },
-            new ()
+            new()
             {
-            Title = "Wonderfull world",
-            OwnerId = users[0].Id,
-            Members =
-            [
-                new()
-                {
-                UserId = users[0].Id,
-                IsOwner = true,
-                }
-            ]
+                Title = "Wonderfull world",
+                OwnerId = users[0].Id,
+                Members =
+                [
+                    new ChatRoomMember
+                    {
+                        UserId = users[0].Id,
+                        IsOwner = true
+                    }
+                ]
             },
-            new ()
+            new()
             {
-            Title = "Mewtwo",
-            OwnerId = users[0].Id,
-            Members =
-            [
-                new()
-                {
-                UserId = users[0].Id,
-                IsOwner = true,
-                }
-            ]
-            }
-            ,new ()
-            {
-            Title = "Charizard",
-            OwnerId = users[0].Id,
-            Members =
-            [
-                new()
-                {
-                UserId = users[0].Id,
-                IsOwner = true,
-                }
-            ]
+                Title = "Mewtwo",
+                OwnerId = users[0].Id,
+                Members =
+                [
+                    new ChatRoomMember
+                    {
+                        UserId = users[0].Id,
+                        IsOwner = true
+                    }
+                ]
             },
-            new ()
+            new()
             {
-            Title = "Torchick",
-            OwnerId = users[0].Id,
-            Members =
-            [
-                new()
-                {
-                UserId = users[0].Id,
-                IsOwner = true,
-                }
-            ]
+                Title = "Charizard",
+                OwnerId = users[0].Id,
+                Members =
+                [
+                    new ChatRoomMember
+                    {
+                        UserId = users[0].Id,
+                        IsOwner = true
+                    }
+                ]
             },
-            new ()
+            new()
             {
-            Title = "Turtwig",
-            OwnerId = users[0].Id,
-            Members =
-            [
-                new()
-                {
-                UserId = users[0].Id,
-                IsOwner = true,
-                }
-            ]
+                Title = "Torchick",
+                OwnerId = users[0].Id,
+                Members =
+                [
+                    new ChatRoomMember
+                    {
+                        UserId = users[0].Id,
+                        IsOwner = true
+                    }
+                ]
             },
-            new ()
+            new()
             {
-            Title = "Squirtle",
-            OwnerId = users[0].Id,
-            Members =
-            [
-                new()
-                {
-                UserId = users[0].Id,
-                IsOwner = true,
-                }
-            ]
+                Title = "Turtwig",
+                OwnerId = users[0].Id,
+                Members =
+                [
+                    new ChatRoomMember
+                    {
+                        UserId = users[0].Id,
+                        IsOwner = true
+                    }
+                ]
             },
-            new ()
+            new()
             {
-            Title = "Bulbasaur",
-            OwnerId = users[0].Id,
-            Members =
-            [
-                new()
-                {
-                UserId = users[0].Id,
-                IsOwner = true,
-                }
-            ]
+                Title = "Squirtle",
+                OwnerId = users[0].Id,
+                Members =
+                [
+                    new ChatRoomMember
+                    {
+                        UserId = users[0].Id,
+                        IsOwner = true
+                    }
+                ]
             },
-            new ()
+            new()
             {
-            Title = "Ratata",
-            OwnerId = users[0].Id,
-            Members =
-            [
-                new()
-                {
-                UserId = users[0].Id,
-                IsOwner = true,
-                }
-            ]
+                Title = "Bulbasaur",
+                OwnerId = users[0].Id,
+                Members =
+                [
+                    new ChatRoomMember
+                    {
+                        UserId = users[0].Id,
+                        IsOwner = true
+                    }
+                ]
             },
-            new ()
+            new()
             {
-            Title = "Magnemite",
-            OwnerId = users[0].Id,
-            Members =
-            [
-                new()
-                {
-                UserId = users[0].Id,
-                IsOwner = true,
-                }
-            ]
+                Title = "Ratata",
+                OwnerId = users[0].Id,
+                Members =
+                [
+                    new ChatRoomMember
+                    {
+                        UserId = users[0].Id,
+                        IsOwner = true
+                    }
+                ]
+            },
+            new()
+            {
+                Title = "Magnemite",
+                OwnerId = users[0].Id,
+                Members =
+                [
+                    new ChatRoomMember
+                    {
+                        UserId = users[0].Id,
+                        IsOwner = true
+                    }
+                ]
             }
         };
+
+        var reservedSlugs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var chatRoom in chatRooms)
+        {
+            chatRoom.Slug = await ChatRoomSlugGenerator.GenerateUniqueSlugAsync(
+                context,
+                reservedSlugs: reservedSlugs);
+            reservedSlugs.Add(chatRoom.Slug);
+        }
+
+        foreach (var chatRoom in chatRooms)
+            chatRoom.Channels = new List<ChatChannel>
+            {
+                new()
+                {
+                    ChatRoomId = chatRoom.Id,
+                    Name = "general",
+                    Type = ChatChannelType.Text,
+                    Position = 0,
+                    CreatedAt = now
+                },
+                new()
+                {
+                    ChatRoomId = chatRoom.Id,
+                    Name = "General",
+                    Type = ChatChannelType.Voice,
+                    Position = 0,
+                    CreatedAt = now
+                }
+            };
 
         context.ChatRooms.AddRange(chatRooms);
 
@@ -307,9 +341,7 @@ public class DbInitializer
             await chatRoomRoleService.InitializeDefaultRolesAsync(chatRoom.Id);
 
             foreach (var user in users)
-            {
-                await chatRoomRoleService.AssignMemberRoleAsync(user.Id, chatRoom.Id);
-            }
+                await chatRoomRoleService.AssignMemberRoleAsync(user.Id, chatRoom.Id, CancellationToken.None);
         }
 
         await context.SaveChangesAsync();

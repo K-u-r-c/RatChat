@@ -20,11 +20,12 @@ import {
 } from "../../../lib/schemas/chatRoomSchema";
 import { observer } from "mobx-react-lite";
 import ChooseStep from "./ChooseStep";
-import CreateStep from "./CreateStep";
+import CreateStep, { type CroppedChatRoomImage } from "./CreateStep";
 import JoinStep from "./JoinStep";
 import AnimatedAutoHeight from "../../../app/shared/components/AnimatedAutoHeight";
 import { useMedia, MediaCategory } from "../../../lib/hooks/useMedia";
 import { useNavigate } from "react-router";
+import { appendGifCropToUrl } from "../utils/gifCrop";
 
 const joinSchema = z.object({
   invite: z
@@ -65,7 +66,8 @@ const NewChatRoomModal = observer(function NewChatRoomModalInner() {
     joinForm.reset({ invite: "" });
   };
 
-  const [croppedImage, setCroppedImage] = useState<string | null>(null);
+  const [imageSelection, setImageSelection] =
+    useState<CroppedChatRoomImage | null>(null);
 
   const header = useMemo(() => {
     switch (uiStore.createJoinModalStep) {
@@ -89,12 +91,12 @@ const NewChatRoomModal = observer(function NewChatRoomModalInner() {
         parts[idx + 2] &&
         parts[idx + 3] === "join"
       ) {
-        return { id: parts[idx + 1], token: parts[idx + 2] };
+        return { identifier: parts[idx + 1], token: parts[idx + 2] };
       }
       return null;
     } catch {
       const m = invite.match(/\/chat-rooms\/([^/]+)\/([^/]+)\/join/);
-      if (m) return { id: m[1], token: m[2] };
+      if (m) return { identifier: m[1], token: m[2] };
       return null;
     }
   };
@@ -102,25 +104,42 @@ const NewChatRoomModal = observer(function NewChatRoomModalInner() {
   const onCreate = createForm.handleSubmit(async (data) => {
     setSubmitError(null);
     try {
-      const newId = await createChatRoom.mutateAsync(data);
-      if (croppedImage) {
-        const res = await fetch(croppedImage);
-        const blob = await res.blob();
-        const file = new File([blob], "chat-room-image.png", {
-          type: blob.type,
-        });
-        const upload = await uploadMedia.mutateAsync({
-          file,
-          category: MediaCategory.ChatRoomImage,
-          chatRoomId: newId,
-        });
-        await setChatRoomImage.mutateAsync({
-          id: newId,
-          imageUrl: upload.url,
-        });
+      const newRoom = await createChatRoom.mutateAsync(data);
+
+      if (imageSelection) {
+        if (imageSelection.kind === "gif") {
+          const upload = await uploadMedia.mutateAsync({
+            file: imageSelection.file,
+            category: MediaCategory.ChatRoomImage,
+            chatRoomId: newRoom.id,
+          });
+
+          await setChatRoomImage.mutateAsync({
+            id: newRoom.id,
+            imageUrl: appendGifCropToUrl(upload.url, imageSelection.crop),
+          });
+        } else {
+          const res = await fetch(imageSelection.dataUrl);
+          const blob = await res.blob();
+          const file = new File([blob], imageSelection.name, {
+            type: imageSelection.mime,
+          });
+
+          const upload = await uploadMedia.mutateAsync({
+            file,
+            category: MediaCategory.ChatRoomImage,
+            chatRoomId: newRoom.id,
+          });
+
+          await setChatRoomImage.mutateAsync({
+            id: newRoom.id,
+            imageUrl: upload.url,
+          });
+        }
       }
+
       uiStore.closeCreateJoinModal();
-      navigate(`/chat-rooms/${newId}`);
+      navigate(`/chat-rooms/${newRoom.slug}`);
     } catch (e) {
       setSubmitError("Failed to create chat room. Please try again.");
       if (import.meta.env.DEV) console.error(e);
@@ -195,7 +214,7 @@ const NewChatRoomModal = observer(function NewChatRoomModalInner() {
                 uploadMedia.isPending ||
                 setChatRoomImage.isPending
               }
-              onCroppedImageChange={setCroppedImage}
+              onCroppedImageChange={setImageSelection}
             />
           )}
           {uiStore.createJoinModalStep === "join" && (

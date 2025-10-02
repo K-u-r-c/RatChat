@@ -31,6 +31,9 @@ public class GetDirectChats
                     OtherUserDisplayName = dc.User1Id == currentUser.Id
                         ? dc.User2.DisplayName ?? ""
                         : dc.User1.DisplayName ?? "",
+                    OtherUserSlug = dc.User1Id == currentUser.Id
+                        ? dc.User2.Slug
+                        : dc.User1.Slug,
                     OtherUserImageUrl = dc.User1Id == currentUser.Id
                         ? dc.User2.ImageUrl
                         : dc.User1.ImageUrl,

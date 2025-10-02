@@ -16,6 +16,7 @@ export type MediaUploadResult = {
 export const MediaCategory = {
   ProfileImage: "ProfileImage",
   ProfileBackground: "ProfileBackground",
+  ChatBackground: "ChatBackground",
   ChatRoomImage: "ChatRoomImage",
   ChatRoomVideo: "ChatRoomVideo",
   ChatRoomAudio: "ChatRoomAudio",
@@ -66,11 +67,13 @@ export const useMedia = () => {
       category = MediaCategory.ProfileImage,
       chatRoomId,
       channelId,
+      suppressToast = false,
     }: {
       publicId: string;
       category?: MediaCategory;
       chatRoomId?: string;
       channelId?: string;
+      suppressToast?: boolean;
     }) => {
       const params = new URLSearchParams();
       params.append("category", category);
@@ -78,9 +81,13 @@ export const useMedia = () => {
       if (channelId) params.append("channelId", channelId);
 
       await agent.delete(`/media/${publicId}?${params.toString()}`);
+
+      return suppressToast;
     },
-    onSuccess: () => {
-      toast.success("Media deleted successfully");
+    onSuccess: (suppressToast) => {
+      if (!suppressToast) {
+        toast.success("Media deleted successfully");
+      }
     },
     onError: () => {
       toast.error("Failed to delete media");

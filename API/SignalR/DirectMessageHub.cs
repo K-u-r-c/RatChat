@@ -2,12 +2,16 @@ using Application.Core;
 using Application.DirectMessages.Commands;
 using Application.DirectMessages.Queries;
 using Application.Messages.SignalR;
+using Application.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
 
 namespace API.SignalR;
 
-public class DirectMessageHub(IMediator mediator) : Hub
+public class DirectMessageHub(
+    IMediator mediator,
+    IDirectMessagesNotificationService directMessagesNotificationService
+) : Hub
 {
     public async Task SendDirectMessage(SendDirectMessage.Command command)
     {
@@ -19,6 +23,10 @@ public class DirectMessageHub(IMediator mediator) : Hub
                 throw new SendMessageHubException(message.Error ?? "Failed to send message", message.Code);
 
             await Clients.Group(command.DirectChatId).SendAsync("ReceiveDirectMessage", message.Value);
+            await directMessagesNotificationService.NotifyNewMessage(
+                command.DirectChatId,
+                message.Value
+            );
         }
         catch (SendMessageHubException hubException)
         {
@@ -70,6 +78,10 @@ public class DirectMessageHub(IMediator mediator) : Hub
                 throw new SendMessageHubException(message.Error ?? "Failed to send message", message.Code);
 
             await Clients.Group(command.DirectChatId).SendAsync("ReceiveDirectMessage", message.Value);
+            await directMessagesNotificationService.NotifyNewMessage(
+                command.DirectChatId,
+                message.Value
+            );
         }
         catch (SendMessageHubException hubException)
         {
@@ -123,4 +135,3 @@ public class DirectMessageHub(IMediator mediator) : Hub
         await Clients.Caller.SendAsync("LoadDirectMessages", result.Value);
     }
 }
-

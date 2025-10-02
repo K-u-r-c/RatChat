@@ -1,26 +1,38 @@
-import { Box, Typography, Fab, Tooltip, Badge } from "@mui/material";
 import { KeyboardArrowDown } from "@mui/icons-material";
-import { useState, useEffect } from "react";
+import { Badge, Box, Fab, Tooltip, Typography } from "@mui/material";
 import { observer } from "mobx-react-lite";
-import { useInView } from "react-intersection-observer";
+import {
+  type CSSProperties,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useCallback,
+} from "react";
 import { type FieldValues } from "react-hook-form";
-import type {
-  MessageType,
-  MediaUploadResult,
-  BaseMessageStore,
-} from "../../../../lib/types";
-import DragOverlay from "./DragOverlay";
-import ChatMessageList from "./chatMessageList/ChatMessageList";
-import { FilePreview } from "./FilePreview";
-import MultiFilePreview from "./MultiFilePreview";
-import ChatInput from "./ChatInput";
-import ImageViewerDialog from "./ImageViewerDialog";
-import { useEmojiPreferences } from "../../../../lib/hooks/useEmojiPreferences";
-import { useScrollHandler } from "../../../../lib/hooks/useScrollHandler";
+import { useInView } from "react-intersection-observer";
+import { useChatAppearance } from "../../../../lib/hooks/useChatAppearance";
 import { useFileUpload } from "../../../../lib/hooks/useFileUpload";
-import EmojiSettingsDialog from "../EmojiSettingsDialog";
-import type { useChatRoomRolesRealtime } from "../../../../lib/hooks/useChatRoomRolesRealtime";
+import { useScrollHandler } from "../../../../lib/hooks/useScrollHandler";
+import type {
+  BaseMessageStore,
+  MediaUploadResult,
+  MessageType,
+} from "../../../../lib/types";
 import { CHATROOM_PERMISSIONS } from "../../../../lib/types/chatroomPermissions";
+import {
+  DEFAULT_CHAT_BACKGROUND_KEY,
+  getChatBackgroundStyle,
+} from "../../constants/chatBackgrounds";
+import EmojiSettingsDialog from "../EmojiSettingsDialog";
+import ChatInput from "./ChatInput";
+import ChatMessageList from "./chatMessageList/ChatMessageList";
+import DragOverlay from "./DragOverlay";
+import { FilePreview } from "./FilePreview";
+import ImageViewerDialog from "./ImageViewerDialog";
+import MultiFilePreview from "./MultiFilePreview";
+import { useChatRoomRoles } from "../../../../lib/hooks/useChatRoomRoles";
+import { useAccount } from "../../../../lib/hooks/useAccount";
 
 const MAX_JUMP_ATTEMPTS = 1000;
 const RETRY_DELAY_MS = 100;
@@ -36,20 +48,21 @@ interface MediaChatComponentProps {
   ) => Promise<void>;
   showUserProfiles?: boolean;
   chatRoomId?: string;
+  channelId?: string;
   directChatId?: string;
-  userPermissions?: ReturnType<
-    typeof useChatRoomRolesRealtime
-  >["userPermissions"];
+  encryptedDirectChatId?: string;
+  directCanSend?: boolean;
 }
 
-const MediaChatComponent = observer(function MediaChatComponent({
-  title,
+const MediaChatComponent = observer(function MediaChatComponent(
+  {title,
   messageStore,
   onSendMessage,
   showUserProfiles = true,
-  chatRoomId,
+  chatRoomId,channelId,
   directChatId,
-  userPermissions,
+  encryptedDirectChatId,
+  directCanSend,
 }: MediaChatComponentProps) {
   const [imageDialog, setImageDialog] = useState<{
     open: boolean;
@@ -71,16 +84,70 @@ const MediaChatComponent = observer(function MediaChatComponent({
       }
     | undefined
   >(undefined);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
-  const chatType = chatRoomId ? "ChatRoom" : "DirectChat";
-  const chatId = chatRoomId || directChatId || "";
-  const { useEmojiPreference } = useEmojiPreferences();
-  const { data: emojiPreference } = useEmojiPreference(chatType, chatId);
-  const defaultEmoji = emojiPreference?.defaultEmoji || "👍";
+  const backendChatType = chatRoomId
+    ? "ChatRoom"
+    : encryptedDirectChatId
+    ? "EncryptedDirectChat"
+    : "DirectChat";
+  const chatId = chatRoomId ?? encryptedDirectChatId ?? directChatId ?? "";
+  const settingsDialogChatType = chatRoomId
+    ? "chatroom"
+    : encryptedDirectChatId
+    ? "encrypted"
+    : "direct";
+  const { useAppearance } = useChatAppearance();
+  const { data: appearance } = useAppearance(backendChatType, chatId);
+  const { currentUser } = useAccount();
+  const { userPermissions, usersRolesMap } = useChatRoomRoles(chatRoomId, currentUser?.id);
+
+  const memberAccentColors = useMemo(() => {
+    if (!chatRoomId) return new Map<string, string>();
+    const map = new Map<string, string>();
+    usersRolesMap.forEach((roles, userKey) => {
+      if (roles.length > 0 && roles[0]?.color) {
+        map.set(userKey, roles[0].color);
+      }
+    });
+    return map;
+  }, [chatRoomId, usersRolesMap]);
+
+  const resolveAccentColor = useCallback(
+    (userKey?: string) => (userKey ? memberAccentColors.get(userKey) : undefined),
+    [memberAccentColors]
+  );
+
+  const chatBackgroundStyle = useMemo<CSSProperties>(() => {
+    const base = getChatBackgroundStyle(
+      appearance?.backgroundKey ?? DEFAULT_CHAT_BACKGROUND_KEY,
+      appearance?.backgroundKey === "custom"
+        ? appearance?.backgroundCustomUrl ?? null
+        : undefined
+    );
+    const style: CSSProperties = { ...base };
+    style.transition = "background 0.3s ease";
+    if (style.backgroundImage && !style.backgroundSize) {
+      style.backgroundSize = "cover";
+    }
+    if (style.backgroundImage && !style.backgroundPosition) {
+      style.backgroundPosition = "center";
+    }
+    if (style.backgroundImage && !style.backgroundRepeat) {
+      style.backgroundRepeat = base.backgroundSize ? "repeat" : "no-repeat";
+    }
+    if (!style.backgroundImage && !style.backgroundColor) {
+      style.backgroundColor = "transparent";
+    }
+    return style;
+  }, [appearance?.backgroundKey, appearance?.backgroundCustomUrl]);
+
+  const defaultEmoji = appearance?.defaultEmoji || "\u{1F44D}";
 
   const scrollHandler = useScrollHandler({ messageStore });
   const fileUpload = useFileUpload({
     chatRoomId,
+    channelId,
     onUpload: async (body, type, mediaData) =>
       onSendMessage(body, type, mediaData, replyToMessageId),
     onReset: () => {}, // Will be called from handleSubmit
@@ -170,6 +237,18 @@ const MediaChatComponent = observer(function MediaChatComponent({
       type: msg.type,
       mediaOriginalFileName: msg.mediaOriginalFileName,
     });
+    requestAnimationFrame(() => {
+      const el = inputRef.current;
+      if (el) {
+        el.focus();
+        try {
+          const len = el.value?.length ?? 0;
+          el.setSelectionRange?.(len, len);
+        } catch {
+          /* empty */
+        }
+      }
+    });
   };
 
   const handleJumpToMessage = async (messageId: string) => {
@@ -212,10 +291,12 @@ const MediaChatComponent = observer(function MediaChatComponent({
     <div
       {...fileUpload.dropzoneProps}
       style={{
+        position: "relative",
         height: "100%",
         display: "flex",
         flexDirection: "column",
         minHeight: 0,
+        ...chatBackgroundStyle,
       }}
     >
       <input {...fileUpload.inputProps} />
@@ -226,6 +307,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
       <Box
         sx={{
           height: "100%",
+          width: "100%",
           display: "flex",
           flexDirection: "column",
           minHeight: 0,
@@ -265,7 +347,9 @@ const MediaChatComponent = observer(function MediaChatComponent({
                 onJumpToMessage={handleJumpToMessage}
                 chatRoomId={chatRoomId}
                 directChatId={directChatId}
+                encryptedDirectChatId={encryptedDirectChatId}
                 defaultEmoji={defaultEmoji}
+                resolveAccentColor={chatRoomId ? resolveAccentColor : undefined}
               />
             </Box>
 
@@ -308,10 +392,10 @@ const MediaChatComponent = observer(function MediaChatComponent({
           </Box>
 
           {/* Message input area (non-scrollable, grows with content) */}
-          <Box sx={{ borderTop: "1px solid", borderColor: "divider" }}>
+          <Box sx={{ borderTop: "1px solid rgba(255,255,255,0.06)", mt: 1 }}>
             {/* Reply context */}
             {replyToMessageId && (
-              <Box sx={{ bgcolor: "action.hover" }}>
+              <Box sx={{ bgcolor: "background.default" }}>
                 <Box>
                   <Box display="flex" alignItems="center" gap={1}>
                     <Typography variant="caption" sx={{ fontWeight: 700 }}>
@@ -354,6 +438,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
                 </Box>
               </Box>
             )}
+
             {/* File previews */}
             {fileUpload.pendingPaste.file &&
               fileUpload.pendingPaste.preview && (
@@ -382,22 +467,25 @@ const MediaChatComponent = observer(function MediaChatComponent({
                 onSubmit={handleSubmit}
                 onFileSelect={fileUpload.handleFileSelect}
                 defaultEmoji={defaultEmoji}
+                onEmojiSelect={() => {}}
+                onQuickReact={() => {}}
                 isSubmitting={false}
                 isUploading={fileUpload.isUploading}
-                hasAttachment={hasFileAttached}
                 hasPermission={
                   chatRoomId === undefined
-                    ? true
-                    : userPermissions &&
-                      userPermissions[CHATROOM_PERMISSIONS.SendMessages]
-                    ? true
-                    : false
+                    ? directCanSend ?? true
+                    : !!(
+                        userPermissions &&
+                        userPermissions[CHATROOM_PERMISSIONS.SendMessages]
+                      )
                 }
                 placeholder={
                   hasFileAttached
                     ? "Add a message with your file (optional)..."
                     : "Enter your message ..."
                 }
+                hasAttachment={hasFileAttached}
+                inputRef={inputRef}
               />
             </div>
           </Box>
@@ -424,7 +512,7 @@ const MediaChatComponent = observer(function MediaChatComponent({
       <EmojiSettingsDialog
         open={showEmojiSettings}
         onClose={() => setShowEmojiSettings(false)}
-        chatType={chatRoomId ? "chatroom" : "direct"}
+        chatType={settingsDialogChatType}
         chatId={chatId}
         chatName={title}
       />

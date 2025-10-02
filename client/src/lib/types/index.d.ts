@@ -15,6 +15,7 @@ export type User = {
   displayName: string;
   imageUrl?: string;
   bannerUrl?: string;
+  slug: string;
   tag: number;
   hasPassword: boolean;
   status: string;
@@ -22,16 +23,40 @@ export type User = {
   lastSeen: Date;
 };
 
+export type ChatRoomBan = {
+  userId: string;
+  user?: User;
+  chatRoomId: string;
+  dateBanned: string;
+};
+
+export type ChatChannel = {
+  chatRoomId: string;
+  id: string;
+  name: string;
+  type: "Text" | "Voice";
+  position: number;
+  createdAt: Date;
+};
+
 export type ChatRoom = {
   id: string;
+  slug: string;
   title: string;
   imageUrl?: string;
   date: Date;
   members: Profile[];
-  isAdmin: boolean;
-  adminId: string;
-  adminDisplayName: string;
-  adminImageUrl?: string;
+  isOwner: boolean;
+  ownerId: string;
+  ownerDisplayName: string;
+  ownerImageUrl?: string;
+  bans: ChatRoomBan[];
+  channels: ChatChannel[];
+};
+
+export type ChatRoomIdentifier = {
+  id: string;
+  slug: string;
 };
 
 export type BaseMessage = {
@@ -39,11 +64,14 @@ export type BaseMessage = {
   createdAt: Date;
   body: string;
   type: MessageType;
+  channelId?: string;
   senderId?: string;
   senderDisplayName?: string;
+  senderSlug?: string;
   senderImageUrl?: string;
   displayName?: string;
   userId?: string;
+  userSlug?: string;
   imageUrl?: string;
   mediaUrl?: string;
   mediaPublicId?: string;
@@ -67,33 +95,16 @@ export type BaseMessageStore = {
   hubConnection: unknown;
 };
 
-export type ChatRoomRole = {
-  id: string;
-  name: string;
-  description?: string | null | undefined;
-  color: string;
-  createdAt: Date;
-  isDefault: boolean;
-  chatRoomId: string;
-  permissions: ChatRoomPermission[];
-};
-
-export type ChatRoomPermission = {
-  id: string;
-  roleId: string;
-  name: string;
-  description: string;
-  isAllowed: boolean;
-};
-
 export type ChatMessage = {
   id: string;
   createdAt: Date;
   body: string;
   userId: string;
+  userSlug: string;
   displayName: string;
   imageUrl?: string;
   type: MessageType;
+  channelId: string;
 
   mediaUrl?: string;
   mediaPublicId?: string;
@@ -113,9 +124,13 @@ export type MessageType = "Text" | "Image" | "Video" | "Document" | "Audio";
 export type Profile = {
   id: string;
   displayName: string;
+  tag?: number;
   bio?: string;
+  chatRoomDisplayRoleId?: string;
+  chatRoomDisplayRoleColor?: string;
   imageUrl?: string;
   bannerUrl?: string;
+  slug: string;
   friendsCount?: number;
   isFriend?: boolean;
   isOnline?: boolean;
@@ -127,6 +142,7 @@ export type Profile = {
 export type Friend = {
   id: string;
   displayName: string;
+  slug: string;
   bio?: string;
   imageUrl?: string;
   bannerUrl?: string;
@@ -140,9 +156,11 @@ export type Friend = {
 export type FriendRequest = {
   id: string;
   senderId: string;
+  senderSlug: string;
   senderDisplayName: string;
   senderImageUrl?: string;
   receiverId: string;
+  receiverSlug: string;
   receiverDisplayName: string;
   receiverImageUrl?: string;
   status: "Pending" | "Accepted" | "Declined" | "Cancelled";
@@ -159,6 +177,7 @@ export type FriendRequestsResponse = {
 export type FriendSearch = {
   id: string;
   displayName: string;
+  slug: string;
   tag: number;
   imageUrl?: string;
   isAlreadyFriend: boolean;
@@ -169,6 +188,7 @@ export type DirectChat = {
   id: string;
   otherUserId: string;
   otherUserDisplayName: string;
+  otherUserSlug: string;
   otherUserImageUrl?: string;
   lastMessageAt: Date;
   lastMessageBody?: string;
@@ -185,6 +205,7 @@ export type DirectMessage = {
   createdAt: Date;
   senderId: string;
   senderDisplayName: string;
+  senderSlug: string;
   senderImageUrl?: string;
   isOwnMessage: boolean;
   type: MessageType;
@@ -199,6 +220,39 @@ export type DirectMessage = {
   replyToBody?: string;
   replyToType?: MessageType;
   replyToMediaOriginalFileName?: string;
+  reactions?: MessageReaction[];
+};
+export type EncryptedDirectChat = {
+  id: string;
+  otherUserId: string;
+  otherUserDisplayName: string;
+  otherUserSlug: string;
+  otherUserImageUrl?: string;
+  lastActivityAt: Date;
+  lastMessageSenderId?: string;
+  isOnline: boolean;
+  lastSeen?: Date;
+  status: string;
+};
+
+export type EncryptedDirectMessage = {
+  id: string;
+  cipherText: string;
+  cipherTextMetadata?: string;
+  version: string;
+  createdAt: Date;
+  senderId: string;
+  senderDisplayName: string;
+  senderSlug: string;
+  senderImageUrl?: string;
+  isOwnMessage: boolean;
+  type: MessageType;
+  replyToMessageId?: string;
+  replyToCipherText?: string;
+  replyToCipherTextMetadata?: string;
+  replyToVersion?: string;
+  replyToSenderId?: string;
+  replyToSenderDisplayName?: string;
   reactions?: MessageReaction[];
 };
 
@@ -267,4 +321,10 @@ export type UserStatusDto = {
 
 export type OnlineUsersDto = {
   userIds: string[];
+};
+
+export type NotificationCounters = {
+  chatRooms: Record<string, number>;
+  directChats: Record<string, number>;
+  encryptedDirectChats: Record<string, number>;
 };

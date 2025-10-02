@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Application.Core;
 using Application.Interfaces;
 using Application.Messages.Commands;
@@ -8,19 +7,45 @@ using Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using Persistance;
 
 namespace API.SignalR;
 
-public class MessageHub(IMediator mediator, IRolePermissionService rolePermissionService) : Hub
+[Authorize]
+public class MessageHub(
+    IMediator mediator,
+    IRolePermissionService rolePermissionService,
+    IUserAccessor userAccessor,
+    IChatRoomsNotificationService chatRoomsNotificationService,
+    AppDbContext context
+) : Hub
 {
+    internal static string GetChatRoomGroup(string chatRoomId) => $"chatroom-{chatRoomId}";
+    internal static string GetChannelGroup(string channelId) => $"channel-{channelId}";
+
     [Authorize(Policy = ChatRoomPermissions.SendMessages)]
     public async Task SendMessage(AddMessage.Command command)
     {
+        if (string.IsNullOrWhiteSpace(command.ChannelId))
+        {
+            await Clients.Caller.SendAsync("ReceiveError", 400, "Channel is required");
+            return;
+        }
+
         try
         {
             var message = await HandleSendMessage.TrySendMessageAsync(mediator, command);
 
-            await Clients.Group(command.ChatRoomId).SendAsync("ReceiveMessage", message.Value);
+            if (message.Value == null)
+            {
+                throw new SendMessageHubException("Message without content", ErrorCodes.WillNotBeProcessed);
+            }
+
+            await Clients.Group(GetChannelGroup(message.Value.ChannelId))
+                .SendAsync("ChatRoomMessage", message.Value);
+
+            await chatRoomsNotificationService.NotifyChatRoomUpdated(command.ChatRoomId, message.Value);
         }
         catch (SendMessageHubException hubException)
         {
@@ -33,6 +58,12 @@ public class MessageHub(IMediator mediator, IRolePermissionService rolePermissio
     [Authorize(Policy = ChatRoomPermissions.SendMessages)]
     public async Task SendMediaMessage(AddMessage.Command command)
     {
+        if (string.IsNullOrWhiteSpace(command.ChannelId))
+        {
+            await Clients.Caller.SendAsync("ReceiveError", 400, "Channel is required");
+            return;
+        }
+
         try
         {
             if (command.Type != "Text" && string.IsNullOrEmpty(command.MediaUrl))
@@ -43,7 +74,15 @@ public class MessageHub(IMediator mediator, IRolePermissionService rolePermissio
 
             var message = await HandleSendMessage.TrySendMessageAsync(mediator, command);
 
-            await Clients.Group(command.ChatRoomId).SendAsync("ReceiveMessage", message.Value);
+            if (message.Value == null)
+            {
+                throw new SendMessageHubException("Message without content", ErrorCodes.WillNotBeProcessed);
+            }
+
+            await Clients.Group(GetChannelGroup(message.Value.ChannelId))
+                .SendAsync("ChatRoomMessage", message.Value);
+
+            await chatRoomsNotificationService.NotifyChatRoomUpdated(command.ChatRoomId, message.Value);
         }
         catch (SendMessageHubException hubException)
         {
@@ -54,7 +93,7 @@ public class MessageHub(IMediator mediator, IRolePermissionService rolePermissio
     }
 
     [Authorize(Policy = ChatRoomPermissions.ViewChatRoom)]
-    public async Task LoadMoreMessages(string chatRoomId, DateTime? cursor, int pageSize = 20)
+    public async Task LoadMoreMessages(string chatRoomId, string channelId, DateTime? cursor, int pageSize = 20)
     {
         try
         {
@@ -62,12 +101,18 @@ public class MessageHub(IMediator mediator, IRolePermissionService rolePermissio
                 new GetMessages.Query
                 {
                     ChatRoomId = chatRoomId,
+                    ChannelId = channelId,
                     Cursor = cursor,
                     PageSize = pageSize
                 }
             );
 
-            await Clients.Caller.SendAsync("ReceiveOlderMessages", result.Value);
+            await Clients.Caller.SendAsync("ReceiveOlderMessages", new
+            {
+                chatRoomId,
+                channelId,
+                data = result.Value
+            });
         }
         catch
         {
@@ -75,7 +120,7 @@ public class MessageHub(IMediator mediator, IRolePermissionService rolePermissio
         }
     }
 
-    [Authorize(Policy = ChatRoomPermissions.ViewChatRoom)]
+    [Authorize(Policy = ChatRoomPermissions.SendMessages)]
     public async Task ToggleMessageReaction(string chatRoomId, string messageId, string emoji)
     {
         try
@@ -89,7 +134,23 @@ public class MessageHub(IMediator mediator, IRolePermissionService rolePermissio
 
             if (result.IsSuccess)
             {
-                await Clients.Group(chatRoomId).SendAsync("ReceiveReactionUpdate", result.Value);
+                var payload = result.Value;
+                if (payload == null)
+                {
+                    await Clients.Caller.SendAsync("ReceiveError", 500, "Failed to toggle reaction");
+                    return;
+                }
+
+                if (!string.IsNullOrWhiteSpace(payload.ChannelId))
+                {
+                    await Clients.Group(GetChannelGroup(payload.ChannelId))
+                        .SendAsync("ReceiveReactionUpdate", payload);
+                }
+                else
+                {
+                    await Clients.Group(GetChatRoomGroup(chatRoomId))
+                        .SendAsync("ReceiveReactionUpdate", payload);
+                }
             }
             else
             {
@@ -104,39 +165,105 @@ public class MessageHub(IMediator mediator, IRolePermissionService rolePermissio
 
     public override async Task OnConnectedAsync()
     {
-        var httpContext = Context.GetHttpContext();
-        var chatRoomId = httpContext?.Request.Query["chatRoomId"];
-        if (string.IsNullOrEmpty(chatRoomId)) throw new HubException("No chat room with this id");
+        var user = await userAccessor.GetUserAsync();
+        await Groups.AddToGroupAsync(Context.ConnectionId, $"user-{user.Id}");
 
-        var userId = Context.User?.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(userId))
+        await base.OnConnectedAsync();
+    }
+
+    public async Task JoinChatRoom(string chatRoomId, int? initialPageSize = null)
+    {
+        var defaultChannelId = await context.ChatChannels
+            .Where(c => c.ChatRoomId == chatRoomId && c.Type == ChatChannelType.Text)
+            .OrderBy(c => c.Position)
+            .Select(c => c.Id)
+            .FirstOrDefaultAsync();
+
+        if (defaultChannelId == null)
         {
-            throw new HubException("Unauthenticated user");
+            await Clients.Caller.SendAsync("ReceiveError", 404, "No text channel available for this chat room");
+            return;
         }
 
+        await JoinChatChannel(chatRoomId, defaultChannelId, initialPageSize);
+    }
+
+    public async Task JoinChatChannel(string chatRoomId, string channelId, int? initialPageSize = null)
+    {
+        var user = await userAccessor.GetUserAsync();
         var hasAccess = await rolePermissionService.HasPermissionAsync(
-            userId!, chatRoomId!, ChatRoomPermissions.ViewChatRoom);
+            user.Id, chatRoomId, ChatRoomPermissions.ViewChatRoom);
 
         if (!hasAccess)
         {
             await Clients.Caller.SendAsync("ReceiveError", 403, "You are not a member of this chat room");
-            Context.Abort();
             return;
         }
 
-        await Groups.AddToGroupAsync(Context.ConnectionId, chatRoomId!);
+        var channel = await context.ChatChannels
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                c => c.ChatRoomId == chatRoomId && c.Id == channelId,
+                Context.ConnectionAborted);
 
-        var initialPageSize =
-            int.TryParse(httpContext?.Request.Query["initialPageSize"], out var size) ? size : 20;
+        if (channel == null)
+        {
+            await Clients.Caller.SendAsync("ReceiveError", 404, "Channel not found");
+            return;
+        }
 
+        if (channel.Type != ChatChannelType.Text)
+        {
+            await Clients.Caller.SendAsync("ReceiveError", 400, "Cannot join a non-text channel for messaging");
+            return;
+        }
+
+        await Groups.AddToGroupAsync(Context.ConnectionId, GetChatRoomGroup(chatRoomId));
+        await RemoveFromChatRoomChannelGroups(chatRoomId);
+        await Groups.AddToGroupAsync(Context.ConnectionId, GetChannelGroup(channelId));
+
+        var size = initialPageSize ?? 20;
         var result = await mediator.Send(
             new GetMessages.Query
             {
-                ChatRoomId = chatRoomId!,
-                PageSize = initialPageSize
+                ChatRoomId = chatRoomId,
+                ChannelId = channelId,
+                PageSize = size
             }
         );
 
-        await Clients.Caller.SendAsync("LoadMessages", result.Value);
+        await Clients.Caller.SendAsync("LoadMessages", new
+        {
+            chatRoomId,
+            channelId,
+            data = result.Value
+        });
+    }
+
+    public async Task LeaveChatRoom(string chatRoomId, string? channelId = null)
+    {
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, GetChatRoomGroup(chatRoomId));
+
+        if (!string.IsNullOrWhiteSpace(channelId))
+        {
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, GetChannelGroup(channelId));
+        }
+        else
+        {
+            await RemoveFromChatRoomChannelGroups(chatRoomId);
+        }
+    }
+
+    private async Task RemoveFromChatRoomChannelGroups(string chatRoomId)
+    {
+        var channelIds = await context.ChatChannels
+            .Where(c => c.ChatRoomId == chatRoomId && c.Type == ChatChannelType.Text)
+            .Select(c => c.Id)
+            .ToListAsync(Context.ConnectionAborted);
+
+        foreach (var channelId in channelIds)
+        {
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, GetChannelGroup(channelId));
+        }
     }
 }

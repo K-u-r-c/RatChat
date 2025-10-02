@@ -1,20 +1,18 @@
-import { useParams } from "react-router";
 import { observer } from "mobx-react-lite";
 import { useMessages } from "../../../lib/hooks/useMessages";
 import MediaChatComponent from "../../../app/shared/components/mediaChatComponent/MediaChatComponent";
 import type { MessageType, MediaUploadResult } from "../../../lib/types";
-import type { useChatRoomRolesRealtime } from "../../../lib/hooks/useChatRoomRolesRealtime";
 
 type Props = {
-    userPermissions: ReturnType<typeof 
-      useChatRoomRolesRealtime>["userPermissions"];
-}
+  chatRoomId: string;
+  channelId: string;
+};
 
-const ChatRoomDetailsChat = observer(function ChatRoomDetailsChat(
-  { userPermissions } : Props
-) {
-  const { id } = useParams();
-  const { messageStore } = useMessages(id);
+const ChatRoomDetailsChat = observer(function ChatRoomDetailsChat({
+  chatRoomId,
+  channelId,
+}: Props) {
+  const { messageStore } = useMessages(chatRoomId, channelId);
 
   const handleSendMessage = async (
     body: string,
@@ -22,8 +20,10 @@ const ChatRoomDetailsChat = observer(function ChatRoomDetailsChat(
     mediaData?: Partial<MediaUploadResult>,
     replyToMessageId?: string
   ) => {
+    if (!channelId) return;
     const messageData = {
-      chatRoomId: id!,
+      chatRoomId,
+      channelId,
       body,
       type,
       ...(mediaData && {
@@ -49,8 +49,8 @@ const ChatRoomDetailsChat = observer(function ChatRoomDetailsChat(
       messageStore={messageStore}
       onSendMessage={handleSendMessage}
       showUserProfiles={true}
-      chatRoomId={id}
-      userPermissions={userPermissions}
+      chatRoomId={chatRoomId}
+      channelId={channelId}
     />
   );
 });

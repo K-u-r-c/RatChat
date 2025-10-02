@@ -6,6 +6,12 @@ public static class ChatRoomPermissions
     public const string SendMessages = "Send Messages";
     public const string CreateInviteLinks = "Create invite links";
     public const string ChangeChatRoomImage = "Change chat room image";
+    public const string KickFromChatRoom = "Kick from chatroom";
+    public const string BanFromChatRoom = "Ban from chatroom";
+    public const string UnbanFromChatRoom = "Unban from chatroom";
+    public const string ManageChannels = "Manage channels";
+    public const string ManageChatRoomRoles = "Manage chatroom roles";
+
 
     // TODO: Implement more permissions
 
@@ -22,6 +28,11 @@ public static class ChatRoomPermissions
             [ViewChatRoom] = "Allows the user to view and access the chat room.",
             [SendMessages] = "Allows the user to send messages in the chat room.",
             [CreateInviteLinks] = "Allows the user to create invite links for the chat room.",
-            [ChangeChatRoomImage] = "Allows the user to change the chat room’s icon/image."
+            [ChangeChatRoomImage] = "Allows the user to change the chat room’s icon/image.",
+            [KickFromChatRoom] = "Allows the user to kick others from the chat room",
+            [BanFromChatRoom] = "Allows the user to ban others from the chat room",
+            [UnbanFromChatRoom] = "Allows the user to unban banned user from the chat room",
+            [ManageChannels] = "Allows the user to create, update, reorder, and delete chat channels.",
+            [ManageChatRoomRoles] = "Allows the user to manage roles from the chat room",
         };
 }

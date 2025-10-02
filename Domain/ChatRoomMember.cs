@@ -8,4 +8,6 @@ public class ChatRoomMember
     public ChatRoom ChatRoom { get; set; } = null!;
     public bool IsOwner { get; set; }
     public DateTime DateJoined { get; set; } = DateTime.UtcNow;
+    public string? DisplayRoleId { get; set; }
+    public ChatRoomRole? DisplayRole { get; set; }
 }

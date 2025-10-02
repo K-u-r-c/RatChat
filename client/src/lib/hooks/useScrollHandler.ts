@@ -1,9 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import type { BaseMessageStore } from "../types";
-
-interface UseScrollHandlerProps {
-  messageStore: BaseMessageStore;
-}
+import type { UseScrollHandlerProps } from "../types/scrollHandler";
 
 export function useScrollHandler({ messageStore }: UseScrollHandlerProps) {
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -83,8 +79,7 @@ export function useScrollHandler({ messageStore }: UseScrollHandlerProps) {
   useEffect(() => {
     const container = messagesContainerRef.current;
     if (
-      container &&
-      messageStore.isLoadingOlder === false &&
+      container && !messageStore.isLoadingOlder &&
       previousScrollHeight.current > 0
     ) {
       const newScrollHeight = container.scrollHeight;

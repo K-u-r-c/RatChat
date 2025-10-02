@@ -1,7 +1,8 @@
-using Domain;
+﻿using Domain;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Persistance.Security;
 
 namespace Persistance;
 
@@ -17,12 +18,21 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
     public required DbSet<DirectMessage> DirectMessages { get; set; }
     public required DbSet<DirectMessageReaction> DirectMessageReactions { get; set; }
     public required DbSet<EmojiPreference> EmojiPreferences { get; set; }
+    public required DbSet<ChatAppearance> ChatAppearances { get; set; }
     public required DbSet<MessageReaction> MessageReactions { get; set; }
     public required DbSet<ChatRoomRole> ChatRoomRoles { get; set; }
     public required DbSet<ChatRoomMemberRole> ChatRoomMemberRoles { get; set; }
     public required DbSet<ChatRoomPermission> ChatRoomPermissions { get; set; }
     public required DbSet<ChatRoomRolePermission> ChatRoomRolePermissions { get; set; }
     public required DbSet<ChatRoomInvite> ChatRoomInvites { get; set; }
+    public required DbSet<ChatRoomNotification> ChatRoomNotifications { get; set; }
+    public required DbSet<DirectChatNotification> DirectChatNotifications { get; set; }
+    public required DbSet<EncryptedDirectChat> EncryptedDirectChats { get; set; }
+    public required DbSet<EncryptedDirectMessage> EncryptedDirectMessages { get; set; }
+    public required DbSet<EncryptedDirectMessageReaction> EncryptedDirectMessageReactions { get; set; }
+    public required DbSet<EncryptedDirectChatNotification> EncryptedDirectChatNotifications { get; set; }
+    public required DbSet<ChatRoomBan> ChatRoomBans { get; set; }
+    public required DbSet<ChatChannel> ChatChannels { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -40,11 +50,44 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
             .WithMany(x => x.Members)
             .HasForeignKey(x => x.ChatRoomId);
 
-        builder.Entity<ChatRoom>()
-            .HasOne(cr => cr.Owner)
-            .WithMany(o => o.OwnedChatRooms)
-            .HasForeignKey(cr => cr.OwnerId)
-            .OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<ChatRoomMember>()
+            .HasOne(x => x.DisplayRole)
+            .WithMany()
+            .HasForeignKey(x => x.DisplayRoleId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        builder.Entity<ChatRoom>(entity =>
+        {
+            entity.Property(cr => cr.Slug)
+                .IsRequired()
+                .HasMaxLength(200);
+
+            entity.HasIndex(cr => cr.Slug)
+                .IsUnique();
+
+            entity.HasOne(cr => cr.Owner)
+                .WithMany(o => o.OwnedChatRooms)
+                .HasForeignKey(cr => cr.OwnerId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<ChatChannel>(entity =>
+        {
+            entity.HasKey(c => c.Id);
+
+            entity.Property(c => c.Name).IsRequired().HasMaxLength(100);
+            entity.Property(c => c.Position).IsRequired();
+            entity.Property(c => c.Type).IsRequired();
+            entity.Property(c => c.CreatedAt).IsRequired();
+
+            entity.HasOne(c => c.ChatRoom)
+                .WithMany(cr => cr.Channels)
+                .HasForeignKey(c => c.ChatRoomId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(c => new { c.ChatRoomId, c.Type, c.Name }).IsUnique();
+            entity.HasIndex(c => new { c.ChatRoomId, c.Type, c.Position }).IsUnique();
+        });
 
         builder.Entity<ChatRoomRole>(entity =>
         {
@@ -53,6 +96,7 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
             entity.Property(r => r.Name).IsRequired().HasMaxLength(50);
             entity.Property(r => r.Color).IsRequired().HasMaxLength(7);
             entity.Property(r => r.Description).HasMaxLength(200);
+            entity.Property(r => r.Importance).IsRequired();
 
             entity.HasOne(r => r.ChatRoom)
                 .WithMany(cr => cr.Roles)
@@ -60,6 +104,7 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(r => new { r.ChatRoomId, r.Name }).IsUnique();
+            entity.HasIndex(r => new { r.ChatRoomId, r.Importance }).IsUnique();
         });
 
         builder.Entity<ChatRoomMemberRole>(entity =>
@@ -69,7 +114,7 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
             entity.HasOne(mr => mr.User)
                 .WithMany(u => u.AssignedRoles)
                 .HasForeignKey(mr => mr.UserId)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasOne(mr => mr.ChatRoom)
                 .WithMany()
@@ -104,6 +149,21 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
             entity.HasOne(rp => rp.Permission)
                 .WithMany(p => p.RolePermissions)
                 .HasForeignKey(rp => rp.PermissionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<ChatRoomBan>(entity =>
+        {
+            entity.HasKey(b => new { b.UserId, b.ChatRoomId });
+
+            entity.HasOne(b => b.User)
+                .WithMany(u => u.Bans)
+                .HasForeignKey(b => b.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(b => b.ChatRoom)
+                .WithMany(cr => cr.Bans)
+                .HasForeignKey(b => b.ChatRoomId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -143,27 +203,31 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
         });
 
         builder.Entity<DirectChat>(x =>
-       {
-           x.HasKey(dc => dc.Id);
+        {
+            x.HasKey(dc => dc.Id);
 
-           x.HasOne(dc => dc.User1)
-               .WithMany()
-               .HasForeignKey(dc => dc.User1Id)
-               .OnDelete(DeleteBehavior.NoAction);
+            x.HasOne(dc => dc.User1)
+                .WithMany()
+                .HasForeignKey(dc => dc.User1Id)
+                .OnDelete(DeleteBehavior.NoAction);
 
-           x.HasOne(dc => dc.User2)
-               .WithMany()
-               .HasForeignKey(dc => dc.User2Id)
-               .OnDelete(DeleteBehavior.NoAction);
+            x.HasOne(dc => dc.User2)
+                .WithMany()
+                .HasForeignKey(dc => dc.User2Id)
+                .OnDelete(DeleteBehavior.NoAction);
 
-           // Ensure no duplicate chats between same users
-           x.HasIndex(dc => new { dc.User1Id, dc.User2Id })
-               .IsUnique();
-       });
+            // Ensure no duplicate chats between same users
+            x.HasIndex(dc => new { dc.User1Id, dc.User2Id })
+                .IsUnique();
+        });
 
         builder.Entity<DirectMessage>(x =>
         {
             x.HasKey(dm => dm.Id);
+
+            // Encrypt message body at rest
+            x.Property(dm => dm.Body)
+                .HasConversion(EncryptedStringConverter.Instance);
 
             x.HasOne(dm => dm.Sender)
                 .WithMany()
@@ -205,15 +269,116 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
             x.HasIndex(r => new { r.DirectMessageId, r.CreatedAt });
         });
 
-        // Reply relationship for chat room messages
+        builder.Entity<EncryptedDirectChat>(x =>
+        {
+            x.HasKey(dc => dc.Id);
+
+            x.HasOne(dc => dc.User1)
+                .WithMany()
+                .HasForeignKey(dc => dc.User1Id)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            x.HasOne(dc => dc.User2)
+                .WithMany()
+                .HasForeignKey(dc => dc.User2Id)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            x.HasIndex(dc => new { dc.User1Id, dc.User2Id })
+                .IsUnique();
+
+            x.Property(dc => dc.LastActivityAt).IsRequired();
+        });
+
+        builder.Entity<EncryptedDirectMessage>(x =>
+        {
+            x.HasKey(dm => dm.Id);
+
+            x.Property(dm => dm.CipherText)
+                .IsRequired();
+
+            x.Property(dm => dm.Version)
+                .HasMaxLength(10);
+
+            x.HasOne(dm => dm.Sender)
+                .WithMany()
+                .HasForeignKey(dm => dm.SenderId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            x.HasOne(dm => dm.EncryptedDirectChat)
+                .WithMany(dc => dc.Messages)
+                .HasForeignKey(dm => dm.EncryptedDirectChatId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            x.HasOne(dm => dm.ReplyToEncryptedDirectMessage)
+                .WithMany()
+                .HasForeignKey(dm => dm.ReplyToEncryptedDirectMessageId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            x.HasIndex(dm => new { dm.EncryptedDirectChatId, dm.CreatedAt });
+        });
+
+        builder.Entity<EncryptedDirectMessageReaction>(x =>
+        {
+            x.HasKey(r => r.Id);
+
+            x.Property(r => r.Emoji).IsRequired().HasMaxLength(64);
+            x.Property(r => r.EmojiKey).IsRequired().HasMaxLength(128);
+
+            x.HasOne(r => r.EncryptedDirectMessage)
+                .WithMany(m => m.Reactions)
+                .HasForeignKey(r => r.EncryptedDirectMessageId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            x.HasOne(r => r.User)
+                .WithMany()
+                .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            x.HasIndex(r => new { r.EncryptedDirectMessageId, r.UserId, r.EmojiKey }).IsUnique();
+        });
+
+        builder.Entity<EncryptedDirectChatNotification>(entity =>
+        {
+            entity.HasKey(n => n.Id);
+            entity.Property(n => n.UserId).IsRequired();
+            entity.Property(n => n.EncryptedDirectChatId).IsRequired();
+            entity.Property(n => n.UnreadCount).IsRequired();
+            entity.Property(n => n.UpdatedAt).IsRequired();
+
+            entity.HasIndex(n => new { n.UserId, n.EncryptedDirectChatId }).IsUnique();
+
+            entity.HasOne<User>()
+                .WithMany()
+                .HasForeignKey(n => n.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne<EncryptedDirectChat>()
+                .WithMany()
+                .HasForeignKey(n => n.EncryptedDirectChatId)
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+        
         builder.Entity<Message>(x =>
         {
+            // Encrypt message body at rest
+            x.Property(m => m.Body)
+                .HasConversion(EncryptedStringConverter.Instance);
+
+            x.Property(m => m.ChannelId)
+                .IsRequired();
+
             x.HasOne(m => m.ReplyToMessage)
                 .WithMany()
                 .HasForeignKey(m => m.ReplyToMessageId)
                 .OnDelete(DeleteBehavior.NoAction);
 
+            x.HasOne(m => m.Channel)
+                .WithMany()
+                .HasForeignKey(m => m.ChannelId)
+                .OnDelete(DeleteBehavior.NoAction);
+
             x.HasIndex(m => new { m.ChatRoomId, m.CreatedAt });
+            x.HasIndex(m => new { m.ChannelId, m.CreatedAt });
         });
 
         // Message reactions
@@ -247,6 +412,12 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
 
         builder.Entity<User>(x =>
         {
+            x.Property(u => u.Slug)
+                .IsRequired()
+                .HasMaxLength(200);
+
+            x.HasIndex(u => u.Slug).IsUnique();
+
             x.Property(u => u.Tag)
                 .ValueGeneratedOnAdd()
                 .HasDefaultValueSql("NEXT VALUE FOR dbo.UserTagSequence");
@@ -319,20 +490,76 @@ public class AppDbContext(DbContextOptions options) : IdentityDbContext<User>(op
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        builder.Entity<ChatAppearance>(x =>
+        {
+            x.HasKey(ca => ca.Id);
+            x.Property(ca => ca.ChatType).IsRequired().HasMaxLength(20);
+            x.Property(ca => ca.ChatId).IsRequired().HasMaxLength(50);
+            x.Property(ca => ca.DefaultEmoji).IsRequired().HasMaxLength(10);
+            x.Property(ca => ca.BackgroundKey).IsRequired().HasMaxLength(50);
+            x.Property(ca => ca.BackgroundCustomUrl).HasMaxLength(500);
+            x.Property(ca => ca.BackgroundCustomPublicId).HasMaxLength(200);
+            x.Property(ca => ca.UpdatedAt).IsRequired();
+
+            x.HasIndex(ca => new { ca.ChatType, ca.ChatId })
+                .IsUnique();
+
+            x.HasOne(ca => ca.UpdatedByUser)
+                .WithMany()
+                .HasForeignKey(ca => ca.UpdatedByUserId)
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        builder.Entity<ChatRoomNotification>(entity =>
+        {
+            entity.HasKey(n => n.Id);
+            entity.Property(n => n.UserId).IsRequired();
+            entity.Property(n => n.ChatRoomId).IsRequired();
+            entity.Property(n => n.UnreadCount).IsRequired();
+            entity.Property(n => n.UpdatedAt).IsRequired();
+
+            entity.HasIndex(n => new { n.UserId, n.ChatRoomId }).IsUnique();
+
+            entity.HasOne<User>()
+                .WithMany()
+                .HasForeignKey(n => n.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne<ChatRoom>()
+                .WithMany()
+                .HasForeignKey(n => n.ChatRoomId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<DirectChatNotification>(entity =>
+        {
+            entity.HasKey(n => n.Id);
+            entity.Property(n => n.UserId).IsRequired();
+            entity.Property(n => n.DirectChatId).IsRequired();
+            entity.Property(n => n.UnreadCount).IsRequired();
+            entity.Property(n => n.UpdatedAt).IsRequired();
+
+            entity.HasIndex(n => new { n.UserId, n.DirectChatId }).IsUnique();
+
+            entity.HasOne<User>()
+                .WithMany()
+                .HasForeignKey(n => n.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne<DirectChat>()
+                .WithMany()
+                .HasForeignKey(n => n.DirectChatId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         var dateTimeConverter = new ValueConverter<DateTime, DateTime>(
             v => v.ToUniversalTime(),
             v => DateTime.SpecifyKind(v, DateTimeKind.Utc)
         );
 
         foreach (var entityType in builder.Model.GetEntityTypes())
-        {
-            foreach (var property in entityType.GetProperties())
-            {
-                if (property.ClrType == typeof(DateTime))
-                {
-                    property.SetValueConverter(dateTimeConverter);
-                }
-            }
-        }
+        foreach (var property in entityType.GetProperties())
+            if (property.ClrType == typeof(DateTime))
+                property.SetValueConverter(dateTimeConverter);
     }
 }

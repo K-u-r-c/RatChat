@@ -1,7 +1,8 @@
 import { Box, Stack, Typography, Button, Collapse, Paper } from "@mui/material";
 import ChatRoomImageUpload from "../ChatRoomImageUpload";
+import EmojiSettingsDialog from "../../../app/shared/components/EmojiSettingsDialog";
 import { useChatRooms } from "../../../lib/hooks/useChatRooms";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import TextInput from "../../../app/shared/components/TextInput";
@@ -15,6 +16,7 @@ type Props = { chatRoomId: string };
 export default function ChatRoomSettingsOverview({ chatRoomId }: Props) {
   const { chatRoom, isLoadingChatRoom, updateChatRoom } =
     useChatRooms(chatRoomId);
+  const [appearanceDialogOpen, setAppearanceDialogOpen] = useState(false);
   const methods = useForm<ChatRoomSchema>({
     mode: "onTouched",
     resolver: zodResolver(chatRoomSchema),
@@ -72,6 +74,41 @@ export default function ChatRoomSettingsOverview({ chatRoomId }: Props) {
         </Box>
       </Box>
 
+      <Box>
+        <Typography variant="h6" gutterBottom>
+          Appearance
+        </Typography>
+        <Paper
+          variant="outlined"
+          sx={{
+            p: 3,
+            display: "flex",
+            flexDirection: { xs: "column", sm: "row" },
+            gap: 2,
+            alignItems: { xs: "flex-start", sm: "center" },
+            bgcolor: "rgba(255,255,255,0.02)",
+            borderColor: "rgba(255,255,255,0.08)",
+          }}
+        >
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+              Customize reactions & background
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Choose the default quick reaction emoji and chat background for
+              this server.
+            </Typography>
+          </Box>
+          <Button
+            variant="outlined"
+            onClick={() => setAppearanceDialogOpen(true)}
+            disabled={!chatRoom?.isOwner}
+          >
+            Customize appearance
+          </Button>
+        </Paper>
+      </Box>
+
       <Box
         sx={{
           width: "100%",
@@ -97,6 +134,14 @@ export default function ChatRoomSettingsOverview({ chatRoomId }: Props) {
           </Box>
         </FormProvider>
       </Box>
+
+      <EmojiSettingsDialog
+        open={appearanceDialogOpen}
+        onClose={() => setAppearanceDialogOpen(false)}
+        chatType="chatroom"
+        chatId={chatRoomId}
+        chatName={chatRoom?.title ?? "this chat"}
+      />
 
       <Collapse
         in={isTrimmedDirty}

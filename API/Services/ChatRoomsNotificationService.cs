@@ -1,0 +1,73 @@
+using System;
+using Application.Interfaces;
+using Application.Messages.DTOs;
+using API.SignalR;
+using Domain;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using Persistance;
+
+namespace API.Services;
+
+public class ChatRoomsNotificationService(
+    IHubContext<MessageHub> hubContext,
+    AppDbContext context
+) : IChatRoomsNotificationService
+{
+    public async Task NotifyChatRoomUpdated(string chatRoomId, MessageDto message)
+    {
+        var recipientIds = await context.ChatRoomMembers
+            .Where(m => m.ChatRoomId == chatRoomId)
+            .Select(m => m.UserId)
+            .Distinct()
+            .ToListAsync();
+
+        if (recipientIds.Count == 0) return;
+
+        var recipientsToIncrement = recipientIds
+            .Where(id => id != message.UserId)
+            .ToList();
+
+        if (recipientsToIncrement.Count > 0)
+        {
+            var existingCounters = await context.ChatRoomNotifications
+                .Where(n => n.ChatRoomId == chatRoomId && recipientsToIncrement.Contains(n.UserId))
+                .ToListAsync();
+
+            foreach (var userId in recipientsToIncrement)
+            {
+                var counter = existingCounters.FirstOrDefault(n => n.UserId == userId);
+                if (counter is null && userId != null)
+                {
+                    counter = new ChatRoomNotification
+                    {
+                        Id = Guid.NewGuid(),
+                        ChatRoomId = chatRoomId,
+                        UserId = userId,
+                    };
+                    context.ChatRoomNotifications.Add(counter);
+                }
+
+                if (counter != null)
+                {
+                    counter.UnreadCount += 1;
+                    counter.UpdatedAt = DateTime.UtcNow;
+                }
+            }
+
+            await context.SaveChangesAsync();
+        }
+
+        var payload = new
+        {
+            chatRoomId,
+            message,
+        };
+
+        foreach (var userId in recipientIds)
+        {
+            await hubContext.Clients.Group($"user-{userId}")
+                .SendAsync("ChatRoomUpdated", payload);
+        }
+    }
+}

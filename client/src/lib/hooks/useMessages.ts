@@ -1,18 +1,66 @@
 import { useLocalObservable } from "mobx-react-lite";
-import {
-  HubConnection,
-  HubConnectionBuilder,
-  HubConnectionState,
-} from "@microsoft/signalr";
+import { HubConnection } from "@microsoft/signalr";
 import { useEffect, useRef } from "react";
+import { useStore } from "./useStore";
+import notificationsApi from "../api/notifications";
 import type { ChatMessage, PagedList, MessageReaction } from "../types";
+import type { MessagesPayload } from "../types/messagesHook";
 import { runInAction } from "mobx";
 import { toast } from "react-toastify";
-import { router } from "../../app/router/Routes";
 import { calculatePageSizeForMessages } from "../util/util";
+import {
+  connection as messagesConnection,
+  startMessagesHub,
+  joinChatChannel,
+  leaveChatRoom,
+  on as onEvent,
+  off as offEvent,
+  loadMoreMessages as hubLoadMoreMessages,
+} from "../realtime/messagesHub";
 
-export const useMessages = (chatRoomId?: string) => {
+const toPagedPayload = (payload: MessagesPayload) => {
+  if (typeof payload === "object" && payload !== null && "data" in payload) {
+    const obj = payload as {
+      chatRoomId?: string;
+      channelId?: string;
+      data?: PagedList<ChatMessage, Date>;
+    };
+    return {
+      chatRoomId: obj.chatRoomId,
+      channelId: obj.channelId,
+      paged: obj.data ?? { items: [], nextCursor: null as unknown as Date },
+    };
+  }
+
+  return {
+    chatRoomId: undefined,
+    channelId: undefined,
+    paged: payload as PagedList<ChatMessage, Date>,
+  };
+};
+
+export const useMessages = (chatRoomId?: string, channelId?: string) => {
   const created = useRef(false);
+  const { messagesNotificationsStore } = useStore();
+
+  useEffect(() => {
+    if (!chatRoomId) {
+      messagesNotificationsStore.setActiveChatRoom(null);
+      return;
+    }
+
+    const shouldSync = messagesNotificationsStore.setActiveChatRoom(
+      chatRoomId,
+      channelId ?? null
+    );
+    if (shouldSync) {
+      notificationsApi.markChatRoomRead(chatRoomId).catch(() => {});
+    }
+
+    return () => {
+      messagesNotificationsStore.setActiveChatRoom(null);
+    };
+  }, [chatRoomId, channelId, messagesNotificationsStore]);
 
   const messageStore = useLocalObservable(() => ({
     messages: [] as ChatMessage[],
@@ -20,88 +68,99 @@ export const useMessages = (chatRoomId?: string) => {
     hasOlderMessages: false,
     isLoadingOlder: false,
     oldestMessageCursor: null as Date | null,
+    initialLoaded: false,
+    currentChatRoomId: null as string | null,
+    currentChannelId: null as string | null,
+    loadingOlderFor: null as
+      | { chatRoomId: string; channelId: string }
+      | null,
 
-    createHubConnection(chatRoomId: string) {
-      if (!chatRoomId) return;
+    async createHubConnection(roomId: string, channel: string) {
+      if (!roomId || !channel) return;
+
+      await startMessagesHub();
+      this.hubConnection = messagesConnection();
+      this.currentChatRoomId = roomId;
+      this.currentChannelId = channel;
+      this.loadingOlderFor = null;
+      this.messages = [];
+      this.hasOlderMessages = false;
+      this.isLoadingOlder = false;
+      this.oldestMessageCursor = null;
+      this.initialLoaded = false;
+
+      offEvent("LoadMessages");
+      offEvent("ReceiveOlderMessages");
+      offEvent("ChatRoomMessage");
+      offEvent("ReceiveReactionUpdate");
+      offEvent("ReceiveError");
 
       const initialPageSize = calculatePageSizeForMessages();
 
-      this.hubConnection = new HubConnectionBuilder()
-        .withUrl(
-          `${
-            import.meta.env.VITE_MESSAGE_URL
-          }?chatRoomId=${chatRoomId}&initialPageSize=${initialPageSize}`,
-          {
-            withCredentials: true,
-          }
-        )
-        .withAutomaticReconnect()
-        .build();
-
-      this.hubConnection
-        .start()
-        .catch((error) =>
-          console.log("Error establishing connection: ", error)
-        );
-
-      this.hubConnection.onclose((error) => {
-        if (import.meta.env.DEV && error)
-          console.log("Message hub closed:", error);
-        if (error) {
-          toast.error("You are not a member of this chat room");
-          router.navigate("/");
-        }
-      });
-
-      this.hubConnection.on(
-        "LoadMessages",
-        (pagedResult: PagedList<ChatMessage, Date>) => {
-          runInAction(() => {
-            if (this.messages.length > 0) {
-              const existingIds = new Set(this.messages.map((m) => m.id));
-              const toAppend = pagedResult.items.filter(
-                (m) => !existingIds.has(m.id)
-              );
-              if (toAppend.length > 0) {
-                this.messages.push(...toAppend);
-              }
-              this.hasOlderMessages =
-                this.hasOlderMessages || !!pagedResult.nextCursor;
-              if (!this.oldestMessageCursor && pagedResult.nextCursor) {
-                this.oldestMessageCursor = pagedResult.nextCursor;
-              }
-            } else {
-              this.messages = pagedResult.items;
-              this.hasOlderMessages = !!pagedResult.nextCursor;
-              this.oldestMessageCursor = pagedResult.nextCursor;
-            }
-          });
-        }
-      );
-
-      this.hubConnection.on(
-        "ReceiveOlderMessages",
-        (pagedResult: PagedList<ChatMessage, Date>) => {
-          runInAction(() => {
-            this.messages = [...pagedResult.items, ...this.messages];
-            this.hasOlderMessages = !!pagedResult.nextCursor;
-            this.oldestMessageCursor = pagedResult.nextCursor;
-            this.isLoadingOlder = false;
-          });
-        }
-      );
-
-      this.hubConnection.on("ReceiveMessage", (message: ChatMessage) => {
+      onEvent("LoadMessages", (payload: MessagesPayload) => {
         runInAction(() => {
-          this.messages.push(message);
+          const {
+            chatRoomId: targetChatId,
+            channelId: targetChannelId,
+            paged,
+          } = toPagedPayload(payload);
+          if (targetChatId && targetChatId !== this.currentChatRoomId) return;
+          if (targetChannelId && targetChannelId !== this.currentChannelId) return;
+
+          this.messages = paged.items;
+          this.hasOlderMessages = !!paged.nextCursor;
+          this.oldestMessageCursor = paged.nextCursor ?? null;
+          this.initialLoaded = true;
         });
       });
 
-      this.hubConnection.on(
+      onEvent("ReceiveOlderMessages", (payload: MessagesPayload) => {
+        runInAction(() => {
+          const {
+            chatRoomId: targetChatId,
+            channelId: targetChannelId,
+            paged,
+          } = toPagedPayload(payload);
+          if (
+            (targetChatId && targetChatId !== this.currentChatRoomId) ||
+            (targetChannelId && targetChannelId !== this.currentChannelId)
+          ) {
+            if (
+              this.loadingOlderFor &&
+              targetChatId === this.loadingOlderFor.chatRoomId &&
+              targetChannelId === this.loadingOlderFor.channelId
+            ) {
+              this.loadingOlderFor = null;
+            }
+            this.isLoadingOlder = false;
+            return;
+          }
+
+          this.messages = [...paged.items, ...this.messages];
+          this.hasOlderMessages = !!paged.nextCursor;
+          this.oldestMessageCursor = paged.nextCursor ?? null;
+          this.isLoadingOlder = false;
+          this.loadingOlderFor = null;
+        });
+      });
+
+      onEvent("ChatRoomMessage", (message: ChatMessage) => {
+        runInAction(() => {
+          if (!this.initialLoaded) return;
+          if (message.channelId !== this.currentChannelId) return;
+          const exists = this.messages.some((m) => m.id === message.id);
+          if (!exists) {
+            this.messages.push(message);
+          }
+        });
+      });
+
+      onEvent(
         "ReceiveReactionUpdate",
         (update: {
           action: "added" | "removed";
           chatRoomId: string;
+          channelId?: string;
           messageId: string;
           emoji: string;
           userId: string;
@@ -109,6 +168,9 @@ export const useMessages = (chatRoomId?: string) => {
           createdAt?: string | Date;
         }) => {
           runInAction(() => {
+            if (update.chatRoomId !== this.currentChatRoomId) return;
+            if (update.channelId && update.channelId !== this.currentChannelId)
+              return;
             const idx = this.messages.findIndex(
               (m) => m.id === update.messageId
             );
@@ -150,53 +212,81 @@ export const useMessages = (chatRoomId?: string) => {
         }
       );
 
-      this.hubConnection.on(
+      onEvent(
         "ReceiveError",
-        (errorCode: number, message: string) => {
+        (payload: { errorCode: number; message: string }) => {
           runInAction(() => {
             this.isLoadingOlder = false;
+            this.loadingOlderFor = null;
           });
-          if (import.meta.env.DEV) console.log(errorCode, message);
-          toast.error(message);
+          if (import.meta.env.DEV)
+            console.log(payload.errorCode, payload.message);
+          toast.error(payload.message);
         }
       );
+
+      await joinChatChannel(roomId, channel, initialPageSize);
     },
 
     loadOlderMessages() {
       if (!this.hubConnection || !this.hasOlderMessages || this.isLoadingOlder)
         return;
 
-      runInAction(() => {
-        this.isLoadingOlder = true;
-      });
-
       const pageSize = Math.max(
         10,
         Math.floor(calculatePageSizeForMessages() / 2)
       );
 
-      this.hubConnection
-        .invoke(
-          "LoadMoreMessages",
-          chatRoomId,
-          this.oldestMessageCursor,
-          pageSize
-        )
-        .catch((error) => {
-          runInAction(() => {
-            this.isLoadingOlder = false;
-          });
-          console.log("Error loading older messages: ", error);
-          toast.error("Failed to load older messages");
+      const targetRoomId = this.currentChatRoomId ?? chatRoomId;
+      const targetChannelId = this.currentChannelId ?? channelId;
+
+      if (!targetRoomId || !targetChannelId) {
+        runInAction(() => {
+          this.isLoadingOlder = false;
+          this.loadingOlderFor = null;
         });
+        return;
+      }
+
+      runInAction(() => {
+        this.isLoadingOlder = true;
+        this.loadingOlderFor = {
+          chatRoomId: targetRoomId,
+          channelId: targetChannelId,
+        };
+      });
+
+      hubLoadMoreMessages(
+        targetRoomId,
+        targetChannelId,
+        this.oldestMessageCursor,
+        pageSize
+      ).catch((error) => {
+        runInAction(() => {
+          this.isLoadingOlder = false;
+          this.loadingOlderFor = null;
+        });
+        if (import.meta.env.DEV)
+          console.log("Error loading older messages: ", error);
+        toast.error("Failed to load older messages");
+      });
     },
 
     stopHubConnection() {
-      if (this.hubConnection?.state === HubConnectionState.Connected) {
-        this.hubConnection
-          .stop()
-          .catch((error) => console.log("Error stopping connection: ", error));
+      if (this.currentChatRoomId) {
+        leaveChatRoom(this.currentChatRoomId, this.currentChannelId ?? undefined).catch(
+          () => {}
+        );
       }
+      offEvent("LoadMessages");
+      offEvent("ReceiveOlderMessages");
+      offEvent("ChatRoomMessage");
+      offEvent("ReceiveReactionUpdate");
+      offEvent("ReceiveError");
+      this.currentChatRoomId = null;
+      this.currentChannelId = null;
+      this.loadingOlderFor = null;
+      this.initialLoaded = false;
     },
 
     reset() {
@@ -204,21 +294,43 @@ export const useMessages = (chatRoomId?: string) => {
       this.hasOlderMessages = false;
       this.isLoadingOlder = false;
       this.oldestMessageCursor = null;
+      this.initialLoaded = false;
+      this.currentChatRoomId = null;
+      this.currentChannelId = null;
+      this.loadingOlderFor = null;
     },
   }));
 
   useEffect(() => {
-    if (chatRoomId && !created.current) {
-      messageStore.createHubConnection(chatRoomId);
-      created.current = true;
+    if (!chatRoomId || !channelId) {
+      messageStore.stopHubConnection();
+      messageStore.reset();
+      created.current = false;
+      return;
     }
 
+    let cancelled = false;
+
+    messageStore.stopHubConnection();
+
+    const connect = async () => {
+      await messageStore.createHubConnection(chatRoomId, channelId);
+      if (!cancelled) {
+        created.current = true;
+      }
+    };
+
+    connect().catch((error) => {
+      if (import.meta.env.DEV) console.error("Failed to start messages hub", error);
+    });
+
     return () => {
+      cancelled = true;
       messageStore.stopHubConnection();
       messageStore.reset();
       created.current = false;
     };
-  }, [chatRoomId, messageStore]);
+  }, [chatRoomId, channelId, messageStore]);
 
   return {
     messageStore,

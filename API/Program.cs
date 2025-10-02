@@ -1,21 +1,27 @@
+using System.Net;
 using API.Middleware;
+using API.Services;
 using API.SignalR;
+using API.SignalR.EventHandlers;
+using Application.ChatAppearances.Validators;
+using Application.ChatRoomRoles.Validators;
 using Application.ChatRooms.Queries;
 using Application.ChatRooms.Validators;
 using Application.Core;
-using Application.EmojiPreferences.Validators;
 using Application.Development;
+using Application.EmojiPreferences.Validators;
 using Application.Friends.Validators;
+using Application.Initialization;
 using Application.Interfaces;
 using Application.Profiles.Validators;
 using Application.Status.Validators;
 using Domain;
+using Domain.Enums;
 using FluentValidation;
 using Infrastructure.Email;
 using Infrastructure.Media;
 using Infrastructure.Security;
 using Infrastructure.Services;
-using API.Services;
 using Infrastructure.Storage;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -23,10 +29,8 @@ using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Minio;
 using Persistance;
+using Persistance.Security;
 using Resend;
-using Application.ChatRoomRoles.Validators;
-using Domain.Enums;
-using API.SignalR.EventHandlers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,7 +44,31 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
 builder.Services.AddCors();
+builder.Services.AddMemoryCache();
 builder.Services.AddSignalR();
+builder.Services.AddHttpClient<ILinkPreviewService, LinkPreviewService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(5);
+    client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en-US,en;q=0.8");
+}).ConfigurePrimaryHttpMessageHandler(() =>
+{
+    var handler = new HttpClientHandler
+    {
+        AllowAutoRedirect = true,
+        AutomaticDecompression = DecompressionMethods.All,
+        CookieContainer = new CookieContainer()
+    };
+
+    handler.CookieContainer.Add(new Uri("https://www.youtube.com"),
+        new Cookie("CONSENT", "YES+1", "/", ".youtube.com"));
+    handler.CookieContainer.Add(new Uri("https://youtube.com"), new Cookie("CONSENT", "YES+1", "/", ".youtube.com"));
+    handler.CookieContainer.Add(new Uri("https://youtu.be"), new Cookie("CONSENT", "YES+1", "/", ".youtu.be"));
+    handler.CookieContainer.Add(new Uri("https://youtube-nocookie.com"),
+        new Cookie("CONSENT", "YES+1", "/", ".youtube-nocookie.com"));
+    handler.CookieContainer.Add(new Uri("https://google.com"), new Cookie("CONSENT", "YES+1", "/", ".google.com"));
+
+    return handler;
+});
 builder.Services.AddMediatR(x =>
 {
     x.RegisterServicesFromAssemblyContaining<GetChatRoomList.Handler>();
@@ -48,10 +76,7 @@ builder.Services.AddMediatR(x =>
     x.AddOpenBehavior(typeof(ValidationBehavior<,>));
 });
 builder.Services.AddHttpClient<ResendClient>();
-builder.Services.Configure<ResendClientOptions>(opt =>
-{
-    opt.ApiToken = builder.Configuration["Resend:ApiToken"]!;
-});
+builder.Services.Configure<ResendClientOptions>(opt => { opt.ApiToken = builder.Configuration["Resend:ApiToken"]!; });
 builder.Services.AddTransient<IResend, ResendClient>();
 builder.Services.AddTransient<IEmailSender<User>, EmailSender>();
 builder.Services.AddScoped<IUserAccessor, UserAccessor>();
@@ -72,7 +97,7 @@ if (builder.Environment.IsDevelopment())
 }
 else
 {
-    // Azure Blob Storage for production / LEGACY / WE NOT USE MINIO FOR BOTH
+    // Azure Blob Storage for production / LEGACY / WE NOW USE MINIO FOR BOTH
     // builder.Services.AddSingleton(sp =>
     //     new BlobServiceClient(builder.Configuration.GetConnectionString("AzureStorage")));
     // builder.Services.AddScoped<IFileStorage, AzureBlobStorage>();
@@ -87,52 +112,51 @@ else
     );
     builder.Services.AddScoped<IFileStorage, MinioStorage>();
 }
+
 builder.Services.AddScoped<IFriendsNotificationService, FriendsNotificationService>();
 builder.Services.AddScoped<IUserStatusService, UserStatusService>();
+builder.Services.AddSingleton<IVoiceChannelPresenceService, VoiceChannelPresenceService>();
 builder.Services.AddScoped<IStatusNotificationService, StatusNotificationService>();
 builder.Services.AddScoped<IDirectMessagesNotificationService, DirectMessagesNotificationService>();
+builder.Services.AddScoped<IEncryptedDirectMessagesNotificationService, EncryptedDirectMessagesNotificationService>();
+builder.Services.AddScoped<IChatRoomsNotificationService, ChatRoomsNotificationService>();
+builder.Services.AddScoped<IChatAppearanceNotificationService, ChatAppearanceNotificationService>();
 builder.Services.AddAutoMapper(typeof(MappingProfiles).Assembly);
 builder.Services.AddValidatorsFromAssemblyContaining<CreateChatRoomValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<UpdateProfileValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<SendFriendRequestValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<UpdateStatusValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<SetEmojiPreferenceValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<SetChatAppearanceValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<CreateChatRoomRoleValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<UpdateChatRoomRoleValidator>();
 builder.Services.AddTransient<ExceptionMiddleware>();
 builder.Services.AddHostedService<MediaCleanupService>();
 builder.Services.AddIdentityApiEndpoints<User>(opt =>
-{
-    opt.User.RequireUniqueEmail = true;
-    if (builder.Environment.IsProduction())
     {
-        opt.SignIn.RequireConfirmedEmail = true;
-    }
-})
-.AddRoles<IdentityRole>()
-.AddEntityFrameworkStores<AppDbContext>();
+        opt.User.RequireUniqueEmail = true;
+        if (builder.Environment.IsProduction()) opt.SignIn.RequireConfirmedEmail = true;
+    })
+    .AddRoles<IdentityRole>()
+    .AddEntityFrameworkStores<AppDbContext>();
 builder.Services.AddAuthorization(opt =>
 {
-    opt.AddPolicy(IsAdminStrings.IsChatRoomAdmin, policy =>
-    {
-        policy.Requirements.Add(new IsAdminRequirement());
-    });
+    opt.AddPolicy(IsOwnerStrings.IsChatRoomOwner, policy => { policy.Requirements.Add(new IsOwnerRequirement()); });
 
     foreach (var permissionName in ChatRoomPermissions.All.Keys)
-    {
         opt.AddPolicy(permissionName, policy =>
         {
             policy.Requirements.Add(
                 new HasPermissionRequirement(permissionName));
         });
-    }
 });
-builder.Services.AddTransient<IAuthorizationHandler, IsAdminRequirementHandler>();
+builder.Services.AddTransient<IAuthorizationHandler, IsOwnerRequirementHandler>();
 builder.Services.AddTransient<IAuthorizationHandler, HasPermissionRequirementHandler>();
+MessageCrypto.Initialize(builder.Configuration);
 
 var clientAppOrigins = builder.Configuration["ClientAppUrl"]?
     .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-var corsOrigins = (clientAppOrigins is { Length: > 0 })
+var corsOrigins = clientAppOrigins is { Length: > 0 }
     ? clientAppOrigins
     : ["https://localhost:3000"];
 
@@ -155,9 +179,13 @@ app.MapGroup("api").MapIdentityApi<User>();
 app.MapHub<MessageHub>("/messages");
 app.MapHub<FriendsHub>("/friends");
 app.MapHub<DirectMessageHub>("/direct-messages");
+app.MapHub<EncryptedDirectMessageHub>("/encrypted-direct-messages");
+app.MapHub<EncryptedMessageHub>("/encrypted-messages");
 app.MapHub<StatusHub>("/status");
 app.MapHub<ChatRoomRolesHub>("/chatroom-roles");
 app.MapHub<ChatRoomsProfileUpdateHub>("/chatroom-image-update");
+app.MapHub<ChatRoomModerationEventsHub>("/chatroom-moderationevents");
+app.MapHub<VoiceChannelHub>("/voice");
 
 using var scope = app.Services.CreateScope();
 var services = scope.ServiceProvider;
@@ -170,13 +198,14 @@ try
     await context.Database.MigrateAsync();
 
     if (builder.Environment.IsDevelopment())
-    {
         await DbInitializer.SeedData(context, userManager, rolePermissionService, chatRoomRoleService);
-    }
+    
+    await ProductionDbInitializer.SeedData(context, rolePermissionService);
 }
 catch (Exception ex)
 {
     var logger = services.GetRequiredService<ILogger<Program>>();
     logger.LogError(ex, "An error occurred during migration");
 }
+
 app.Run();

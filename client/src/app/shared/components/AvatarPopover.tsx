@@ -32,7 +32,7 @@ export default function AvatarPopover({ profile }: Props) {
           borderColor: "secondary.main",
         }}
         component={Link}
-        to={`/profiles/${profile.id}`}
+        to={`/profiles/${profile.slug}`}
         onMouseEnter={handlePopoverOpen}
         onMouseLeave={handlePopoverClose}
       />

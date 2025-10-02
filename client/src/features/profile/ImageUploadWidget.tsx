@@ -33,10 +33,15 @@ export default function ImageUploadWidget({
   const { setProfileImage } = useProfiles();
 
   const isProfileImage = imageType === "profile";
-  const aspectRatio = isProfileImage ? 1 : 16 / 9;
+  const aspectRatio = isProfileImage ? 1 : 32 / 9;
   const category = isProfileImage
     ? MediaCategory.ProfileImage
     : MediaCategory.ProfileBackground;
+
+  // Track if file is GIF and crop meta for non-destructive crop
+  const isGif = selectedFile?.type === "image/gif";
+  type CropMeta = { cx: number; cy: number; scale: number }; // cx, cy in [0..100], scale >= 1
+  const [gifCrop, setGifCrop] = useState<CropMeta | null>(null);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -44,6 +49,10 @@ export default function ImageUploadWidget({
       setSelectedFile(file);
       const previewUrl = URL.createObjectURL(file);
       setPreview(previewUrl);
+
+      // For GIFs, we will still show Cropper, but won't rasterize.
+      // For non-GIFs, we wait for user to click Crop to produce a canvas crop.
+      setGifCrop(null);
       setCroppedImage(null);
     }
   }, []);
@@ -57,35 +66,95 @@ export default function ImageUploadWidget({
     maxSize: isProfileImage ? 5 * 1024 * 1024 : 25 * 1024 * 1024, // 5MB for profile, 25MB for banner
   });
 
+  // Compute non-destructive crop meta from Cropper
+  const computeGifCropMeta = (): CropMeta | null => {
+    const instance = cropperRef.current?.cropper;
+    if (!instance) return null;
+
+    const data = instance.getData(); // { x, y, width, height }
+    const img = instance.getImageData(); // { naturalWidth, naturalHeight }
+    if (!data || !img || !img.naturalWidth || !img.naturalHeight) return null;
+
+    const iw = img.naturalWidth;
+    const ih = img.naturalHeight;
+    const cw = Math.max(1, data.width);
+    const ch = Math.max(1, data.height);
+    const cx = ((data.x + cw / 2) / iw) * 100; // center X in %
+    const cy = ((data.y + ch / 2) / ih) * 100; // center Y in %
+    const scale = iw / cw; // zoom factor (>= 1 when cropping in)
+
+    return {
+      cx: Math.max(0, Math.min(100, cx)),
+      cy: Math.max(0, Math.min(100, cy)),
+      scale: Math.max(1, scale),
+    };
+  };
+
   const handleCrop = () => {
-    const cropper = cropperRef.current;
-    if (cropper && cropper.cropper) {
-      const croppedDataUrl = cropper.cropper.getCroppedCanvas().toDataURL();
-      setCroppedImage(croppedDataUrl);
+    const instance = cropperRef.current?.cropper;
+    if (!instance) return;
+
+    if (isGif) {
+      // Non-destructive crop: capture crop meta for CSS-based framing
+      const meta = computeGifCropMeta();
+      if (meta) {
+        setGifCrop(meta);
+        // Use original GIF preview for the visual confirmation step
+        setCroppedImage(preview);
+      }
+      return;
     }
+
+    // Raster crop for non-GIFs (as before)
+    const croppedDataUrl = instance.getCroppedCanvas().toDataURL();
+    setCroppedImage(croppedDataUrl);
   };
 
   const handleUpload = async () => {
-    if (!croppedImage) return;
+    if (!selectedFile) return;
 
     try {
-      const res = await fetch(croppedImage);
-      const blob = await res.blob();
-      const file = new File(
-        [blob],
-        selectedFile?.name || `cropped-${imageType}.png`,
-        {
-          type: blob.type,
-        }
-      );
+      let fileToUpload: File | null = null;
+      let mediaUrlOverride: string | null = null;
+
+      if (isGif) {
+        // Upload original GIF to preserve animation
+        fileToUpload = selectedFile;
+
+        // If user applied a crop, append non-destructive crop meta to URL
+        // We encode it into mediaUrl query so no backend schema change is needed.
+        // cx/cy are center in %, s is zoom factor.
+        // Example: https://cdn/.../avatar.gif?cx=45.2&cy=52.7&s=1.35
+      } else {
+        // Upload rasterized cropped image
+        if (!croppedImage) return;
+        const res = await fetch(croppedImage);
+        const blob = await res.blob();
+        fileToUpload = new File(
+          [blob],
+          selectedFile?.name || `cropped-${imageType}.png`,
+          { type: blob.type }
+        );
+      }
+
+      if (!fileToUpload) return;
 
       const uploadResult = await uploadMedia.mutateAsync({
-        file,
+        file: fileToUpload,
         category,
       });
 
+      // Optionally append crop meta for GIFs
+      if (isGif && gifCrop) {
+        const u = new URL(uploadResult.url, window.location.href);
+        u.searchParams.set("cx", gifCrop.cx.toFixed(3));
+        u.searchParams.set("cy", gifCrop.cy.toFixed(3));
+        u.searchParams.set("s", gifCrop.scale.toFixed(4));
+        mediaUrlOverride = u.toString();
+      }
+
       await setProfileImage.mutateAsync({
-        mediaUrl: uploadResult.url,
+        mediaUrl: mediaUrlOverride ?? uploadResult.url,
         publicId: uploadResult.publicId,
         imageType,
         userId: currentUser?.id ?? "",
@@ -101,6 +170,7 @@ export default function ImageUploadWidget({
     setPreview(null);
     setSelectedFile(null);
     setCroppedImage(null);
+    setGifCrop(null);
     if (preview) {
       URL.revokeObjectURL(preview);
     }
@@ -141,7 +211,7 @@ export default function ImageUploadWidget({
           </Typography>
           {!isProfileImage && (
             <Typography variant="caption" display="block" color="primary">
-              Recommended size: 1920 x 1080 pixels
+              Recommended aspect ratio 32:9 (eg. 3840x1080)
             </Typography>
           )}
         </Paper>
@@ -158,7 +228,7 @@ export default function ImageUploadWidget({
           <Cropper
             src={preview}
             style={{
-              height: isProfileImage ? 320 : 400,
+              height: isProfileImage ? 320 : Math.round((700 * 9) / 32),
               width: isProfileImage ? 320 : 700,
               margin: "0 auto",
             }}
@@ -176,7 +246,7 @@ export default function ImageUploadWidget({
               onClick={handleCrop}
               startIcon={<Crop />}
             >
-              Crop
+              {isGif ? "Apply crop" : "Crop"}
             </Button>
             <Button
               variant="outlined"
@@ -190,20 +260,65 @@ export default function ImageUploadWidget({
       ) : (
         <Box textAlign="center">
           {isProfileImage ? (
-            <Avatar
-              src={croppedImage}
+            // For GIFs, show a non-destructive crop preview using CSS background
+            isGif ? (
+              <Box
+                sx={{
+                  width: 200,
+                  height: 200,
+                  mx: "auto",
+                  mb: 2,
+                  borderRadius: "50%",
+                  overflow: "hidden",
+                  border: "1px solid",
+                  borderColor: "grey.300",
+                  backgroundImage: `url(${preview})`,
+                  backgroundRepeat: "no-repeat",
+                  backgroundSize: gifCrop
+                    ? `${(gifCrop.scale * 100).toFixed(3)}% auto`
+                    : "cover",
+                  backgroundPosition: gifCrop
+                    ? `${gifCrop.cx.toFixed(3)}% ${gifCrop.cy.toFixed(3)}%`
+                    : "center",
+                }}
+              />
+            ) : (
+              <Avatar
+                src={croppedImage}
+                sx={{
+                  width: 200,
+                  height: 200,
+                  mx: "auto",
+                  mb: 2,
+                }}
+              />
+            )
+          ) : // Banner preview
+          isGif ? (
+            <Box
               sx={{
-                width: 200,
-                height: 200,
-                mx: "auto",
+                width: "100%",
+                aspectRatio: "32 / 9",
+                borderRadius: 2,
                 mb: 2,
+                border: "1px solid",
+                borderColor: "grey.300",
+                overflow: "hidden",
+                backgroundImage: `url(${preview})`,
+                backgroundRepeat: "no-repeat",
+                backgroundSize: gifCrop
+                  ? `${(gifCrop.scale * 100).toFixed(3)}% auto`
+                  : "cover",
+                backgroundPosition: gifCrop
+                  ? `${gifCrop.cx.toFixed(3)}% ${gifCrop.cy.toFixed(3)}%`
+                  : "center",
               }}
             />
           ) : (
             <Box
               sx={{
                 width: "100%",
-                height: 200,
+                aspectRatio: "32 / 9",
                 backgroundImage: `url(${croppedImage})`,
                 backgroundSize: "cover",
                 backgroundPosition: "center",
@@ -214,11 +329,24 @@ export default function ImageUploadWidget({
               }}
             />
           )}
+
+          {isGif && (
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              display="block"
+              sx={{ mb: 1 }}
+            >
+              Animated GIFs are uploaded as-is. The crop is applied visually so
+              the full animation plays.
+            </Typography>
+          )}
+
           <Box display="flex" gap={2} justifyContent="center">
             <Button
               variant="contained"
               onClick={handleUpload}
-              disabled={isUploading}
+              disabled={isUploading || (isGif && !gifCrop)}
               startIcon={
                 isUploading ? <CircularProgress size={20} /> : <CloudUpload />
               }

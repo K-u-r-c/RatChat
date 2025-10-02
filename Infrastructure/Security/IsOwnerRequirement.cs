@@ -7,12 +7,12 @@ using Persistance;
 
 namespace Infrastructure.Security;
 
-public class IsAdminRequirement : IAuthorizationRequirement { }
+public class IsOwnerRequirement : IAuthorizationRequirement { }
 
-public class IsAdminRequirementHandler(AppDbContext dbContext, IHttpContextAccessor httpContextAccessor)
-    : AuthorizationHandler<IsAdminRequirement>
+public class IsOwnerRequirementHandler(AppDbContext dbContext, IHttpContextAccessor httpContextAccessor)
+    : AuthorizationHandler<IsOwnerRequirement>
 {
-    protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, IsAdminRequirement requirement)
+    protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, IsOwnerRequirement requirement)
     {
         var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (userId == null) return;

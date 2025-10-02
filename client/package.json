@@ -10,6 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.1.0",
+    "@dnd-kit/modifiers": "^6.0.0",
+    "@dnd-kit/sortable": "^9.0.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@fontsource/roboto": "^5.2.5",
@@ -24,6 +27,7 @@
     "linkify-react": "^4.3.2",
     "linkifyjs": "^4.3.2",
     "mobx-react-lite": "^4.1.0",
+    "posthog-js": "^1.268.1",
     "react": "^19.1.0",
     "react-cropper": "^2.3.3",
     "react-dom": "^19.1.0",

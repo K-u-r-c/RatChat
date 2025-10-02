@@ -1,3 +1,7 @@
+using API.SignalR;
+using Application.ChatRoomRoles.Commands;
+using Application.ChatRoomRoles.DTOs;
+using Application.ChatRoomRoles.Queries;
 using Application.ChatRooms.Commands;
 using Application.ChatRooms.DTOs;
 using Application.ChatRooms.Queries;
@@ -7,10 +11,13 @@ using Infrastructure.Security;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 
 namespace API.Controllers;
 
-public class ChatRoomsController : BaseApiController
+public class ChatRoomsController(
+    IHubContext<ChatRoomRolesHub> rolesContext,
+    IHubContext<ChatRoomModerationEventsHub> moderationEventsContext) : BaseApiController
 {
     [HttpGet]
     public async Task<ActionResult<PagedList<ChatRoomDto, DateTime?>>> GetChatRooms(
@@ -30,7 +37,7 @@ public class ChatRoomsController : BaseApiController
     }
 
     [HttpPost]
-    public async Task<ActionResult<string>> CreateChatRoom(CreateChatRoomDto createChatRoomDto)
+    public async Task<ActionResult<ChatRoomIdentifierDto>> CreateChatRoom(CreateChatRoomDto createChatRoomDto)
     {
         return HandleResult(
             await Mediator.Send(
@@ -43,7 +50,7 @@ public class ChatRoomsController : BaseApiController
     }
 
     [HttpPut("{id}")]
-    [Authorize(Policy = IsAdminStrings.IsChatRoomAdmin)]
+    [Authorize(Policy = IsOwnerStrings.IsChatRoomOwner)]
     public async Task<ActionResult<Unit>> UpdateChatRoom(string id, EditChatRoomDto chatRoomDto)
     {
         chatRoomDto.Id = id;
@@ -53,7 +60,7 @@ public class ChatRoomsController : BaseApiController
     }
 
     [HttpPut("{id}/image")]
-    [Authorize(Policy = IsAdminStrings.IsChatRoomAdmin)]
+    [Authorize(Policy = IsOwnerStrings.IsChatRoomOwner)]
     public async Task<ActionResult<Unit>> UpdateChatRoomImage(string id, SetChatRoomImageDto setChatRoomImageDto)
     {
         setChatRoomImageDto.Id = id;
@@ -65,7 +72,7 @@ public class ChatRoomsController : BaseApiController
     }
 
     [HttpDelete("{id}/image")]
-    [Authorize(Policy = IsAdminStrings.IsChatRoomAdmin)]
+    [Authorize(Policy = IsOwnerStrings.IsChatRoomOwner)]
     public async Task<ActionResult<Unit>> DeleteChatRoomImage(string id)
     {
         return HandleResult(
@@ -74,14 +81,14 @@ public class ChatRoomsController : BaseApiController
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Policy = IsAdminStrings.IsChatRoomAdmin)]
+    [Authorize(Policy = IsOwnerStrings.IsChatRoomOwner)]
     public async Task<ActionResult<Unit>> DeleteChatRoom(string id)
     {
         return HandleResult(await Mediator.Send(new DeleteChatRoom.Command { Id = id }));
     }
 
     [HttpPost("{id}/{token}/join")]
-    public async Task<ActionResult<Unit>> JoinChatRoom(string id, string token)
+    public async Task<ActionResult<ChatRoomIdentifierDto>> JoinChatRoom(string id, string token)
     {
         return HandleResult(await Mediator.Send(
             new JoinChatRoom.Command
@@ -100,9 +107,12 @@ public class ChatRoomsController : BaseApiController
 
     [HttpPost("{id}/generateInviteLink")]
     [Authorize(Policy = ChatRoomPermissions.CreateInviteLinks)]
-    public async Task<ActionResult<string>> GenerateInviteLink(string id)
+    public async Task<ActionResult<string>> GenerateInviteLink(string id,
+        [FromBody] GenerateInviteLink.Command? command)
     {
-        return HandleResult(await Mediator.Send(new GenerateInviteLink.Command { Id = id }));
+        GenerateInviteLink.Command resolvedCommand = command ?? new GenerateInviteLink.Command { Id = id };
+        resolvedCommand.Id = id;
+        return HandleResult(await Mediator.Send(resolvedCommand));
     }
 
     [HttpPost("{id}/invites")]
@@ -111,5 +121,223 @@ public class ChatRoomsController : BaseApiController
     {
         command.Id = id;
         return HandleResult(await Mediator.Send(command));
+    }
+
+    [HttpPost("{id}/kick/{user_id}")]
+    [Authorize(Policy = ChatRoomPermissions.KickFromChatRoom)]
+    public async Task<ActionResult<string>> KickChatRoomUser(string id, string user_id)
+    {
+        var result = await Mediator.Send(
+            new KickUser.Command
+            {
+                ChatRoomId = id,
+                UserId = user_id
+            }
+        );
+
+        if (result.IsSuccess) await moderationEventsContext.Clients.Group(id).SendAsync("UserKicked", result.Value);
+
+        return HandleResult(result);
+    }
+
+    [HttpPost("{id}/ban/{user_id}")]
+    [Authorize(Policy = ChatRoomPermissions.BanFromChatRoom)]
+    public async Task<ActionResult<Unit>> BanChatRoomUser(string id, string user_id)
+    {
+        var result = await Mediator.Send(
+            new BanUser.Command
+            {
+                ChatRoomBanDto = new ChatRoomBanDto
+                {
+                    UserId = user_id,
+                    ChatRoomId = id,
+                    DateBanned = DateTime.UtcNow
+                }
+            }
+        );
+
+        if (result.IsSuccess) await moderationEventsContext.Clients.Group(id).SendAsync("UserBanned", result.Value);
+
+        return HandleResult(result);
+    }
+
+    [HttpPost("{id}/unban/{user_id}")]
+    [Authorize(Policy = ChatRoomPermissions.UnbanFromChatRoom)]
+    public async Task<ActionResult<Unit>> UnbanChatRoomUser(string id, string user_id)
+    {
+        var result = await Mediator.Send(
+            new UnbanUser.Command
+            {
+                ChatRoomBanDto = new ChatRoomBanDto
+                {
+                    UserId = user_id,
+                    ChatRoomId = id
+                }
+            }
+        );
+
+        if (result.IsSuccess) await moderationEventsContext.Clients.Group(id).SendAsync("UserUnbanned", result.Value);
+
+        return HandleResult(result);
+    }
+
+    [HttpGet("roles")]
+    [Authorize(Policy = ChatRoomPermissions.ViewChatRoom)]
+    public async Task<ActionResult<List<ChatRoomRoleDto>>> GetRoles(
+        [FromQuery] string chatRoomId)
+    {
+        var result = await Mediator.Send(
+            new GetChatRoomRoles.Query { ChatRoomId = chatRoomId });
+
+
+        return HandleResult(result);
+    }
+
+    [HttpGet("users-roles")]
+    [Authorize(Policy = ChatRoomPermissions.ViewChatRoom)]
+    public async Task<ActionResult<Dictionary<string, List<ChatRoomRoleDto>>>> GetUsersRoles(
+        [FromQuery] string chatRoomId)
+    {
+        var result = await Mediator.Send(
+            new GetUsersChatRoomRoles.Query { ChatRoomId = chatRoomId }
+        );
+
+        return HandleResult(result);
+    }
+
+    [HttpGet("user-permissions")]
+    [Authorize(Policy = ChatRoomPermissions.ViewChatRoom)]
+    public async Task<ActionResult<UserPermissionsDto>> GetUserPermissions(
+        [FromQuery] string chatRoomId,
+        [FromQuery] string userId)
+    {
+        var result = await Mediator.Send(
+            new GetUserPermissions.Query
+            {
+                ChatRoomId = chatRoomId,
+                UserId = userId
+            });
+
+        return HandleResult(result);
+    }
+
+    [HttpPost("role")]
+    [Authorize(Policy = ChatRoomPermissions.ManageChatRoomRoles)]
+    public async Task<ActionResult<Unit>> CreateRole(
+        [FromQuery] string chatRoomId,
+        [FromBody] CreateChatRoomRoleDto dto)
+    {
+        if (chatRoomId != dto.ChatRoomId) return HandleResult(Result<Unit>.Failure("Wrong query data", 404));
+
+        var result = await Mediator.Send(
+            new CreateChatRoomRole.Command { CreateChatRoomRoleDto = dto }
+        );
+
+        if (result.IsSuccess) await rolesContext.Clients.Group(chatRoomId).SendAsync("RoleCreated", result.Value);
+
+        return HandleResult(result);
+    }
+
+    [HttpPut("role")]
+    [Authorize(Policy = ChatRoomPermissions.ManageChatRoomRoles)]
+    public async Task<ActionResult<Unit>> UpdateRole(
+        [FromQuery] string chatRoomId,
+        [FromBody] UpdateChatRoomRoleDto dto)
+    {
+        if (chatRoomId is "" or null) return HandleResult(Result<Unit>.Failure("Wrong query data", 404));
+
+        var result = await Mediator.Send(
+            new UpdateChatRoomRole.Command { UpdateChatRoomRoleDto = dto });
+
+        if (result.IsSuccess)
+            await rolesContext.Clients.Group(result.Value!.ChatRoomId)
+                .SendAsync("RoleUpdated", result.Value);
+
+        return HandleResult(result);
+    }
+
+    [HttpPost("{id}/roles/reorder")]
+    [Authorize(Policy = IsOwnerStrings.IsChatRoomOwner)]
+    public async Task<ActionResult<List<ChatRoomRoleDto>>> ReorderRoles(
+        string id,
+        [FromBody] ReorderChatRoomRolesDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(id) || id != dto.ChatRoomId)
+            return HandleResult(Result<List<ChatRoomRoleDto>>.Failure("Wrong query data", 404));
+
+        var result = await Mediator.Send(
+            new ReorderChatRoomRoles.Command { Dto = dto });
+
+        if (result.IsSuccess && result.Value != null)
+            await rolesContext.Clients.Group(id).SendAsync("RolesReordered", result.Value);
+
+        return HandleResult(result);
+    }
+
+
+    [HttpDelete("role")]
+    [Authorize(Policy = ChatRoomPermissions.ManageChatRoomRoles)]
+    public async Task<ActionResult<Unit>> DeleteRole(
+        [FromQuery] string roleId,
+        [FromQuery] string chatRoomId)
+    {
+        var result = await Mediator.Send(
+            new DeleteChatRoomRole.Command { ChatRoomRoleId = roleId });
+
+        if (result.IsSuccess) await rolesContext.Clients.Group(chatRoomId).SendAsync("RoleDeleted", roleId);
+
+        return HandleResult(result);
+    }
+
+
+    [HttpPost("assign-role")]
+    [Authorize(Policy = ChatRoomPermissions.ManageChatRoomRoles)]
+    public async Task<ActionResult<Unit>> AssignRole(
+        [FromQuery] string chatRoomId,
+        [FromBody] AssignChatRoomRoleDto dto)
+    {
+        if (chatRoomId is "" or null) return HandleResult(Result<Unit>.Failure("Wrong query data", 404));
+
+        var result = await Mediator.Send(
+            new AssignChatRoomRole.Command { AssignChatRoomRoleDto = dto });
+
+        if (result.IsSuccess) await rolesContext.Clients.Group(dto.ChatRoomId).SendAsync("RoleAssigned", result.Value);
+
+        return HandleResult(result);
+    }
+
+    [HttpPost("unassign-role")]
+    [Authorize(Policy = ChatRoomPermissions.ManageChatRoomRoles)]
+    public async Task<ActionResult<Unit>> UnassignRole(
+        [FromQuery] string chatRoomId,
+        [FromBody] UnassignChatRoomRoleDto dto)
+    {
+        if (chatRoomId is "" or null) return HandleResult(Result<Unit>.Failure("Wrong query data", 404));
+
+        var result = await Mediator.Send(
+            new UnassignChatRoomRole.Command { UnassignChatRoomRoleDto = dto });
+
+        if (result.IsSuccess)
+            await rolesContext.Clients.Group(dto.ChatRoomId).SendAsync("RoleUnassigned", result.Value);
+
+        return HandleResult(result);
+    }
+
+    [HttpPost("member-display-role")]
+    [Authorize(Policy = ChatRoomPermissions.ManageChatRoomRoles)]
+    public async Task<ActionResult<MemberDisplayRoleDto>> SetMemberDisplayRole(
+        [FromQuery] string chatRoomId,
+        [FromBody] SetMemberDisplayRoleDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(chatRoomId) || chatRoomId != dto.ChatRoomId)
+            return HandleResult(Result<MemberDisplayRoleDto>.Failure("Wrong query data", 404));
+
+        var result = await Mediator.Send(new SetMemberDisplayRole.Command { Dto = dto });
+
+        if (result.IsSuccess)
+            await rolesContext.Clients.Group(dto.ChatRoomId)
+                .SendAsync("MemberDisplayRoleChanged", result.Value);
+
+        return HandleResult(result);
     }
 }

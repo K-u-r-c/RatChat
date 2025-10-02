@@ -26,6 +26,7 @@ public class GetFriends
                 {
                     Id = uf.Friend.Id,
                     DisplayName = uf.Friend.DisplayName ?? "",
+                    Slug = uf.Friend.Slug,
                     Bio = uf.Friend.Bio,
                     ImageUrl = uf.Friend.ImageUrl,
                     BannerUrl = uf.Friend.BannerUrl,

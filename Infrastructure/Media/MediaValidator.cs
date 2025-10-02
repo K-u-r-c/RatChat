@@ -19,6 +19,12 @@ public class MediaValidator : IMediaValidator
             MaxFileSize = 25 * 1024 * 1024, // 25MB
             AllowedExtensions = [".jpg", ".jpeg", ".png", ".gif", ".webp"]
         },
+        [MediaCategory.ChatBackground] = new MediaConfig
+        {
+            AllowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"],
+            MaxFileSize = 25 * 1024 * 1024, // 25MB
+            AllowedExtensions = [".jpg", ".jpeg", ".png", ".gif", ".webp"]
+        },
         [MediaCategory.ChatRoomImage] = new MediaConfig
         {
             AllowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "image/bmp", "image/tiff", "image/svg+xml"],
@@ -185,6 +191,7 @@ public class MediaValidator : IMediaValidator
         {
             MediaCategory.ProfileImage => "Profile Image",
             MediaCategory.ProfileBackground => "Profile Background",
+            MediaCategory.ChatBackground => "Chat Background",
             MediaCategory.ChatRoomImage => "Image",
             MediaCategory.ChatRoomVideo => "Video",
             MediaCategory.ChatRoomAudio => "Audio",

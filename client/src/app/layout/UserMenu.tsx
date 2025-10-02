@@ -1,4 +1,4 @@
-import { Box, Divider, ListItemIcon, ListItemText } from "@mui/material";
+﻿import { Box, Divider, ListItemIcon, ListItemText } from "@mui/material";
 import Button from "@mui/material/Button";
 import Menu from "@mui/material/Menu";
 import Grow from "@mui/material/Grow";
@@ -71,7 +71,7 @@ export default function UserMenu() {
         {/* Create chat room moved to sidebar */}
         <MenuItem
           component={Link}
-          to={`/profiles/${currentUser?.id}`}
+          to={`/profiles/${currentUser?.slug}`}
           onClick={handleClose}
         >
           <ListItemIcon>
@@ -82,7 +82,7 @@ export default function UserMenu() {
         {currentUser?.hasPassword && (
           <MenuItem
             component={Link}
-            to={"/change-password"}
+            to={currentUser ? `/profiles/${currentUser.slug}#password` : "/"}
             onClick={handleClose}
           >
             <ListItemIcon>

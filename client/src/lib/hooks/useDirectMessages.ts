@@ -1,4 +1,5 @@
 import { useLocalObservable } from "mobx-react-lite";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   HubConnection,
   HubConnectionBuilder,
@@ -9,9 +10,16 @@ import type { DirectMessage, MessageReaction, PagedList } from "../types";
 import { runInAction } from "mobx";
 import { toast } from "react-toastify";
 import { calculatePageSizeForMessages } from "../util/util";
+import notificationsApi from "../api/notifications";
+import { useStore } from "./useStore";
+import { useAccount } from "./useAccount";
 
 export const useDirectMessages = (directChatId?: string) => {
-  const created = useRef(false);
+  const queryClient = useQueryClient();
+  const { messagesNotificationsStore } = useStore();
+  const { currentUser } = useAccount();
+  const currentUserIdRef = useRef<string | undefined>(undefined);
+  currentUserIdRef.current = currentUser?.id;
 
   const directMessageStore = useLocalObservable(() => ({
     messages: [] as DirectMessage[],
@@ -19,9 +27,23 @@ export const useDirectMessages = (directChatId?: string) => {
     hasOlderMessages: false,
     isLoadingOlder: false,
     oldestMessageCursor: null as Date | null,
+    currentChatId: null as string | null,
 
-    createHubConnection(directChatId: string) {
+    async createHubConnection(directChatId: string) {
       if (!directChatId) return;
+
+      if (
+        this.hubConnection &&
+        this.currentChatId === directChatId &&
+        this.hubConnection.state !== HubConnectionState.Disconnected
+      ) {
+        return;
+      }
+
+      if (this.hubConnection) {
+        await this.hubConnection.stop().catch(() => {});
+        this.hubConnection = null;
+      }
 
       const initialPageSize = calculatePageSizeForMessages();
 
@@ -38,32 +60,40 @@ export const useDirectMessages = (directChatId?: string) => {
         .withAutomaticReconnect()
         .build();
 
-      this.hubConnection
-        .start()
-        .catch((error) =>
-          console.log("Error establishing direct message connection: ", error)
-        );
+      this.currentChatId = directChatId;
+
+      this.hubConnection.start().catch((error) => {
+        const isNegotiationAbort =
+          error instanceof Error &&
+          typeof error.message === "string" &&
+          error.message.includes("stopped during negotiation");
+
+        if (!isNegotiationAbort && import.meta.env.DEV) {
+          console.log("Error establishing direct message connection: ", error);
+        }
+
+        if (!isNegotiationAbort) {
+          this.hubConnection?.stop().catch(() => {});
+          this.hubConnection = null;
+          this.currentChatId = null;
+        }
+      });
 
       this.hubConnection.on(
         "LoadDirectMessages",
         (pagedResult: PagedList<DirectMessage, Date>) => {
           runInAction(() => {
-            if (this.messages.length > 0) {
-              const existingIds = new Set(this.messages.map((m) => m.id));
-              const toAppend = pagedResult.items.filter(
-                (m) => !existingIds.has(m.id)
-              );
-              if (toAppend.length > 0) {
-                this.messages.push(...toAppend);
-              }
-              this.hasOlderMessages =
-                this.hasOlderMessages || !!pagedResult.nextCursor;
-              if (!this.oldestMessageCursor && pagedResult.nextCursor) {
-                this.oldestMessageCursor = pagedResult.nextCursor;
-              }
-            } else {
+            const existingIds = new Set(this.messages.map((m) => m.id));
+            const merged = pagedResult.items.filter(
+              (m) => !existingIds.has(m.id)
+            );
+            if (this.messages.length === 0) {
               this.messages = pagedResult.items;
-              this.hasOlderMessages = !!pagedResult.nextCursor;
+            } else if (merged.length > 0) {
+              this.messages.push(...merged);
+            }
+            this.hasOlderMessages = !!pagedResult.nextCursor;
+            if (pagedResult.nextCursor) {
               this.oldestMessageCursor = pagedResult.nextCursor;
             }
           });
@@ -74,7 +104,11 @@ export const useDirectMessages = (directChatId?: string) => {
         "ReceiveOlderDirectMessages",
         (pagedResult: PagedList<DirectMessage, Date>) => {
           runInAction(() => {
-            this.messages = [...pagedResult.items, ...this.messages];
+            const existingIds = new Set(this.messages.map((m) => m.id));
+            const merged = pagedResult.items.filter(
+              (m) => !existingIds.has(m.id)
+            );
+            this.messages = [...merged, ...this.messages];
             this.hasOlderMessages = !!pagedResult.nextCursor;
             this.oldestMessageCursor = pagedResult.nextCursor;
             this.isLoadingOlder = false;
@@ -86,8 +120,21 @@ export const useDirectMessages = (directChatId?: string) => {
         "ReceiveDirectMessage",
         (message: DirectMessage) => {
           runInAction(() => {
-            this.messages.push(message);
+            const existingIndex = this.messages.findIndex(
+              (m) => m.id === message.id
+            );
+            if (existingIndex === -1) {
+              this.messages.push(message);
+            } else {
+              this.messages[existingIndex] = message;
+            }
           });
+
+          const cleared =
+            messagesNotificationsStore.markDirectChatRead(directChatId);
+          if (cleared) {
+            notificationsApi.markDirectChatRead(directChatId).catch(() => {});
+          }
         }
       );
 
@@ -139,6 +186,52 @@ export const useDirectMessages = (directChatId?: string) => {
       );
 
       this.hubConnection.on(
+        "ChatAppearanceUpdated",
+        (payload: {
+          chatType?: string;
+          chatId?: string;
+          defaultEmoji?: string;
+          backgroundKey?: string;
+          backgroundCustomUrl?: string | null;
+          backgroundCustomPublicId?: string | null;
+          updatedAt?: string;
+          updatedByUserId?: string;
+        }) => {
+          if (!payload?.chatType || !payload?.chatId) return;
+
+          queryClient.setQueryData(
+            ["chat-appearance", payload.chatType, payload.chatId],
+            (prev) => ({
+              id: (prev as { id?: string })?.id ?? "",
+              chatType: payload.chatType!,
+              chatId: payload.chatId!,
+              defaultEmoji:
+                payload.defaultEmoji ??
+                (prev as { defaultEmoji?: string })?.defaultEmoji ??
+                "\u{1F44D}",
+              backgroundKey:
+                payload.backgroundKey ??
+                (prev as { backgroundKey?: string })?.backgroundKey ??
+                "default",
+              backgroundCustomUrl:
+                payload.backgroundCustomUrl ??
+                (prev as { backgroundCustomUrl?: string | null })?.backgroundCustomUrl ??
+                null,
+              backgroundCustomPublicId:
+                payload.backgroundCustomPublicId ??
+                (prev as { backgroundCustomPublicId?: string | null })?.backgroundCustomPublicId ??
+                null,
+              updatedAt: payload.updatedAt ?? new Date().toISOString(),
+              updatedByUserId:
+                payload.updatedByUserId ??
+                (prev as { updatedByUserId?: string | undefined })
+                  ?.updatedByUserId,
+            })
+          );
+        }
+      );
+
+      this.hubConnection.on(
         "ReceiveError",
         (errorCode: number, message: string) => {
           runInAction(() => {
@@ -174,17 +267,19 @@ export const useDirectMessages = (directChatId?: string) => {
           runInAction(() => {
             this.isLoadingOlder = false;
           });
-          console.log("Error loading older direct messages: ", error);
+          if (import.meta.env.DEV)
+            console.log("Error loading older messages: ", error);
           toast.error("Failed to load older messages");
         });
     },
 
-    stopHubConnection() {
-      if (this.hubConnection?.state === HubConnectionState.Connected) {
-        this.hubConnection
-          .stop()
-          .catch((error) => console.log("Error stopping connection: ", error));
+    async stopHubConnection() {
+      if (this.hubConnection) {
+        const connection = this.hubConnection;
+        this.hubConnection = null;
+        await connection.stop().catch(() => {});
       }
+      this.currentChatId = null;
     },
 
     reset() {
@@ -196,16 +291,31 @@ export const useDirectMessages = (directChatId?: string) => {
   }));
 
   useEffect(() => {
-    if (directChatId && !created.current) {
-      directMessageStore.createHubConnection(directChatId);
-      created.current = true;
+    if (!directChatId) {
+      directMessageStore.stopHubConnection();
+      directMessageStore.reset();
+      return;
+    }
+
+    directMessageStore.createHubConnection(directChatId).catch(() => {});
+  }, [directChatId, directMessageStore]);
+
+  useEffect(() => {
+    if (!directChatId) {
+      messagesNotificationsStore.setActiveDirectChat(null);
+      return;
+    }
+
+    const shouldSync =
+      messagesNotificationsStore.setActiveDirectChat(directChatId);
+    if (shouldSync) {
+      notificationsApi.markDirectChatRead(directChatId).catch(() => {});
     }
 
     return () => {
-      directMessageStore.stopHubConnection();
-      directMessageStore.reset();
+      messagesNotificationsStore.setActiveDirectChat(null);
     };
-  }, [directChatId, directMessageStore]);
+  }, [directChatId, messagesNotificationsStore]);
 
   return {
     directMessageStore,

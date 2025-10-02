@@ -1,14 +1,17 @@
 import { Link } from "react-router";
 import { Avatar, Box, Typography } from "@mui/material";
 import type { Profile } from "../../../lib/types";
+import { formatUserTag } from "../../../lib/util/util";
 
 type Props = {
   profile: Profile;
 };
 
 export default function ProfileCard({ profile }: Props) {
+  const formattedTag = formatUserTag(profile.tag);
+
   return (
-    <Link to={`/profiles/${profile.id}`} style={{ textDecoration: "none" }}>
+    <Link to={`/profiles/${profile.slug}`} style={{ textDecoration: "none" }}>
       <Box
         sx={{
           width: 340,
@@ -44,16 +47,27 @@ export default function ProfileCard({ profile }: Props) {
             <Typography variant="h5" fontWeight="bold" color="white">
               {profile.displayName}
             </Typography>
+            {formattedTag && (
+              <Typography
+                variant="subtitle2"
+                color="white"
+                sx={{ opacity: 0.9 }}
+              >
+                #{formattedTag}
+              </Typography>
+            )}
             {profile.bio && (
               <Typography
                 variant="body2"
                 color="white"
-                noWrap
                 sx={{
-                  maxWidth: 200,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
+                  mt: 0.75,
+                  maxWidth: 220,
                   opacity: 0.85,
+                  display: "-webkit-box",
+                  WebkitLineClamp: 3,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
                 }}
               >
                 {profile.bio}

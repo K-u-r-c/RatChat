@@ -1,19 +1,18 @@
-import {
-  Box,
-  Avatar,
-  CircularProgress,
-  IconButton,
-  Tooltip,
-} from "@mui/material";
-import { Forum, Add, ExpandLess, ExpandMore } from "@mui/icons-material";
-import { NavLink } from "react-router";
-import { NAV_WIDTH } from "../../../lib/types/constants";
-import UserMenuIcon from "../UserMenuIcon";
-import { useEffect, useRef, useState } from "react";
-import { useChatRooms } from "../../../lib/hooks/useChatRooms";
-import { useStore } from "../../../lib/hooks/useStore";
+import {Avatar, Badge, Box, CircularProgress, IconButton, Tooltip,} from "@mui/material";
+import {Add, ExpandLess, ExpandMore, Forum} from "@mui/icons-material";
+import {NavLink} from "react-router";
+import {NAV_WIDTH} from "../../../lib/types/constants";
+import {useEffect, useRef, useState} from "react";
+import {observer} from "mobx-react-lite";
+import {useChatRooms} from "../../../lib/hooks/useChatRooms";
+import {useStore} from "../../../lib/hooks/useStore";
+import {useFriends} from "../../../lib/hooks/useFriends";
+import {useAccount} from "../../../lib/hooks/useAccount";
+import {useVoiceChannel} from "../../../lib/hooks/useVoiceChannel";
+import {BASE_USER_ACTION_RIBBON_HEIGHT, VOICE_CARD_EXTRA_HEIGHT} from "../UserActionRibbon";
+import {buildGifBackgroundStyles, parseGifCropFromUrl,} from "../../../features/chatRooms/utils/gifCrop";
 
-export default function SideNav() {
+const SideNav = observer(function SideNav() {
   const {
     chatRooms,
     isLoading,
@@ -21,7 +20,7 @@ export default function SideNav() {
     hasNextPage,
     isFetchingNextPage,
   } = useChatRooms();
-  const { uiStore } = useStore();
+  const {uiStore, messagesNotificationsStore} = useStore();
   const listRef = useRef<HTMLDivElement | null>(null);
   const [hasAbove, setHasAbove] = useState(false);
   const [hasBelow, setHasBelow] = useState(false);
@@ -29,7 +28,7 @@ export default function SideNav() {
   const updateScrollIndicators = () => {
     const el = listRef.current;
     if (!el) return;
-    const { scrollTop, clientHeight, scrollHeight } = el;
+    const {scrollTop, clientHeight, scrollHeight} = el;
     setHasAbove(scrollTop > 0);
     setHasBelow(scrollTop + clientHeight < scrollHeight - 1);
   };
@@ -52,7 +51,7 @@ export default function SideNav() {
         hasNextPage &&
         !isFetchingNextPage &&
         el.clientHeight >= el.scrollHeight
-      ) {
+        ) {
         try {
           await fetchNextPage();
           await new Promise((r) => setTimeout(r, 50));
@@ -73,7 +72,7 @@ export default function SideNav() {
   useEffect(() => {
     const handleScroll = () => {
       if (listRef.current) {
-        const { scrollTop, clientHeight, scrollHeight } = listRef.current;
+        const {scrollTop, clientHeight, scrollHeight} = listRef.current;
         if (scrollTop + clientHeight >= scrollHeight - 10 && hasNextPage) {
           fetchNextPage();
         }
@@ -92,6 +91,18 @@ export default function SideNav() {
     };
   }, [fetchNextPage, hasNextPage]);
 
+  const directUnreadCount = messagesNotificationsStore.totalDirectUnread;
+  const encryptedDirectUnreadCount =
+    messagesNotificationsStore.totalEncryptedDirectUnread;
+  const totalDirectBadgeCount = directUnreadCount + encryptedDirectUnreadCount;
+  const {friendRequests} = useFriends();
+  const {currentUser} = useAccount();
+  const voice = useVoiceChannel(undefined, currentUser?.id);
+  const isVoiceConnected = Boolean(voice.currentChannelId);
+
+  const friendInvitesCount = friendRequests?.received?.length || 0;
+  const navPaddingBottom = `${BASE_USER_ACTION_RIBBON_HEIGHT + (isVoiceConnected ? VOICE_CARD_EXTRA_HEIGHT : 0)}px`;
+
   return (
     <Box
       component="nav"
@@ -103,11 +114,12 @@ export default function SideNav() {
         height: "100vh",
         position: "sticky",
         top: 0,
-        display: { xs: "none", sm: "flex" },
+        display: {xs: "none", sm: "flex"},
         flexDirection: "column",
         alignItems: "center",
         gap: 1,
-        py: 1.5,
+        pt: 1.5,
+        pb: navPaddingBottom,
       }}
     >
       {/* Direct Messages entry */}
@@ -127,15 +139,52 @@ export default function SideNav() {
           }}
           className="rc-server-btn"
         >
-          <Forum />
+          {/* Green top-left badge for friend invites */}
+          <Badge
+            color="success"
+            overlap="rectangular"
+            anchorOrigin={{vertical: "top", horizontal: "left"}}
+            badgeContent={friendInvitesCount}
+            invisible={!friendInvitesCount}
+            max={99}
+            sx={{
+              "& .MuiBadge-badge": {
+                fontSize: 11,
+                fontWeight: 700,
+                minWidth: 20,
+                height: 20,
+                borderRadius: "999px",
+              },
+            }}
+          >
+            {/* Red top-right badge for unread direct messages */}
+            <Badge
+              color="error"
+              overlap="rectangular"
+              badgeContent={totalDirectBadgeCount}
+              invisible={!totalDirectBadgeCount}
+              max={99}
+              sx={{
+                "& .MuiBadge-badge": {
+                  fontSize: 11,
+                  fontWeight: 700,
+                  minWidth: 20,
+                  height: 20,
+                  borderRadius: "999px",
+                },
+              }}
+            >
+              <Forum/>
+            </Badge>
+          </Badge>
         </IconButton>
       </Tooltip>
 
       {/* Separator */}
-      <Box sx={{ width: 36, height: 2, bgcolor: "divider", my: 1 }} />
+      <Box sx={{width: 36, height: 2, bgcolor: "divider", my: 1}}/>
 
       {/* Chat rooms */}
-      <Box sx={{ position: "relative", width: "100%", flex: 1, minHeight: 0 }}>
+      <Box sx={{position: "relative", width: "100%", flex: 1, minHeight: 0}}>
         {hasAbove && (
           <Box
             sx={{
@@ -153,7 +202,7 @@ export default function SideNav() {
               zIndex: 1,
             }}
           >
-            <ExpandLess sx={{ color: "#ffffff66", fontSize: 20 }} />
+            <ExpandLess sx={{color: "#ffffff66", fontSize: 20}}/>
           </Box>
         )}
 
@@ -173,45 +222,85 @@ export default function SideNav() {
           }}
           className="rc-hide-scrollbar"
         >
-          {isLoading && <CircularProgress size={24} />}
+          {isLoading && <CircularProgress size={24}/>}
           {!isLoading &&
-            chatRooms?.map((room) => (
-              <Tooltip key={room.id} title={room.title} placement="right">
-                <IconButton
-                  component={NavLink}
-                  to={`/chat-rooms/${room.id}`}
-                  sx={{
-                    width: 52,
-                    height: 52,
-                    borderRadius: 2,
-                    p: 0,
-                    bgcolor: "transparent",
-                    "&.active": {
-                      outline: "2px solid",
-                      outlineColor: "primary.main",
-                      outlineOffset: 2,
-                    },
-                  }}
-                  className="rc-server-btn"
-                >
-                  <Avatar
-                    variant="rounded"
+            chatRooms?.map((room) => {
+              const unreadCount =
+                messagesNotificationsStore.unreadByRoom.get(room.id) ?? 0;
+              const imageUrl = room.imageUrl ?? null;
+              const isGifImage =
+                imageUrl?.toLowerCase().includes(".gif") ?? false;
+              const gifCrop =
+                isGifImage && imageUrl ? parseGifCropFromUrl(imageUrl) : null;
+              const hasGifCrop = Boolean(gifCrop && imageUrl);
+
+              return (
+                <Tooltip key={room.id} title={room.title} placement="right">
+                  <IconButton
+                    component={NavLink}
+                    to={`/chat-rooms/${room.slug}`}
                     sx={{
                       width: 52,
                       height: 52,
                       borderRadius: 2,
-                      bgcolor: "#2f3136",
-                      fontWeight: 700,
-                      color: "#fff",
+                      p: 0,
+                      bgcolor: "transparent",
+                      "&.active": {
+                        outline: "2px solid",
+                        outlineColor: "primary.main",
+                        outlineOffset: 2,
+                      },
                     }}
-                    src={room.imageUrl}
-                    alt={room.title}
+                    className="rc-server-btn"
                   >
-                    {room.title?.charAt(0).toUpperCase()}
-                  </Avatar>
-                </IconButton>
-              </Tooltip>
-            ))}
+                    <Badge
+                      overlap="rectangular"
+                      anchorOrigin={{vertical: "top", horizontal: "right"}}
+                      color="error"
+                      badgeContent={unreadCount}
+                      invisible={!unreadCount}
+                      max={99}
+                      sx={{
+                        "& .MuiBadge-badge": {
+                          fontSize: 11,
+                          fontWeight: 700,
+                          minWidth: 22,
+                          height: 20,
+                          borderRadius: "999px",
+                          right: 2,
+                          top: 2,
+                          px: 0.75,
+                        },
+                      }}
+                    >
+                      <Avatar
+                        variant="rounded"
+                        sx={{
+                          width: 52,
+                          height: 52,
+                          borderRadius: 2,
+                          bgcolor: "#2f3136",
+                          fontWeight: 700,
+                          color: "#fff",
+                          overflow: "hidden",
+                          ...(hasGifCrop && imageUrl
+                            ? {
+                              ...buildGifBackgroundStyles(imageUrl, gifCrop!),
+                              "& img": {display: "none"},
+                              "& .MuiAvatar-fallback": {display: "none"},
+                            }
+                            : {}),
+                        }}
+                        src={hasGifCrop ? undefined : imageUrl ?? undefined}
+                        alt={room.title}
+                      >
+                        {!imageUrl && room.title?.charAt(0).toUpperCase()}
+                      </Avatar>
+                    </Badge>
+                  </IconButton>
+                </Tooltip>
+              );
+            })}
 
           {/* Add chat room button */}
           <Tooltip title="Create chat room" placement="right">
@@ -223,11 +312,11 @@ export default function SideNav() {
                 borderRadius: 2,
                 bgcolor: "#2f3136",
                 color: "#fff",
-                "&:hover": { bgcolor: "#3a3c43" },
+                "&:hover": {bgcolor: "#3a3c43"},
               }}
               className="rc-server-btn"
             >
-              <Add />
+              <Add/>
             </IconButton>
           </Tooltip>
         </Box>
@@ -249,15 +338,14 @@ export default function SideNav() {
               zIndex: 1,
             }}
           >
-            <ExpandMore sx={{ color: "rgba(255,255,255,0.4)", fontSize: 20 }} />
+            <ExpandMore sx={{color: "rgba(255,255,255,0.4)", fontSize: 20}}/>
           </Box>
         )}
       </Box>
-
-      {/* Bottom user menu (Discord-like) */}
-      <Box sx={{ pb: 0.5 }}>
-        <UserMenuIcon />
-      </Box>
     </Box>
   );
-}
+});
+
+export default SideNav;
+
+

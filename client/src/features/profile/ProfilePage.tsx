@@ -1,66 +1,118 @@
-import { useParams } from "react-router";
+﻿import { useEffect, useMemo, useState, type SyntheticEvent } from "react";
+import { useLocation, useNavigate, useParams } from "react-router";
+import {
+  Box,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  Paper,
+  Tab,
+  Tabs,
+  Typography,
+} from "@mui/material";
+import { toast } from "react-toastify";
 import { useProfiles } from "../../lib/hooks/useProfiles";
 import { useAccount } from "../../lib/hooks/useAccount";
 import { useFriends } from "../../lib/hooks/useFriends";
-import {
-  Avatar,
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  Grid,
-  Button,
-  Paper,
-  Divider,
-  IconButton,
-  ListItemIcon,
-  ListItemText,
-  Menu,
-  MenuItem,
-} from "@mui/material";
-import {
-  Edit,
-  Landscape,
-  MoreVert,
-  Person,
-  PhotoCamera,
-  Message,
-  PersonAdd,
-} from "@mui/icons-material";
-import { useState } from "react";
-import { useNavigate } from "react-router";
-import ProfileEditForm from "./ProfileEditForm";
 import ImageUploadWidget from "./ImageUploadWidget";
-import { toast } from "react-toastify";
+import ChangePasswordCard from "./ChangePasswordCard";
+import { formatUserTag } from "../../lib/util/util";
+import type { Friend, Profile } from "../../lib/types";
+import { ProfileHeader } from "./ProfileHeader";
+import { PersonalSection } from "./PersonalSection";
+import { SecuritySection } from "./SecuritySection";
+import { VisitorSection } from "./VisitorSection";
+
+type SectionValue = "personal" | "settings" | "notifications" | "security";
+
+type ProfileWithFriends = Profile & {
+  friends?: Friend[];
+  friendsPreview?: Friend[];
+  recentFriends?: Friend[];
+};
+
+const panelSx = {
+  p: { xs: 3, md: 4 },
+  borderRadius: 3,
+  backgroundColor: "background.paper",
+  border: "1px solid rgba(255,255,255,0.08)",
+  backdropFilter: "blur(12px)",
+};
 
 export default function ProfilePage() {
-  const { id } = useParams();
+  const { slug } = useParams();
   const navigate = useNavigate();
-  const { profile, isLoadingProfile } = useProfiles(id);
+  const location = useLocation();
+  const { profile, isLoadingProfile, updateProfile } = useProfiles(slug);
   const { currentUser } = useAccount();
-  const { sendFriendRequest } = useFriends();
-  const [editMode, setEditMode] = useState(false);
-  const [photoMode, setPhotoMode] = useState<"profile" | "banner" | null>(null);
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const { friends, isLoadingFriends, sendFriendRequest } = useFriends();
+  const [activeSection, setActiveSection] = useState<SectionValue>("personal");
+  const [imageDialogMode, setImageDialogMode] = useState<
+    "profile" | "banner" | null
+  >(null);
+  const [isPasswordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [isEditingBio, setIsEditingBio] = useState(false);
+  const [nameValue, setNameValue] = useState("");
+  const [bioValue, setBioValue] = useState("");
+  const [pendingField, setPendingField] = useState<null | "name" | "bio">(null);
+  const [passwordHighlight, setPasswordHighlight] = useState(false);
 
-  const isCurrentUser = currentUser?.id === id;
+  const isCurrentUser = profile?.id === currentUser?.id;
+  const formattedTag = formatUserTag(profile?.tag);
 
-  const handleClick = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
-
-  const handlePhotoModeChange = (mode: "profile" | "banner") => {
-    setPhotoMode(mode);
-    handleClose();
-  };
-
-  const handleSendMessage = async () => {
+  useEffect(() => {
     if (!profile) return;
+    setNameValue(profile.displayName);
+    setBioValue(profile.bio ?? "");
+  }, [profile]);
 
+  useEffect(() => {
+    if (
+      location.hash === "#password" &&
+      isCurrentUser &&
+      currentUser?.hasPassword
+    ) {
+      setActiveSection("security");
+      setPasswordHighlight(true);
+      const timeout = window.setTimeout(
+        () => setPasswordHighlight(false),
+        2200
+      );
+      return () => window.clearTimeout(timeout);
+    }
+  }, [location.hash, isCurrentUser, currentUser?.hasPassword]);
+
+  const derivedFriends = useMemo<Friend[]>(() => {
+    if (!profile) return [];
+    const typed = profile as ProfileWithFriends;
+    if (typed.friends?.length) return typed.friends;
+    if (typed.friendsPreview?.length) return typed.friendsPreview;
+    if (typed.recentFriends?.length) return typed.recentFriends;
+    if (isCurrentUser && friends?.length) return friends;
+    return [];
+  }, [profile, friends, isCurrentUser]);
+
+  const friendPreviews = derivedFriends.slice(0, 10);
+  const totalFriends = profile?.friendsCount ?? derivedFriends.length;
+
+  const handleSectionChange = (_: SyntheticEvent, value: SectionValue) => {
+    setActiveSection(value);
+  };
+
+  const handleOpenImageDialog = (mode: "profile" | "banner") => {
+    if (!isCurrentUser) return;
+    setImageDialogMode(mode);
+  };
+
+  const handleImageDialogClose = () => setImageDialogMode(null);
+
+  const handleImageUploadComplete = () => {
+    setImageDialogMode(null);
+  };
+
+  const handleSendMessage = () => {
+    if (!profile) return;
     navigate("/");
   };
 
@@ -77,247 +129,198 @@ export default function ProfilePage() {
       });
       toast.success("Friend request sent!");
     } catch (error) {
-      console.error("Failed to send friend request:", error);
+      if (import.meta.env.DEV)
+        console.error("Failed to send friend request:", error);
     }
+  };
+
+  const handleSaveName = async () => {
+    if (!profile) return;
+    const trimmedName = nameValue.trim();
+    if (!trimmedName) {
+      toast.error("Display name cannot be empty");
+      return;
+    }
+
+    try {
+      setPendingField("name");
+      const trimmedBio = bioValue.trim();
+      await updateProfile.mutateAsync({
+        displayName: trimmedName,
+        bio: trimmedBio.length ? trimmedBio : "",
+      });
+      setIsEditingName(false);
+    } catch (error) {
+      if (import.meta.env.DEV)
+        console.error("Failed to update profile name:", error);
+    } finally {
+      setPendingField(null);
+    }
+  };
+
+  const handleSaveBio = async () => {
+    if (!profile) return;
+    const trimmedName = nameValue.trim();
+    if (!trimmedName) {
+      toast.error("Display name cannot be empty");
+      return;
+    }
+
+    try {
+      setPendingField("bio");
+      const trimmedBio = bioValue.trim();
+      await updateProfile.mutateAsync({
+        displayName: trimmedName,
+        bio: trimmedBio.length ? trimmedBio : "",
+      });
+      setIsEditingBio(false);
+    } catch (error) {
+      if (import.meta.env.DEV)
+        console.error("Failed to update profile bio:", error);
+    } finally {
+      setPendingField(null);
+    }
+  };
+
+  const handleCancelName = () => {
+    if (!profile) return;
+    setIsEditingName(false);
+    setNameValue(profile.displayName);
+  };
+
+  const handleCancelBio = () => {
+    if (!profile) return;
+    setIsEditingBio(false);
+    setBioValue(profile.bio ?? "");
   };
 
   if (isLoadingProfile) return <Typography>Loading...</Typography>;
   if (!profile) return <Typography>Profile not found</Typography>;
 
   return (
-    <Box>
-      {/* Banner Section */}
-      <Paper
-        sx={{
-          position: "relative",
-          height: 300,
-          mb: 3,
-          borderRadius: 3,
-          overflow: "hidden",
-          backgroundImage: profile.bannerUrl
-            ? `linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url(${profile.bannerUrl})`
-            : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          display: "flex",
-          alignItems: "flex-end",
-        }}
-      >
-        {/* Change Banner Button */}
-        {isCurrentUser && (
-          <IconButton
+    <Box display="flex" flexDirection="column" gap={1}>
+      <ProfileHeader
+        profile={profile}
+        formattedTag={formattedTag}
+        totalFriends={totalFriends}
+        isCurrentUser={Boolean(isCurrentUser)}
+        onBannerEdit={() => handleOpenImageDialog("banner")}
+        onAvatarEdit={() => handleOpenImageDialog("profile")}
+        onSendMessage={handleSendMessage}
+        onAddFriend={handleAddFriend}
+        isSendingFriendRequest={sendFriendRequest.isPending}
+      />
+
+      {isCurrentUser ? (
+        <Box sx={{ ...panelSx, p: 0, overflow: "hidden" }}>
+          <Tabs
+            value={activeSection}
+            onChange={handleSectionChange}
+            variant="scrollable"
+            scrollButtons="auto"
             sx={{
-              position: "absolute",
-              top: 16,
-              right: 16,
-              backgroundColor: "rgba(0,0,0,0.6)",
-              color: "white",
-              "&:hover": {
-                backgroundColor: "rgba(0,0,0,0.8)",
+              px: { xs: 2, md: 3 },
+              backgroundColor: "background.paper",
+              borderBottom: "1px solid rgba(255,255,255,0.08)",
+              minHeight: 48,
+              "& .MuiTab-root": {
+                color: "rgba(255,255,255,0.87)",
+                textTransform: "none",
+                minHeight: 48,
+              },
+              "& .Mui-selected": { color: "#fff" },
+              "& .MuiTabs-indicator": {
+                height: 3,
+                borderRadius: 3,
               },
             }}
-            onClick={handleClick}
           >
-            <MoreVert />
-          </IconButton>
-        )}
+            <Tab value="personal" label="Personal" />
+            <Tab value="settings" label="Settings" disabled />
+            <Tab value="notifications" label="Notifications" disabled />
+            <Tab value="security" label="Security" />
+          </Tabs>
 
-        {/* Profile Info Overlay */}
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 3,
-            p: 3,
-            width: "100%",
-          }}
-        >
-          {/* Profile Avatar */}
-          <Box sx={{ position: "relative" }}>
-            <Avatar
-              src={profile.imageUrl}
-              sx={{
-                width: 150,
-                height: 150,
-                fontSize: "3rem",
-                border: "4px solid white",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
-              }}
-            >
-              <Person sx={{ fontSize: "3rem" }} />
-            </Avatar>
-          </Box>
-
-          {/* Profile Info */}
-          <Box sx={{ color: "white", flex: 1 }}>
-            <Typography
-              variant="h3"
-              gutterBottom
-              sx={{
-                fontWeight: "bold",
-                textShadow: "2px 2px 4px rgba(0,0,0,0.7)",
-              }}
-            >
-              {profile.displayName}
-            </Typography>
-
-            {profile.friendsCount !== undefined && (
-              <Box display="flex" gap={4} mb={2}>
-                <Box textAlign="left">
-                  <Typography
-                    variant="h5"
-                    sx={{
-                      fontWeight: "bold",
-                      textShadow: "1px 1px 2px rgba(0,0,0,0.7)",
-                    }}
-                  >
-                    {profile.friendsCount}
-                  </Typography>
-                  <Typography
-                    variant="body1"
-                    sx={{
-                      textShadow: "1px 1px 2px rgba(0,0,0,0.7)",
-                    }}
-                  >
-                    Friends
-                  </Typography>
-                </Box>
-              </Box>
+          <Box
+            sx={{ p: { xs: 3, md: 4 }, backgroundColor: "background.paper" }}
+          >
+            {activeSection === "personal" && (
+              <PersonalSection
+                profile={profile}
+                isCurrentUser={Boolean(isCurrentUser)}
+                nameValue={nameValue}
+                bioValue={bioValue}
+                isEditingName={isEditingName}
+                isEditingBio={isEditingBio}
+                pendingField={pendingField}
+                isMutatingProfile={updateProfile.isPending}
+                friendPreviews={friendPreviews}
+                totalFriends={totalFriends}
+                isLoadingFriends={isLoadingFriends}
+                onNameChange={setNameValue}
+                onBioChange={setBioValue}
+                onStartEditName={() => setIsEditingName(true)}
+                onCancelEditName={handleCancelName}
+                onSaveName={handleSaveName}
+                onStartEditBio={() => setIsEditingBio(true)}
+                onCancelEditBio={handleCancelBio}
+                onSaveBio={handleSaveBio}
+                onNavigateToFriend={(friendSlug) =>
+                  navigate(`/profiles/${friendSlug}`)
+                }
+              />
             )}
 
-            {!isCurrentUser && (
-              <Box sx={{ display: "flex", gap: 2 }}>
-                {profile.isFriend ? (
-                  <Button
-                    variant="contained"
-                    startIcon={<Message />}
-                    onClick={handleSendMessage}
-                    sx={{
-                      backgroundColor: "primary.main",
-                      "&:hover": {
-                        backgroundColor: "primary.dark",
-                      },
-                    }}
-                  >
-                    Send Message
-                  </Button>
-                ) : (
-                  <Button
-                    variant="contained"
-                    startIcon={<PersonAdd />}
-                    onClick={handleAddFriend}
-                    disabled={sendFriendRequest.isPending}
-                    sx={{
-                      backgroundColor: "secondary.main",
-                      "&:hover": {
-                        backgroundColor: "secondary.dark",
-                      },
-                    }}
-                  >
-                    Add Friend
-                  </Button>
-                )}
-              </Box>
+            {activeSection === "security" && (
+              <SecuritySection
+                hasPassword={Boolean(currentUser?.hasPassword)}
+                highlightPassword={passwordHighlight}
+                onChangePassword={() => setPasswordDialogOpen(true)}
+              />
             )}
           </Box>
         </Box>
-
-        {/* Photo Upload Menu */}
-        <Menu
-          anchorEl={anchorEl}
-          open={Boolean(anchorEl)}
-          onClose={handleClose}
-          PaperProps={{
-            sx: {
-              mt: 1,
-              bgcolor: "rgba(19,19,22,0.95)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              borderRadius: 2,
-            },
-          }}
-        >
-          <MenuItem onClick={() => handlePhotoModeChange("profile")}>
-            <ListItemIcon>
-              <PhotoCamera />
-            </ListItemIcon>
-            <ListItemText>Change Profile Photo</ListItemText>
-          </MenuItem>
-          <MenuItem onClick={() => handlePhotoModeChange("banner")}>
-            <ListItemIcon>
-              <Landscape />
-            </ListItemIcon>
-            <ListItemText>Change Banner</ListItemText>
-          </MenuItem>
-        </Menu>
-      </Paper>
-
-      {/* Image Upload Widget */}
-      {photoMode && (
-        <Paper
-          sx={{
-            p: 3,
-            mb: 3,
-            borderRadius: 3,
-            bgcolor: "rgba(19,19,22,0.85)",
-            border: "1px solid rgba(255,255,255,0.08)",
-          }}
-          className="rc-panel"
-        >
-          <Typography variant="h6" gutterBottom>
-            Upload {photoMode === "profile" ? "Profile Photo" : "Banner"}
-          </Typography>
-          <ImageUploadWidget
-            key={photoMode}
-            imageType={photoMode}
-            onUploadComplete={() => setPhotoMode(null)}
-          />
+      ) : (
+        <Paper sx={panelSx}>
+          <VisitorSection bio={profile.bio} totalFriends={totalFriends} />
         </Paper>
       )}
 
-      {/* Profile Content */}
-      <Grid container spacing={3}>
-        <Grid size={12}>
-          <Card>
-            <CardContent>
-              <Box
-                display="flex"
-                justifyContent="space-between"
-                alignItems="center"
-                mb={2}
-              >
-                <Typography variant="h5">
-                  About {profile.displayName}
-                </Typography>
-                {isCurrentUser && (
-                  <Button
-                    startIcon={<Edit />}
-                    onClick={() => setEditMode(!editMode)}
-                    variant="outlined"
-                  >
-                    {editMode ? "Cancel" : "Edit Profile"}
-                  </Button>
-                )}
-              </Box>
+      <Dialog
+        open={Boolean(imageDialogMode)}
+        onClose={handleImageDialogClose}
+        maxWidth="md"
+        fullWidth
+      >
+        {imageDialogMode && (
+          <>
+            <DialogTitle sx={{ backgroundColor: "background.paper" }}>
+              {imageDialogMode === "profile"
+                ? "Change profile picture"
+                : "Change banner"}
+            </DialogTitle>
+            <DialogContent sx={{ pt: 2, backgroundColor: "background.paper" }}>
+              <ImageUploadWidget
+                key={imageDialogMode}
+                imageType={imageDialogMode}
+                onUploadComplete={handleImageUploadComplete}
+              />
+            </DialogContent>
+          </>
+        )}
+      </Dialog>
 
-              <Divider sx={{ mb: 2 }} />
-
-              {editMode ? (
-                <ProfileEditForm
-                  profile={profile}
-                  onCancel={() => setEditMode(false)}
-                  onSuccess={() => setEditMode(false)}
-                />
-              ) : (
-                <Box>
-                  <Typography variant="body1" paragraph>
-                    {profile.bio || "No bio available"}
-                  </Typography>
-                </Box>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+      <Dialog
+        open={isPasswordDialogOpen}
+        onClose={() => setPasswordDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Change password</DialogTitle>
+        <DialogContent sx={{ p: 0 }}>
+          <ChangePasswordCard highlight={passwordHighlight} />
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 }

@@ -15,16 +15,16 @@ export type SetProfileImageData = {
   userId: string;
 };
 
-export const useProfiles = (id?: string) => {
+export const useProfiles = (identifier?: string) => {
   const queryClient = useQueryClient();
 
   const { data: profile, isLoading: isLoadingProfile } = useQuery({
-    queryKey: ["profiles", id],
+    queryKey: ["profiles", identifier],
     queryFn: async () => {
-      const response = await agent.get<Profile>(`/profiles/${id}`);
+      const response = await agent.get<Profile>(`/profiles/${identifier}`);
       return response.data;
     },
-    enabled: !!id,
+    enabled: !!identifier,
   });
 
   const updateProfile = useMutation({

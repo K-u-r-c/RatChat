@@ -1,4 +1,5 @@
 import { Box, Chip, Typography } from "@mui/material";
+import { Link } from "react-router";
 import { timeAgo, formatDate } from "../../../../../lib/util/util";
 
 type Props = {
@@ -6,6 +7,9 @@ type Props = {
   displayName: string;
   createdAt: Date | string;
   messageType?: string;
+  profileSlug?: string;
+  showUserProfiles?: boolean;
+  accentColor?: string;
 };
 
 export default function MessageHeader({
@@ -13,7 +17,15 @@ export default function MessageHeader({
   displayName,
   createdAt,
   messageType,
+  profileSlug,
+  showUserProfiles = true,
+  accentColor,
 }: Props) {
+  const linkEnabled = showUserProfiles && !!profileSlug;
+  const linkProps = linkEnabled
+    ? ({ component: Link, to: `/profiles/${profileSlug}` } as const)
+    : {};
+
   return (
     <Box
       display="flex"
@@ -23,7 +35,13 @@ export default function MessageHeader({
     >
       <Typography
         variant="subtitle1"
-        sx={{ fontWeight: "bold", textDecoration: "none" }}
+        sx={{
+          fontWeight: "bold",
+          textDecoration: "none",
+          color: accentColor ?? "inherit",
+          "&:hover": linkEnabled ? { textDecoration: "underline" } : undefined,
+        }}
+        {...linkProps}
       >
         {displayName}
       </Typography>

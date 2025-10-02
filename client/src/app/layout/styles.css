@@ -1,3 +1,7 @@
+body {
+    margin: 0;
+}
+
 /* Server icon subtle hover */
 .rc-server-btn {
     transition: transform 120ms ease, box-shadow 200ms ease;

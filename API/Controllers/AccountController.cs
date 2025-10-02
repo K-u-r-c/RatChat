@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using Application.Account.DTOs;
 using Application.Interfaces;
+using Application.Users.Helpers;
 using Domain;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -99,10 +100,18 @@ public class AccountController(
                 ImageUrl = user.ImageUrl
             };
 
+            existingUser.Slug = await GenerateUniqueUserSlugAsync();
+
             var createdResult = await signInManager.UserManager.CreateAsync(existingUser);
 
             if (!createdResult.Succeeded)
                 return BadRequest("Failed to create user");
+        }
+
+        if (string.IsNullOrWhiteSpace(existingUser.Slug))
+        {
+            existingUser.Slug = await GenerateUniqueUserSlugAsync(existingUser.Id);
+            await signInManager.UserManager.UpdateAsync(existingUser);
         }
 
         await signInManager.SignInAsync(existingUser, false);
@@ -169,10 +178,18 @@ public class AccountController(
                 ImageUrl = googleUser.Picture
             };
 
+            existingUser.Slug = await GenerateUniqueUserSlugAsync();
+
             var createdResult = await signInManager.UserManager.CreateAsync(existingUser);
 
             if (!createdResult.Succeeded)
                 return BadRequest("Failed to create user");
+        }
+
+        if (string.IsNullOrWhiteSpace(existingUser.Slug))
+        {
+            existingUser.Slug = await GenerateUniqueUserSlugAsync(existingUser.Id);
+            await signInManager.UserManager.UpdateAsync(existingUser);
         }
 
         await signInManager.SignInAsync(existingUser, false);
@@ -190,6 +207,8 @@ public class AccountController(
             Email = registerDto.Email,
             DisplayName = registerDto.DisplayName
         };
+
+        user.Slug = await GenerateUniqueUserSlugAsync();
 
         var result = await signInManager.UserManager.CreateAsync(user, registerDto.Password);
 
@@ -261,6 +280,7 @@ public class AccountController(
         return Ok(new
         {
             user.DisplayName,
+            user.Slug,
             user.Email,
             user.Id,
             user.ImageUrl,
@@ -302,4 +322,11 @@ public class AccountController(
 
         return BadRequest(result.Errors.First().Description);
     }
+
+    private Task<string> GenerateUniqueUserSlugAsync(string? excludeUserId = null, CancellationToken cancellationToken = default)
+    {
+        var token = cancellationToken == default ? HttpContext?.RequestAborted ?? CancellationToken.None : cancellationToken;
+        return UserSlugGenerator.GenerateUniqueSlugAsync(signInManager.UserManager.Users, excludeUserId, token);
+    }
+
 }

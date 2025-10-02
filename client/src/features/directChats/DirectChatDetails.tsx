@@ -1,4 +1,4 @@
-import { useParams } from "react-router";
+import { Link, useParams } from "react-router";
 import { useRef, useState } from "react";
 import { observer } from "mobx-react-lite";
 import { useDirectMessages } from "../../lib/hooks/useDirectMessages";
@@ -11,11 +11,13 @@ import AvatarWithStatus from "../../app/shared/components/AvatarWithStatus";
 import { MoreHoriz } from "@mui/icons-material";
 
 const DirectChatDetails = observer(function DirectChatDetails() {
-  const { id } = useParams();
-  const { directMessageStore } = useDirectMessages(id);
+  const { userSlug } = useParams();
   const { directChats } = useDirectChats();
-
-  const currentChat = directChats?.find((chat) => chat.id === id);
+  const currentChat = directChats?.find(
+    (chat) => chat.otherUserSlug === userSlug
+  );
+  const directChatId = currentChat?.id;
+  const { directMessageStore } = useDirectMessages(directChatId);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [emojiDialogOpen, setEmojiDialogOpen] = useState(false);
 
@@ -72,7 +74,7 @@ const DirectChatDetails = observer(function DirectChatDetails() {
     if (!currentChat?.canSendMessages) return;
 
     const messageData = {
-      directChatId: id!,
+      directChatId: directChatId!,
       body,
       type,
       ...(mediaData && {
@@ -142,10 +144,22 @@ const DirectChatDetails = observer(function DirectChatDetails() {
                 currentChat.status ||
                 (currentChat.isOnline ? "Online" : "Offline")
               }
+              component={Link}
+              to={`/profiles/${currentChat.otherUserSlug}`}
             >
               {currentChat.otherUserDisplayName[0]}
             </AvatarWithStatus>
-            <Typography variant="h6" fontWeight="bold">
+            <Typography
+              variant="h6"
+              fontWeight="bold"
+              component={Link}
+              to={`/profiles/${currentChat.otherUserSlug}`}
+              sx={{
+                color: "text.primary",
+                textDecoration: "none",
+                "&:hover": { textDecoration: "underline" },
+              }}
+            >
               {currentChat.otherUserDisplayName}
             </Typography>
           </Box>
@@ -173,8 +187,8 @@ const DirectChatDetails = observer(function DirectChatDetails() {
             }
             showUserProfiles={true}
             chatRoomId={undefined}
-            directChatId={id}
-            userPermissions={undefined}
+            directChatId={directChatId}
+            directCanSend={currentChat.canSendMessages}
           />
         </Box>
       </Box>
@@ -214,7 +228,7 @@ const DirectChatDetails = observer(function DirectChatDetails() {
               Conversation Options
             </Typography>
             <Button variant="outlined" onClick={() => setEmojiDialogOpen(true)}>
-              Change default emoji
+              Customize appearance
             </Button>
           </Box>
         </>
@@ -225,7 +239,7 @@ const DirectChatDetails = observer(function DirectChatDetails() {
         open={emojiDialogOpen}
         onClose={() => setEmojiDialogOpen(false)}
         chatType={"direct"}
-        chatId={id!}
+        chatId={directChatId!}
         chatName={`Chat with ${currentChat.otherUserDisplayName}`}
       />
     </Box>

@@ -1,58 +1,77 @@
-import {
-  Box,
-  IconButton,
-  ListItemIcon,
-  ListItemText,
-  Divider,
-  Tooltip,
-} from "@mui/material";
-import Menu from "@mui/material/Menu";
+﻿import {Box, Divider, IconButton, ListItemIcon, ListItemText, Tooltip, type TooltipProps,} from "@mui/material";
 import Grow from "@mui/material/Grow";
+import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
-import { Password, Person, Logout } from "@mui/icons-material";
-import { useState } from "react";
-import { Link } from "react-router";
-import { useAccount } from "../../lib/hooks/useAccount";
+import {Logout, Person} from "@mui/icons-material";
+import {type MouseEvent, type ReactNode, useState} from "react";
+import {Link} from "react-router";
+import {useAccount} from "../../lib/hooks/useAccount";
 import StatusSelector from "../shared/components/StatusSelector";
 import AvatarWithStatus from "../shared/components/AvatarWithStatus";
 
-export default function UserMenuIcon() {
-  const { currentUser, logoutUser } = useAccount();
+type UserMenuIconProps = {
+  renderTrigger?: (handlers: {
+    openMenu: (event: MouseEvent<HTMLElement>) => void;
+    closeMenu: () => void;
+    isOpen: boolean;
+  }) => ReactNode;
+  tooltipPlacement?: TooltipProps["placement"];
+};
+
+export default function UserMenuIcon(
+  {
+    renderTrigger,
+    tooltipPlacement = "right",
+  }: UserMenuIconProps) {
+  const {currentUser, logoutUser} = useAccount();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
 
-  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    setAnchorEl(event.currentTarget);
+  const handleClick = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget as HTMLElement);
   };
+
   const handleClose = () => {
     setAnchorEl(null);
   };
 
   if (!currentUser) return null;
 
+  const defaultTrigger = (
+    <Tooltip title={currentUser.displayName} placement={tooltipPlacement}>
+      <IconButton
+        onClick={handleClick}
+        color="inherit"
+        size="large"
+        sx={{width: 52, height: 52, p: 0}}
+      >
+        <AvatarWithStatus
+          src={currentUser?.imageUrl}
+          alt="Current user image"
+          status={currentUser?.status || "Offline"}
+          size={48}
+        />
+      </IconButton>
+    </Tooltip>
+  );
+
+  const trigger: ReactNode = renderTrigger
+    ? renderTrigger({
+      openMenu: handleClick,
+      closeMenu: handleClose,
+      isOpen: open,
+    })
+    : defaultTrigger;
+
   return (
     <>
-      <Tooltip title={currentUser.displayName} placement="right">
-        <IconButton
-          onClick={handleClick}
-          color="inherit"
-          size="large"
-          sx={{ width: 52, height: 52, p: 0 }}
-        >
-          <AvatarWithStatus
-            src={currentUser?.imageUrl}
-            alt="Current user image"
-            status={currentUser?.status || "Offline"}
-            size={48}
-          />
-        </IconButton>
-      </Tooltip>
+      {trigger}
       <Menu
         id="user-menu-icon"
         anchorEl={anchorEl}
         open={open}
         onClose={handleClose}
-        MenuListProps={{ "aria-labelledby": "user-menu-icon" }}
+        MenuListProps={{"aria-labelledby": "user-menu-icon"}}
         PaperProps={{
           sx: {
             minWidth: 240,
@@ -63,38 +82,25 @@ export default function UserMenuIcon() {
             backdropFilter: "blur(6px)",
           },
         }}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-        transformOrigin={{ vertical: "bottom", horizontal: "right" }}
+        anchorOrigin={{vertical: "top", horizontal: "right"}}
+        transformOrigin={{vertical: "bottom", horizontal: "right"}}
         TransitionComponent={Grow}
       >
-        <Box sx={{ px: 2, py: 1 }}>
-          <StatusSelector />
+        <Box sx={{px: 2, py: 1}}>
+          <StatusSelector/>
         </Box>
-        <Divider />
-        {/* Create chat room moved to sidebar */}
+        <Divider/>
         <MenuItem
           component={Link}
-          to={`/profiles/${currentUser?.id}`}
+          to={`/profiles/${currentUser?.slug}`}
           onClick={handleClose}
         >
           <ListItemIcon>
-            <Person />
+            <Person/>
           </ListItemIcon>
           <ListItemText>My profile</ListItemText>
         </MenuItem>
-        {currentUser?.hasPassword && (
-          <MenuItem
-            component={Link}
-            to={"/change-password"}
-            onClick={handleClose}
-          >
-            <ListItemIcon>
-              <Password />
-            </ListItemIcon>
-            <ListItemText>Change password</ListItemText>
-          </MenuItem>
-        )}
-        <Divider />
+        <Divider/>
         <MenuItem
           onClick={() => {
             logoutUser.mutate();
@@ -102,7 +108,7 @@ export default function UserMenuIcon() {
           }}
         >
           <ListItemIcon>
-            <Logout />
+            <Logout/>
           </ListItemIcon>
           <ListItemText>Logout</ListItemText>
         </MenuItem>

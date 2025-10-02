@@ -6,9 +6,11 @@ public class MessageDto
     public required string Body { get; set; }
     public DateTime CreatedAt { get; set; }
     public required string UserId { get; set; }
+    public required string UserSlug { get; set; }
     public required string DisplayName { get; set; }
     public string? ImageUrl { get; set; }
     public string Type { get; set; } = "Text";
+    public required string ChannelId { get; set; }
 
     public string? MediaUrl { get; set; }
     public string? MediaPublicId { get; set; }

@@ -16,9 +16,9 @@ export default function ChatRoomForm() {
     resolver: zodResolver(chatRoomSchema),
   });
   const navigate = useNavigate();
-  const { id } = useParams();
+  const { slug } = useParams();
   const { updateChatRoom, createChatRoom, chatRoom, isLoadingChatRoom } =
-    useChatRooms(id);
+    useChatRooms(slug);
 
   useEffect(() => {
     if (chatRoom)
@@ -33,12 +33,12 @@ export default function ChatRoomForm() {
         updateChatRoom.mutate(
           { ...chatRoom, ...data },
           {
-            onSuccess: () => navigate(`/chat-rooms/${chatRoom.id}`),
+            onSuccess: () => navigate(`/chat-rooms/${chatRoom.slug}`),
           }
         );
       } else {
         createChatRoom.mutate(data, {
-          onSuccess: (id) => navigate(`/chat-rooms/${id}`),
+          onSuccess: (identifier) => navigate(`/chat-rooms/${identifier.slug}`),
         });
       }
     } catch (error) {

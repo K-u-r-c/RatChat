@@ -22,14 +22,15 @@ public class GetChatRoomDetails
         public async Task<Result<ChatRoomDto>> Handle(Query request, CancellationToken cancellationToken)
         {
             var chatRoom = await context.ChatRooms
+                .Where(x => x.Id == request.Id || x.Slug == request.Id)
                 .ProjectTo<ChatRoomDto>(
                     mapper.ConfigurationProvider,
                     new { currentUserId = userAccessor.GetUserId() }
                 )
-                .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
+                .FirstOrDefaultAsync(cancellationToken);
 
             if (chatRoom == null)
-                return Result<ChatRoomDto>.Failure("Chat room with provided Id not found", 404);
+                return Result<ChatRoomDto>.Failure("Chat room with provided identifier not found", 404);
 
             return Result<ChatRoomDto>.Success(chatRoom);
         }

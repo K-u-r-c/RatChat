@@ -1,6 +1,7 @@
-import { TextField, IconButton, CircularProgress, Box } from "@mui/material";
-import { AttachFile, Send } from "@mui/icons-material";
-import { useForm, type FieldValues } from "react-hook-form";
+import {AttachFile, Send} from "@mui/icons-material";
+import {Box, CircularProgress, IconButton, TextField} from "@mui/material";
+import {type Ref, useRef, useState} from "react";
+import {type FieldValues, useForm} from "react-hook-form";
 import EmojiPickerComponent from "../EmojiPicker";
 
 interface ChatInputProps {
@@ -14,25 +15,31 @@ interface ChatInputProps {
   hasPermission: boolean;
   placeholder?: string;
   hasAttachment?: boolean;
+  inputRef?: Ref<HTMLInputElement | HTMLTextAreaElement>;
 }
 
-export default function ChatInput({
-  onSubmit,
-  onFileSelect,
-  onEmojiSelect,
-  onQuickReact,
-  defaultEmoji,
-  isSubmitting,
-  isUploading,
-  hasPermission = true,
-  placeholder = "Enter your message...",
-  hasAttachment = false,
-}: ChatInputProps) {
-  const { register, handleSubmit, reset, setValue, watch } = useForm();
+export default function ChatInput(
+  {
+    onSubmit,
+    onFileSelect,
+    onEmojiSelect,
+    onQuickReact,
+    defaultEmoji,
+    isSubmitting,
+    isUploading,
+    hasPermission = true,
+    placeholder = "Enter your message...",
+    hasAttachment = false,
+    inputRef,
+  }: ChatInputProps) {
+  const {register, handleSubmit, reset, setValue, watch} = useForm();
+  const clickLockRef = useRef(false);
+  const [localSending, setLocalSending] = useState(false);
   const currentMessage = watch("body") || "";
   const canSend =
     hasPermission &&
     !isSubmitting &&
+    !localSending &&
     !isUploading &&
     ((currentMessage?.trim?.().length ?? 0) > 0 || hasAttachment);
 
@@ -65,7 +72,11 @@ export default function ChatInput({
   };
 
   return (
-    <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+    <Box sx={{
+      display: "flex", gap: 1, alignItems: "center",
+      bgcolor: "background.default",
+      py: 0.35
+    }}>
       {/* Attach file on the left */}
       <IconButton
         onClick={onFileSelect}
@@ -73,7 +84,7 @@ export default function ChatInput({
         title="Attach file"
         disabled={!hasPermission || isSubmitting || isUploading}
       >
-        <AttachFile />
+        <AttachFile/>
       </IconButton>
 
       {/* Input with emoji picker*/}
@@ -86,12 +97,13 @@ export default function ChatInput({
         placeholder={placeholder}
         onKeyDown={handleKeyDown}
         disabled={!hasPermission}
+        inputRef={inputRef}
         slotProps={{
           input: {
             endAdornment: (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <Box sx={{display: "flex", alignItems: "center", gap: 0.5}}>
                 {isSubmitting || isUploading ? (
-                  <CircularProgress size={20} />
+                  <CircularProgress size={20}/>
                 ) : null}
                 <EmojiPickerComponent
                   variant="standard"
@@ -103,11 +115,22 @@ export default function ChatInput({
                   <IconButton
                     aria-label="Send message"
                     color="primary"
-                    onClick={() => handleSubmit(handleFormSubmit)()}
+                    onClick={async () => {
+                      if (clickLockRef.current) return;
+                      clickLockRef.current = true;
+                      setLocalSending(true);
+                      try {
+                        const doSubmit = handleSubmit(handleFormSubmit);
+                        await Promise.resolve(doSubmit());
+                      } finally {
+                        setLocalSending(false);
+                        clickLockRef.current = false;
+                      }
+                    }}
                     disabled={!canSend}
                     size="small"
                   >
-                    <Send fontSize="small" />
+                    <Send fontSize="small"/>
                   </IconButton>
                 )}
               </Box>
@@ -115,8 +138,8 @@ export default function ChatInput({
           },
         }}
         sx={{
-          bgcolor: "#2b2d33ff",
-          borderRadius: 9999,
+          bgcolor: "background.paper",
+          borderRadius: 2,
           "& .MuiOutlinedInput-notchedOutline": {
             borderColor: "transparent !important",
           },
@@ -128,7 +151,7 @@ export default function ChatInput({
           },
           "& .MuiInputBase-input, & .MuiInputBase-inputMultiline": {
             color: "#fff",
-            "&::placeholder": { color: "rgba(255,255,255,0.6)" },
+            "&::placeholder": {color: "rgba(255,255,255,0.6)"},
             paddingRight: 0,
           },
         }}
@@ -137,7 +160,7 @@ export default function ChatInput({
       {/* Default emoji on the right of the input */}
       <IconButton
         onClick={() => handleDefaultEmoji(defaultEmoji)}
-        disabled={isSubmitting || isUploading}
+        disabled={!hasPermission || isSubmitting || isUploading}
         size="small"
         title={`Quick react with ${defaultEmoji}`}
         sx={{

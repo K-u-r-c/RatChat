@@ -1,22 +1,35 @@
-import { useState, useCallback, useRef, useEffect } from "react";
-import { useDropzone } from "react-dropzone";
+import { Close, CloudUpload, Crop, Delete, Edit } from "@mui/icons-material";
 import {
-  Box,
-  Paper,
-  Typography,
-  Button,
   Avatar,
+  Box,
+  Button,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  Paper,
   Stack,
+  Tooltip,
+  Typography,
 } from "@mui/material";
-import { CloudUpload, Delete, Crop } from "@mui/icons-material";
+import {
+  type KeyboardEvent,
+  useCallback,
+  useEffect,
+ useMemo, useRef,
+  useState,
+} from "react";
 import Cropper, { type ReactCropperElement } from "react-cropper";
 import "cropperjs/dist/cropper.css";
-import { useAccount } from "../../lib/hooks/useAccount";
-import { useChatRooms } from "../../lib/hooks/useChatRooms";
-import { useChatRoomRolesRealtime } from "../../lib/hooks/useChatRoomRolesRealtime";
-import { CHATROOM_PERMISSIONS } from "../../lib/types/chatroomPermissions";
-import { MediaCategory, useMedia } from "../../lib/hooks/useMedia";
+import {useDropzone} from "react-dropzone";
+import {useAccount} from "../../lib/hooks/useAccount";
+import {useChatRooms} from "../../lib/hooks/useChatRooms";
+import {MediaCategory, useMedia} from "../../lib/hooks/useMedia";
+import {CHATROOM_PERMISSIONS} from "../../lib/types/chatroomPermissions";
+import {appendGifCropToUrl, buildGifBackgroundStyles, type GifCropMeta, parseGifCropFromUrl,} from "./utils/gifCrop";
+import {useChatRoomRoles} from "../../lib/hooks/useChatRoomRoles.ts";
 
 type Props = {
   chatRoomId: string;
@@ -29,20 +42,30 @@ export default function ChatRoomImageUpload({ chatRoomId }: Props) {
     setChatRoomImage: setChatRoomImageMutation,
     deleteChatRoomImage: deleteChatRoomImageMutation,
   } = useChatRooms(chatRoomId);
-  const { rolesStore } = useChatRoomRolesRealtime(chatRoomId, currentUser?.id);
-  const userPermissions = rolesStore?.userPermissions || {};
+  const { userPermissions } = useChatRoomRoles(chatRoom?.id, currentUser?.id);
   const canEdit =
-    chatRoom?.isAdmin ||
-    !!userPermissions[CHATROOM_PERMISSIONS.ChangeChatRoomImage];
+    chatRoom?.isOwner ||
+    userPermissions[CHATROOM_PERMISSIONS.ChangeChatRoomImage];
 
   const existingImage = chatRoom?.imageUrl || null;
 
   const { uploadMedia } = useMedia();
 
+  const [isDialogOpen, setDialogOpen] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [croppedImage, setCroppedImage] = useState<string | null>(null);
+  const [gifCrop, setGifCrop] = useState<GifCropMeta | null>(null);
   const cropperRef = useRef<ReactCropperElement>(null);
+
+  const isGif = selectedFile?.type === "image/gif";
+
+  const existingGifCrop = useMemo(() => {
+    if (!existingImage) return null;
+    const lower = existingImage.toLowerCase();
+    if (!lower.includes(".gif")) return null;
+    return parseGifCropFromUrl(existingImage);
+  }, [existingImage]);
 
   const onDrop = useCallback((accepted: File[]) => {
     if (!accepted[0]) return;
@@ -51,6 +74,7 @@ export default function ChatRoomImageUpload({ chatRoomId }: Props) {
     setSelectedFile(file);
     setPreview(url);
     setCroppedImage(null);
+    setGifCrop(null);
   }, []);
 
   useEffect(
@@ -68,12 +92,47 @@ export default function ChatRoomImageUpload({ chatRoomId }: Props) {
     disabled: !canEdit,
   });
 
+  const computeGifCropMeta = (): GifCropMeta | null => {
+    const cropper = cropperRef.current?.cropper;
+    if (!cropper) return null;
+
+    const data = cropper.getData();
+    const imageData = cropper.getImageData();
+
+    if (!data || !imageData?.naturalWidth || !imageData?.naturalHeight)
+      return null;
+
+    const iw = imageData.naturalWidth;
+    const ih = imageData.naturalHeight;
+    const cw = Math.max(1, data.width);
+    const ch = Math.max(1, data.height);
+
+    const cx = ((data.x + cw / 2) / iw) * 100;
+    const cy = ((data.y + ch / 2) / ih) * 100;
+    const scale = iw / cw;
+
+    return {
+      cx: Math.max(0, Math.min(100, cx)),
+      cy: Math.max(0, Math.min(100, cy)),
+      scale: Math.max(1, scale),
+    };
+  };
+
   const handleCrop = () => {
-    const cropper = cropperRef.current;
-    if (cropper && cropper.cropper) {
-      const dataUrl = cropper.cropper.getCroppedCanvas().toDataURL();
-      setCroppedImage(dataUrl);
+    const cropper = cropperRef.current?.cropper;
+    if (!cropper) return;
+
+    if (isGif) {
+      const meta = computeGifCropMeta();
+      if (meta && preview && selectedFile) {
+        setGifCrop(meta);
+        setCroppedImage(preview);
+      }
+      return;
     }
+
+    const dataUrl = cropper.getCroppedCanvas().toDataURL();
+    setCroppedImage(dataUrl);
   };
 
   const resetAll = () => {
@@ -81,9 +140,53 @@ export default function ChatRoomImageUpload({ chatRoomId }: Props) {
     setPreview(null);
     setSelectedFile(null);
     setCroppedImage(null);
+    setGifCrop(null);
+  };
+
+  const handleOpenDialog = () => {
+    if (!canEdit) return;
+    setDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    resetAll();
+  };
+
+  const handleAvatarKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!canEdit) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleOpenDialog();
+    }
   };
 
   const handleUpload = async () => {
+    if (isGif) {
+      if (!selectedFile) return;
+      try {
+        const uploadResult = await uploadMedia.mutateAsync({
+          file: selectedFile,
+          category: MediaCategory.ChatRoomImage,
+          chatRoomId,
+        });
+
+        const imageUrl = gifCrop
+          ? appendGifCropToUrl(uploadResult.url, gifCrop)
+          : uploadResult.url;
+
+        await setChatRoomImageMutation.mutateAsync({
+          id: chatRoomId,
+          imageUrl,
+        });
+
+        handleCloseDialog();
+      } catch (e) {
+        if (import.meta.env.DEV) console.error(e);
+      }
+      return;
+    }
+
     if (!croppedImage) return;
     try {
       const res = await fetch(croppedImage);
@@ -105,7 +208,7 @@ export default function ChatRoomImageUpload({ chatRoomId }: Props) {
         imageUrl: uploadResult.url,
       });
 
-      resetAll();
+      handleCloseDialog();
     } catch (e) {
       if (import.meta.env.DEV) console.error(e);
     }
@@ -116,202 +219,275 @@ export default function ChatRoomImageUpload({ chatRoomId }: Props) {
     await deleteChatRoomImageMutation.mutateAsync(chatRoomId);
   };
 
-  const handleCancel = () => {
-    resetAll();
-  };
-
   const isUploading =
     uploadMedia.isPending ||
     setChatRoomImageMutation.isPending ||
     deleteChatRoomImageMutation.isPending;
 
+  const canUpload = isGif ? !!gifCrop : !!croppedImage;
+
+  const gifPreviewStyles = useMemo(() => {
+    if (!isGif || !preview) return undefined;
+    if (gifCrop) return buildGifBackgroundStyles(preview, gifCrop);
+    return {
+      backgroundImage: `url(${preview})`,
+      backgroundRepeat: "no-repeat",
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+    } as const;
+  }, [gifCrop, isGif, preview]);
+
   return (
     <Box sx={{ width: "100%" }}>
-      {!preview && !croppedImage && (
-        <Box
+      <Stack direction="row" spacing={2} alignItems="center">
+        <Tooltip
+          title={canEdit ? "Change image" : ""}
+          disableHoverListener={!canEdit}
           sx={{
-            display: "flex",
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 3,
+            borderRadius: 4,
           }}
         >
-          <Box>
+          <Box
+            onClick={handleOpenDialog}
+            onKeyDown={handleAvatarKeyDown}
+            role={canEdit ? "button" : undefined}
+            tabIndex={canEdit ? 0 : -1}
+            sx={{
+              position: "relative",
+              width: 128,
+              height: 128,
+              borderRadius: 4,
+              cursor: canEdit ? "pointer" : "default",
+              overflow: "hidden",
+            }}
+          >
             {existingImage ? (
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  width: "100%",
-                }}
-              >
+              existingGifCrop ? (
                 <Box
                   sx={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
+                    width: "100%",
+                    height: "100%",
+                    borderRadius: 4,
+                    ...buildGifBackgroundStyles(existingImage, existingGifCrop),
                   }}
-                >
-                  <Avatar
-                    src={existingImage}
-                    sx={{
-                      width: 128,
-                      height: 128,
-                      borderRadius: 12,
-                      border: "1px solid #5865f2ff",
-                      backgroundColor: "#ffffff14",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      mb: 2,
-                    }}
-                    variant="rounded"
-                  />
-                  {canEdit && (
-                    <Stack direction="row" spacing={1}>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        onClick={handleDelete}
-                        color="error"
-                        disabled={deleteChatRoomImageMutation.isPending}
-                        startIcon={
-                          deleteChatRoomImageMutation.isPending ? (
-                            <CircularProgress size={16} />
-                          ) : (
-                            <Delete />
-                          )
-                        }
-                      >
-                        Remove
-                      </Button>
-                    </Stack>
-                  )}
-                </Box>
-              </Box>
+                />
+              ) : (
+                <Avatar
+                  src={existingImage}
+                  variant="rounded"
+                  sx={{width: 128, height: 128, borderRadius: 4}}
+                />
+              )
             ) : (
-              <Box
+              <Paper
+                elevation={0}
                 sx={{
-                  width: 128,
-                  height: 128,
-                  borderRadius: 12,
-                  border: "1px solid #5865f2ff",
-                  backgroundColor: "#ffffff14",
+                  width: "100%",
+                  height: "100%",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  mb: 2,
+                  bgcolor: "background.paper",
+                  color: "text.secondary",
                 }}
               >
-                <Typography variant="caption" color="text.secondary">
-                  No image
-                </Typography>
+                <Edit/>
+              </Paper>
+            )}
+            {canEdit && (
+              <Box
+                sx={{
+                  position: "absolute",
+                  inset: 0,
+                  bgcolor: "rgba(0,0,0,0.4)",
+                  opacity: 0,
+                  transition: "opacity 150ms ease-in-out",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#fff",
+                  fontWeight: 600,
+                  "&:hover": {opacity: 1},
+                }}
+              >
+                Change
               </Box>
             )}
           </Box>
+        </Tooltip>
 
-          <Paper
-            {...getRootProps()}
-            sx={{
-              p: 3,
-              textAlign: "center",
-              cursor: canEdit ? "pointer" : "not-allowed",
-              border: "2px dashed",
-              borderColor: isDragActive ? "primary.main" : "grey.700",
-              bgcolor: "background.paper",
-              backgroundImage:
-                !canEdit && !existingImage
-                  ? "repeating-linear-gradient(45deg,#2c2c2c,#2c2c2c 10px,#242424 10px,#242424 20px)"
-                  : undefined,
-              opacity: canEdit ? 1 : 0.6,
-              minHeight: 180,
-              width: "100%",
-            }}
+        <Stack spacing={1}>
+          <Typography variant="h6">Chat Room Image</Typography>
+          <Typography variant="body2" color="text.secondary">
+            Recommended 1:1 ratio, up to 5MB. Animated GIFs supported.
+          </Typography>
+          {existingImage && canEdit && (
+            <Stack direction="row" spacing={1}>
+              <Button
+                variant="contained"
+                size="small"
+                onClick={handleOpenDialog}
+                disabled={isUploading}
+                startIcon={<Edit/>}
+              >
+                Update
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                color="error"
+                onClick={handleDelete}
+                disabled={isUploading}
+                startIcon={
+                  deleteChatRoomImageMutation.isPending ? (
+                    <CircularProgress size={14} />
+                  ) : (
+                    <Delete />
+                  )
+                }
+              >
+                Remove
+              </Button>
+            </Stack>
+          )}
+        </Stack>
+      </Stack>
+
+      <Dialog
+        open={isDialogOpen}
+        onClose={handleCloseDialog}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle sx={{ pr: 5 }}>
+          Update chat room image
+          <IconButton
+            aria-label="Close"
+            onClick={handleCloseDialog}
+            sx={{ position: "absolute", right: 8, top: 8 }}
+            size="small"
           >
-            <input {...getInputProps()} />
-            <CloudUpload sx={{ fontSize: 48, color: "grey.500", mb: 1 }} />
-            <Typography variant="h6" gutterBottom>
-              {canEdit
-                ? "Drop or click to upload"
-                : "You cannot change the image"}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              PNG / JPG / GIF / WEBP up to 5MB • 1:1 aspect
-            </Typography>
-          </Paper>
-        </Box>
-      )}
+            <Close />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          {!preview && !croppedImage && (
+            <Paper
+              {...getRootProps()}
+              sx={{
+                p: 4,
+                textAlign: "center",
+                cursor: "pointer",
+                border: "2px dashed",
+                borderColor: isDragActive ? "primary.main" : "grey.700",
+                bgcolor: "background.paper",
+              }}
+            >
+              <input {...getInputProps()} />
+              <CloudUpload sx={{ fontSize: 48, color: "grey.500", mb: 2 }} />
+              <Typography variant="h6" gutterBottom>
+                Drop or click to upload
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                PNG / JPG / GIF / WEBP up to 5MB - 1:1 aspect
+              </Typography>
+            </Paper>
+          )}
 
-      {preview && !croppedImage && (
-        <Box
-          sx={{
-            maxWidth: 360,
-            mx: "auto",
-            textAlign: "center",
-            mt: 2,
-          }}
-        >
-          <Cropper
-            src={preview}
-            style={{ height: 320, width: 320, margin: "0 auto" }}
-            aspectRatio={1}
-            guides={false}
-            viewMode={1}
-            background={false}
-            responsive
-            autoCropArea={1}
-            ref={cropperRef}
-          />
-          <Stack direction="row" spacing={2} justifyContent="center" mt={2}>
+          {preview && !croppedImage && (
+            <Box
+              sx={{
+                maxWidth: 360,
+                mx: "auto",
+                textAlign: "center",
+              }}
+            >
+              <Cropper
+                src={preview}
+                style={{ height: 320, width: 320, margin: "0 auto" }}
+                aspectRatio={1}
+                guides={false}
+                viewMode={1}
+                background={false}
+                responsive
+                autoCropArea={1}
+                ref={cropperRef}
+              />
+            </Box>
+          )}
+
+          {croppedImage && (
+            <Box textAlign="center" mt={1}>
+              {isGif && gifPreviewStyles ? (
+                <Box
+                  sx={{
+                    width: 160,
+                    height: 160,
+                    mx: "auto",
+                    borderRadius: 2,
+                    border: "1px solid",
+                    borderColor: "grey.700",
+                    overflow: "hidden",
+                    ...gifPreviewStyles,
+                  }}
+                />
+              ) : (
+                <Avatar
+                  src={croppedImage}
+                  variant="rounded"
+                  sx={{ width: 160, height: 160, mx: "auto" }}
+                />
+              )}
+              <Typography variant="body2" color="text.secondary" mt={2}>
+                Looks good? Upload to save changes.
+              </Typography>
+              {isGif && (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  display="block"
+                  mt={1}
+                >
+                  Animated GIFs upload as-is. Crop is applied visually so the
+                  animation stays intact.
+                </Typography>
+              )}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ gap: 1 }}>
+          <Button onClick={handleCloseDialog} disabled={isUploading}>
+            Close
+          </Button>
+          {(preview || croppedImage) && (
+            <Button onClick={resetAll} disabled={isUploading}>
+              Clear selection
+            </Button>
+          )}
+          {preview && !croppedImage && (
             <Button
               variant="contained"
               onClick={handleCrop}
               startIcon={<Crop />}
               disabled={isUploading}
             >
-              Crop
+              {isGif ? "Apply crop" : "Crop"}
             </Button>
-            <Button
-              variant="outlined"
-              onClick={handleCancel}
-              startIcon={<Delete />}
-              disabled={isUploading}
-            >
-              Cancel
-            </Button>
-          </Stack>
-        </Box>
-      )}
-
-      {croppedImage && (
-        <Box textAlign="center" mt={2}>
-          <Avatar
-            src={croppedImage}
-            variant="rounded"
-            sx={{ width: 160, height: 160, mx: "auto", mb: 2 }}
-          />
-          <Stack direction="row" spacing={2} justifyContent="center">
+          )}
+          {canUpload && (
             <Button
               variant="contained"
               onClick={handleUpload}
-              disabled={isUploading}
+              disabled={isUploading || (isGif ? !gifCrop : !croppedImage)}
               startIcon={
                 isUploading ? <CircularProgress size={18} /> : <CloudUpload />
               }
             >
               {isUploading ? "Uploading..." : "Upload"}
             </Button>
-            <Button
-              variant="outlined"
-              onClick={handleCancel}
-              startIcon={<Delete />}
-              disabled={isUploading}
-            >
-              Cancel
-            </Button>
-          </Stack>
-        </Box>
-      )}
+          )}
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

@@ -10,6 +10,7 @@ import {
 } from "@mui/material";
 import ChatRoomSettingsOverview from "./ChatRoomSettingsOverview";
 import ChatRoomSettingsRoles from "./ChatRoomSettingsRoles";
+import ChatRoomSettingsBans from "./ChatRoomSettingsBans";
 
 type Props = {
   open: boolean;
@@ -20,6 +21,7 @@ type Props = {
 const tabs = [
   { key: "overview", label: "Overview" },
   { key: "roles", label: "Roles" },
+  { key: "bans", label: "Bans" },
 ];
 
 export default function ChatRoomSettings({ open, onClose, chatRoomId }: Props) {
@@ -56,6 +58,9 @@ export default function ChatRoomSettings({ open, onClose, chatRoomId }: Props) {
           )}
           {active === "roles" && (
             <ChatRoomSettingsRoles chatRoomId={chatRoomId} />
+          )}
+          {active === "bans" && (
+            <ChatRoomSettingsBans chatRoomId={chatRoomId} />
           )}
         </Box>
       </Box>

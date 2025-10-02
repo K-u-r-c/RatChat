@@ -1,3 +1,4 @@
+using System;
 using System.Data;
 using Application.ChatRoomRoles.DTOs;
 using Application.Core;
@@ -13,10 +14,14 @@ public class RolePermissionService(AppDbContext context) : IRolePermissionServic
 {
     public async Task InitializePermissionsAsync()
     {
-        if (await context.ChatRoomPermissions.AnyAsync())
-            return;
+        var existingPermissions = await context.ChatRoomPermissions.ToListAsync();
 
-        var permissions = ChatRoomPermissions.All
+        var existingNames = existingPermissions
+            .Select(p => p.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var newPermissions = ChatRoomPermissions.All
+            .Where(p => !existingNames.Contains(p.Key))
             .Select(p => new ChatRoomPermission
             {
                 Name = p.Key,
@@ -24,9 +29,26 @@ public class RolePermissionService(AppDbContext context) : IRolePermissionServic
             })
             .ToList();
 
-        context.ChatRoomPermissions.AddRange(permissions);
+        if (newPermissions.Count > 0)
+        {
+            context.ChatRoomPermissions.AddRange(newPermissions);
+        }
 
-        await context.SaveChangesAsync();
+        var updated = false;
+        foreach (var permission in existingPermissions)
+        {
+            if (ChatRoomPermissions.All.TryGetValue(permission.Name, out var description) &&
+                !string.Equals(permission.Description, description, StringComparison.Ordinal))
+            {
+                permission.Description = description;
+                updated = true;
+            }
+        }
+
+        if (newPermissions.Count > 0 || updated)
+        {
+            await context.SaveChangesAsync();
+        }
     }
 
     public async Task<List<ChatRoomRolePermissionDto>> CreatePermissionsAsync(string roleId)
