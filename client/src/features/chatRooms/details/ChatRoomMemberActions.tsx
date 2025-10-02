@@ -37,7 +37,7 @@ export default function ChatRoomMemberActions(
 
   const isChatRoomOwner = useMemo(
     () => !!member && isOwner === true,
-    [member]
+    [member, isOwner]
   );
 
   const canKick =
@@ -207,7 +207,12 @@ export default function ChatRoomMemberActions(
 
       <ConfirmDialog
         open={kickDialogOpen}
-        onClose={() => !kickMutation.isPending && (setKickDialogOpen(false), setKickTarget(null))}
+        onClose={() => {
+          if (!kickMutation.isPending) {
+            setKickDialogOpen(false);
+            setKickTarget(null);
+          }
+        }}
         onConfirm={confirmKick}
         title="Confirm Kick"
         message={kickTarget ? `Kick ${kickTarget.displayName} from this chat room?\nThey can rejoin if invited again.` : ''}
@@ -219,7 +224,12 @@ export default function ChatRoomMemberActions(
 
       <ConfirmDialog
         open={banDialogOpen}
-        onClose={() => !banMutation.isPending && (setBanDialogOpen(false), setBanTarget(null))}
+        onClose={() => {
+          if (!banMutation.isPending) {
+            setBanDialogOpen(false);
+            setBanTarget(null);
+          }
+        }}
         onConfirm={confirmBan}
         title="Confirm Ban"
         message={banTarget ? `Ban ${banTarget.displayName} from this chat room?\nThey will not be able to rejoin until unbanned.` : ''}
