@@ -927,9 +927,7 @@ const ChatRoomSidebarContent = observer(function ChatRoomSidebarContent() {
           setLeaveDialogOpen(false);
         }}
         title="Confirm leave"
-        message={chatRoom?.isOwner
-          ? "Are you sure you want to leave this chat room?\nAs the owner, leaving will transfer ownership to the oldest user or delete the room if you are the last member."
-          : "Are you sure you want to leave this chat room?"}
+        message={"Are you sure you want to leave this chat room?"}
         confirmText="Leave"
         confirmColor="error"
         isProcessing={leaveChatRoom.isPending}
