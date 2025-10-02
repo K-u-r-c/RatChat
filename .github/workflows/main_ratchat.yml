@@ -117,7 +117,7 @@ jobs:
                 "ClientSecret": "__GOOGLE_CLIENT_SECRET__"
               }
             },
-            "MessageEncryptionKey": "__MESSAGE_ENCRYPTION_KEY__"
+            "MessageEncryptionKey": "__MESSAGE_ENCRYPTION_KEY__",
             "ClientAppUrl": "__CLIENT_APP_URL__",
             "AllowedHosts": "__ALLOWED_HOSTS__"
           }
