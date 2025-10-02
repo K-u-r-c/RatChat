@@ -11,21 +11,22 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useMemo } from "react";
-import { toast } from "react-toastify";
+import {useMutation, useQueryClient} from "@tanstack/react-query";
+import {useCallback, useMemo, useState} from "react";
+import {toast} from "react-toastify";
 import agent from "../../../lib/api/agent";
-import { useAccount } from "../../../lib/hooks/useAccount";
-import { CHATROOM_PERMISSIONS } from "../../../lib/types/chatroomPermissions";
-import type { ChatRoom, ChatRoomBan } from "../../../lib/types";
-import { useChatRoomRoles } from "../../../lib/hooks/useChatRoomRoles";
+import {useAccount} from "../../../lib/hooks/useAccount";
+import {CHATROOM_PERMISSIONS} from "../../../lib/types/chatroomPermissions";
+import type {ChatRoom, ChatRoomBan} from "../../../lib/types";
+import {useChatRoomRoles} from "../../../lib/hooks/useChatRoomRoles";
+import ConfirmDialog from "../../../app/shared/components/ConfirmDialog";
 
 type Props = { chatRoomId: string };
 
-export default function ChatRoomSettingsBans({ chatRoomId }: Props) {
+export default function ChatRoomSettingsBans({chatRoomId}: Props) {
   const queryClient = useQueryClient();
-  const { currentUser } = useAccount();
-  const { userPermissions } = useChatRoomRoles(chatRoomId, currentUser?.id);
+  const {currentUser} = useAccount();
+  const {userPermissions} = useChatRoomRoles(chatRoomId, currentUser?.id);
   const canUnban = userPermissions?.[CHATROOM_PERMISSIONS.UnbanFromChatRoom];
 
   const chatRoom = queryClient.getQueryData<ChatRoom>([
@@ -34,6 +35,8 @@ export default function ChatRoomSettingsBans({ chatRoomId }: Props) {
   ]);
   const bans: ChatRoomBan[] = useMemo(() => chatRoom?.bans ?? [], [chatRoom]);
 
+  const [unbanTarget, setUnbanTarget] = useState<null | { userId: string; displayName: string }>(null);
+
   const unbanMutation = useMutation({
     mutationFn: async (userId: string) => {
       await agent.post(`/chatRooms/${chatRoomId}/unban/${userId}`);
@@ -41,7 +44,7 @@ export default function ChatRoomSettingsBans({ chatRoomId }: Props) {
     },
     onMutate: async (userId: string) => {
       const key = ["chatRooms", chatRoomId];
-      await queryClient.cancelQueries({ queryKey: key });
+      await queryClient.cancelQueries({queryKey: key});
       const prev = queryClient.getQueryData<ChatRoom>(key);
       if (prev) {
         queryClient.setQueryData<ChatRoom>(key, {
@@ -49,7 +52,7 @@ export default function ChatRoomSettingsBans({ chatRoomId }: Props) {
           bans: prev.bans.filter((b) => b.userId !== userId),
         });
       }
-      return { prev };
+      return {prev};
     },
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev)
@@ -57,18 +60,31 @@ export default function ChatRoomSettingsBans({ chatRoomId }: Props) {
       toast.error("Failed to unban user.");
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["chatRooms", chatRoomId] });
+      queryClient.invalidateQueries({queryKey: ["chatRooms", chatRoomId]});
     },
   });
 
-  const handleUnban = (userId: string) => {
+  const openUnbanDialog = useCallback((ban: ChatRoomBan) => {
     if (!canUnban) return;
-    if (!window.confirm("Unban this user?")) return;
-    unbanMutation.mutate(userId);
-  };
+    const displayName = ban.user?.displayName || ban.userId;
+    setUnbanTarget({userId: ban.userId, displayName});
+  }, [canUnban]);
+
+  const closeUnbanDialog = useCallback(() => {
+    if (unbanMutation.isPending) return;
+    setUnbanTarget(null);
+  }, [unbanMutation.isPending]);
+
+  const confirmUnban = useCallback(() => {
+    if (!unbanTarget || unbanMutation.isPending) return;
+    unbanMutation.mutate(unbanTarget.userId, {
+      onSettled: () => setUnbanTarget(null),
+      onSuccess: () => toast.success(`${unbanTarget.displayName} unbanned.`),
+    });
+  }, [unbanTarget, unbanMutation]);
 
   return (
-    <Paper variant="outlined" sx={{ p: 2 }}>
+    <Paper variant="outlined" sx={{p: 2}}>
       <Stack
         direction="row"
         alignItems="center"
@@ -100,7 +116,7 @@ export default function ChatRoomSettingsBans({ chatRoomId }: Props) {
                         variant="outlined"
                         color="success"
                         disabled={unbanMutation.isPending}
-                        onClick={() => handleUnban(ban.userId)}
+                        onClick={() => openUnbanDialog(ban)}
                       >
                         Unban
                       </Button>
@@ -117,12 +133,24 @@ export default function ChatRoomSettingsBans({ chatRoomId }: Props) {
                     ).toLocaleString()}`}
                   />
                 </ListItem>
-                {idx < bans.length - 1 && <Divider component="li" />}
+                {idx < bans.length - 1 && <Divider component="li"/>}
               </Box>
             );
           })}
         </List>
       )}
+
+      <ConfirmDialog
+        open={!!unbanTarget}
+        onClose={closeUnbanDialog}
+        onConfirm={confirmUnban}
+        title="Confirm unban"
+        message={unbanTarget ? `Unban ${unbanTarget.displayName}?\nThey will regain access to the chat room.` : ''}
+        confirmText="Unban"
+        confirmColor="success"
+        isProcessing={unbanMutation.isPending}
+        ariaLabel="confirm-unban-user"
+      />
     </Paper>
   );
 }

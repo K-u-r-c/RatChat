@@ -1,21 +1,13 @@
-import { useState } from "react";
-import {
-  Box,
-  Card,
-  CardContent,
-  Tabs,
-  Tab,
-  Typography,
-  Chip,
-  List,
-} from "@mui/material";
-import { useNavigate } from "react-router";
-import { useFriends } from "../../lib/hooks/useFriends";
-import { useDirectChats } from "../../lib/hooks/useDirectChats";
-import { toast } from "react-toastify";
-import { FriendsTab } from "./FriendsTab";
-import { ReceivedRequestItem, SentRequestItem } from "./FriendRequestItem";
+import {useState} from "react";
+import {Box, Card, CardContent, Chip, List, Tab, Tabs, Typography,} from "@mui/material";
+import {useNavigate} from "react-router";
+import {useFriends} from "../../lib/hooks/useFriends";
+import {useDirectChats} from "../../lib/hooks/useDirectChats";
+import {toast} from "react-toastify";
+import {FriendsTab} from "./FriendsTab";
+import {ReceivedRequestItem, SentRequestItem} from "./FriendRequestItem";
 import AddFriendTab from "./AddFriendTab";
+import ConfirmDialog from "../../app/shared/components/ConfirmDialog";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -24,7 +16,7 @@ interface TabPanelProps {
 }
 
 function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
+  const {children, value, index, ...other} = props;
   return (
     <div
       role="tabpanel"
@@ -33,7 +25,7 @@ function TabPanel(props: TabPanelProps) {
       aria-labelledby={`friends-tab-${index}`}
       {...other}
     >
-      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+      {value === index && <Box sx={{p: 3}}>{children}</Box>}
     </div>
   );
 }
@@ -41,7 +33,7 @@ function TabPanel(props: TabPanelProps) {
 export default function Friends() {
   const navigate = useNavigate();
   const [tabValue, setTabValue] = useState(0);
-  const { directChats } = useDirectChats();
+  const {directChats} = useDirectChats();
   const {
     friends,
     isLoadingFriends,
@@ -50,6 +42,7 @@ export default function Friends() {
     cancelFriendRequest,
     removeFriend,
   } = useFriends();
+  const [removeFriendTarget, setRemoveFriendTarget] = useState<null | { id: string; displayName: string }>(null);
 
   const handleStartChat = async (friendId: string) => {
     const existingChat = directChats?.find(
@@ -65,15 +58,27 @@ export default function Friends() {
   };
 
   const handleRemoveFriend = async (friendId: string) => {
-    if (window.confirm("Are you sure you want to remove this friend?")) {
-      try {
-        await removeFriend.mutateAsync(friendId);
-      } catch (error) {
-        if (import.meta.env.DEV) {
-          console.error("Error removing friend:", error);
-        }
+    if (removeFriend.isPending) return;
+    const friend = friends?.find(f => f.id === friendId);
+    setRemoveFriendTarget({id: friendId, displayName: friend?.displayName || "this friend"});
+  };
+
+  const confirmRemoveFriend = async () => {
+    if (!removeFriendTarget) return;
+    try {
+      await removeFriend.mutateAsync(removeFriendTarget.id);
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.error("Error removing friend:", error);
       }
+    } finally {
+      setRemoveFriendTarget(null);
     }
+  };
+
+  const closeRemoveFriendDialog = () => {
+    if (removeFriend.isPending) return;
+    setRemoveFriendTarget(null);
   };
 
   const handleAcceptRequest = async (requestId: string) => {
@@ -118,15 +123,15 @@ export default function Friends() {
   const requestsCount = friendRequests?.received?.length || 0;
 
   const tabs: { key: string; label: React.ReactNode }[] = [
-    { key: "online", label: `Online (${onlineCount})` },
-    { key: "all", label: `All (${allCount})` },
+    {key: "online", label: `Online (${onlineCount})`},
+    {key: "all", label: `All (${allCount})`},
   ];
   if (pendingCount > 0)
     tabs.push({
       key: "pending",
       label: (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          Pending <Chip size="small" label={pendingCount} color="warning" />
+        <Box sx={{display: "flex", alignItems: "center", gap: 1}}>
+          Pending <Chip size="small" label={pendingCount} color="warning"/>
         </Box>
       ),
     });
@@ -134,13 +139,13 @@ export default function Friends() {
     tabs.push({
       key: "requests",
       label: (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          Requests <Chip size="small" label={requestsCount} color="primary" />
+        <Box sx={{display: "flex", alignItems: "center", gap: 1}}>
+          Requests <Chip size="small" label={requestsCount} color="primary"/>
         </Box>
       ),
     });
 
-  tabs.push({ key: "add", label: "Add Friend" });
+  tabs.push({key: "add", label: "Add Friend"});
 
   const indexToKey = tabs.map((t) => t.key);
 
@@ -153,8 +158,8 @@ export default function Friends() {
         flexDirection: "column",
       }}
     >
-      <Box sx={{ px: 2, py: 1.5 }}>
-        <Typography variant="h5" sx={{ mb: 1 }}>
+      <Box sx={{px: 2, py: 1.5}}>
+        <Typography variant="h5" sx={{mb: 1}}>
           Friends
         </Typography>
         <Tabs
@@ -179,14 +184,14 @@ export default function Friends() {
               sx={
                 t.key === "add"
                   ? {
-                      bgcolor: "primary.main",
-                      borderRadius: 1,
-                      px: 1.5,
-                      "&.Mui-selected": {
-                        bgcolor: "rgba(88,101,242,0.20)",
-                        border: "none",
-                      },
-                    }
+                    bgcolor: "primary.main",
+                    borderRadius: 1,
+                    px: 1.5,
+                    "&.Mui-selected": {
+                      bgcolor: "rgba(88,101,242,0.20)",
+                      border: "none",
+                    },
+                  }
                   : undefined
               }
             />
@@ -194,9 +199,9 @@ export default function Friends() {
         </Tabs>
       </Box>
 
-      <Box sx={{ flex: 1, overflow: "auto" }}>
-        <Card elevation={0} sx={{ height: "100%", bgcolor: "transparent" }}>
-          <CardContent sx={{ p: 0 }}>
+      <Box sx={{flex: 1, overflow: "auto"}}>
+        <Card elevation={0} sx={{height: "100%", bgcolor: "transparent"}}>
+          <CardContent sx={{p: 0}}>
             {indexToKey.map((key, i) => (
               <TabPanel key={key} value={tabValue} index={i}>
                 {key === "online" && (
@@ -217,7 +222,7 @@ export default function Friends() {
                     isRemoving={removeFriend.isPending}
                   />
                 )}
-                {key === "add" && <AddFriendTab autoFocus />}
+                {key === "add" && <AddFriendTab autoFocus/>}
                 {key === "pending" && (
                   <List>
                     {friendRequests?.sent?.map((request) => (
@@ -258,6 +263,18 @@ export default function Friends() {
           </CardContent>
         </Card>
       </Box>
+      <ConfirmDialog
+        open={!!removeFriendTarget}
+        onClose={closeRemoveFriendDialog}
+        onConfirm={confirmRemoveFriend}
+        title="Remove friend"
+        message={removeFriendTarget ? `Are you sure you want to remove ${removeFriendTarget.displayName} from friends?
+        Your conversation will be preserved but you won't be able to send new messages.` : ''}
+        confirmText="Remove"
+        confirmColor="error"
+        isProcessing={removeFriend.isPending}
+        ariaLabel="confirm-remove-friend"
+      />
     </Box>
   );
 }
