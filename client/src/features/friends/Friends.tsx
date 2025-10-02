@@ -268,7 +268,8 @@ export default function Friends() {
         onClose={closeRemoveFriendDialog}
         onConfirm={confirmRemoveFriend}
         title="Remove friend"
-        message={removeFriendTarget ? `Are you sure you want to remove ${removeFriendTarget.displayName}?\nYou will need to send a new request to be friends again.` : ''}
+        message={removeFriendTarget ? `Are you sure you want to remove ${removeFriendTarget.displayName} from friends?
+        Your conversation will be preserved but you won't be able to send new messages.` : ''}
         confirmText="Remove"
         confirmColor="error"
         isProcessing={removeFriend.isPending}
