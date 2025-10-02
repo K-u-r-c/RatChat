@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useCallback,
 } from "react";
 import { type FieldValues } from "react-hook-form";
 import { useInView } from "react-intersection-observer";
@@ -99,7 +100,23 @@ const MediaChatComponent = observer(function MediaChatComponent(
   const { useAppearance } = useChatAppearance();
   const { data: appearance } = useAppearance(backendChatType, chatId);
   const { currentUser } = useAccount();
-  const { userPermissions } = useChatRoomRoles(chatRoomId, currentUser?.id);
+  const { userPermissions, usersRolesMap } = useChatRoomRoles(chatRoomId, currentUser?.id);
+
+  const memberAccentColors = useMemo(() => {
+    if (!chatRoomId) return new Map<string, string>();
+    const map = new Map<string, string>();
+    usersRolesMap.forEach((roles, userKey) => {
+      if (roles.length > 0 && roles[0]?.color) {
+        map.set(userKey, roles[0].color);
+      }
+    });
+    return map;
+  }, [chatRoomId, usersRolesMap]);
+
+  const resolveAccentColor = useCallback(
+    (userKey?: string) => (userKey ? memberAccentColors.get(userKey) : undefined),
+    [memberAccentColors]
+  );
 
   const chatBackgroundStyle = useMemo<CSSProperties>(() => {
     const base = getChatBackgroundStyle(
@@ -332,6 +349,7 @@ const MediaChatComponent = observer(function MediaChatComponent(
                 directChatId={directChatId}
                 encryptedDirectChatId={encryptedDirectChatId}
                 defaultEmoji={defaultEmoji}
+                resolveAccentColor={chatRoomId ? resolveAccentColor : undefined}
               />
             </Box>
 

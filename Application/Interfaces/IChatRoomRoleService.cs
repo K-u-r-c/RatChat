@@ -12,10 +12,12 @@ public interface IChatRoomRoleService
     Task<List<ChatRoomRoleDto>> GetRolesAsync(string chatRoomId, string userId);
     Task<Dictionary<string, List<ChatRoomRoleDto>>> GetUsersRolesAsync(string chatRoomId);
     Task UpdateRoleAsync(UpdateChatRoomRoleDto updateRoleDto);
+    Task<MemberDisplayRoleDto> SetMemberDisplayRoleAsync(SetMemberDisplayRoleDto dto);
     Task DeleteRoleAsync(string chatRoomRoleId);
     Task<bool> IsDefaultRoleAsync(string chatRoomRoleId);
     Task AssignMemberRoleAsync(string userId, string chatRoomId, CancellationToken cancellationToken);
     Task<AssignedChatRoomRoleDto> AssignRoleAsync(AssignChatRoomRoleDto assignRoleDto);
     Task<UnassignedChatRoomRoleDto> UnassignRoleAsync(UnassignChatRoomRoleDto unassignRoleDto);
+    Task<List<ChatRoomRoleDto>> ReorderRolesAsync(string chatRoomId, IReadOnlyList<string> orderedRoleIds);
     Task UnassignAllUserRolesAsync(string chatRoomId, string userId, CancellationToken cancellationToken);
 }

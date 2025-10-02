@@ -222,6 +222,100 @@ export function useChatRoomRolesRealtime(
           }
         }
       );
+
+      // ROLES REORDERED
+      this.hubConnection.on("RolesReordered", (reorderedRoles: ChatRoomRole[]) => {
+        const sorted = reorderedRoles.slice().sort((a, b) => a.importance - b.importance);
+
+        queryClient.setQueryData(
+          chatRoomRolesQueryKeys.rolesKey(chatRoom.id),
+          () => sorted
+        );
+
+        queryClient.setQueryData(
+          chatRoomRolesQueryKeys.usersRolesKey(chatRoom.id),
+          (old: Map<string, ChatRoomRole[]>) => {
+            if (!old) return old;
+            const importanceLookup = new Map(sorted.map((role) => [role.id, role.importance]));
+            const updated = new Map<string, ChatRoomRole[]>();
+            old.forEach((roles, key) => {
+              const mapped = roles.map((role) => ({
+                ...role,
+                importance: importanceLookup.get(role.id) ?? role.importance,
+              }));
+              const ordered = mapped
+                .slice()
+                .sort((a, b) => {
+                  if (a.isDisplayRole !== b.isDisplayRole) return a.isDisplayRole ? -1 : 1;
+                  const aImportance = importanceLookup.get(a.id) ?? a.importance;
+                  const bImportance = importanceLookup.get(b.id) ?? b.importance;
+                  if (aImportance !== bImportance) return aImportance - bImportance;
+                  return 0;
+                });
+              updated.set(key, ordered);
+            });
+            return updated;
+          }
+        );
+
+        queryClient.invalidateQueries({
+          queryKey: chatRoomRolesQueryKeys.rolesKey(chatRoom.id),
+        });
+        queryClient.invalidateQueries({
+          queryKey: chatRoomRolesQueryKeys.usersRolesKey(chatRoom.id),
+        });
+      });
+      // MEMBER DISPLAY ROLE UPDATED
+      this.hubConnection.on(
+        "MemberDisplayRoleChanged",
+        (payload: { userId: string; roleId?: string | null }) => {
+          queryClient.setQueryData(
+            chatRoomRolesQueryKeys.usersRolesKey(chatRoom.id),
+            (old: Map<string, ChatRoomRole[]>) => {
+              if (!old) return old;
+              const updated = new Map(old);
+              const roles = updated.get(payload.userId);
+              if (!roles) return updated;
+              const nextRoles = roles.map((role) => ({
+                ...role,
+                isDisplayRole: payload.roleId ? role.id === payload.roleId : false,
+              }));
+              updated.set(payload.userId, nextRoles);
+
+              const applyMemberUpdate = (room?: any) => {
+                if (!room || !room.members) return room;
+                const selectedRole = nextRoles.find((role) => role.isDisplayRole);
+                const members = room.members.map((member: any) =>
+                  member.id === payload.userId
+                    ? {
+                        ...member,
+                        chatRoomDisplayRoleId: payload.roleId ?? null,
+                        chatRoomDisplayRoleColor: selectedRole?.color ?? null,
+                      }
+                    : member
+                );
+                return { ...room, members };
+              };
+
+              queryClient.setQueryData(["chatRooms", chatRoom.id], applyMemberUpdate);
+              if (chatRoom.slug) {
+                queryClient.setQueryData(["chatRooms", chatRoom.slug], applyMemberUpdate);
+              }
+
+              return updated;
+            }
+          );
+
+          queryClient.invalidateQueries({
+            queryKey: chatRoomRolesQueryKeys.usersRolesKey(chatRoom.id),
+          });
+          queryClient.invalidateQueries({
+            predicate: (query) =>
+              query.queryKey[0] === "chatRooms" &&
+              (query.queryKey[1] === chatRoom.id || query.queryKey[1] === chatRoom.slug),
+          });
+        }
+      );
     },
 
     reset() {
@@ -232,6 +326,8 @@ export function useChatRoomRolesRealtime(
       this.hubConnection.off("RoleDeleted");
       this.hubConnection.off("RoleAssigned");
       this.hubConnection.off("RoleUnassigned");
+      this.hubConnection.off("RolesReordered");
+      this.hubConnection.off("MemberDisplayRoleChanged");
 
       this.connectedChatRoomId = null;
       this.hubConnection = null;

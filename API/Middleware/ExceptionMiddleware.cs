@@ -17,6 +17,10 @@ public class ExceptionMiddleware(ILogger<ExceptionMiddleware> logger, IHostEnvir
         {
             await HandleValidationException(context, ex);
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            await HandleUnauthorizedException(context, ex);
+        }
         catch (Exception ex)
         {
             await HandleException(context, ex);
@@ -33,6 +37,22 @@ public class ExceptionMiddleware(ILogger<ExceptionMiddleware> logger, IHostEnvir
             ? new AppException(context.Response.StatusCode, ex.Message, ex.StackTrace)
             : new AppException(context.Response.StatusCode, ex.Message, null);
 
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
+
+        var json = JsonSerializer.Serialize(response, options);
+
+        await context.Response.WriteAsync(json);
+    }
+
+    private static async Task HandleUnauthorizedException(HttpContext context, UnauthorizedAccessException ex)
+    {
+        context.Response.ContentType = "application/json";
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+
+        var response = new AppException(StatusCodes.Status401Unauthorized, ex.Message, null);
         var options = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase

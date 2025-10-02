@@ -9,6 +9,7 @@ type Props = {
   messageType?: string;
   profileSlug?: string;
   showUserProfiles?: boolean;
+  accentColor?: string;
 };
 
 export default function MessageHeader({
@@ -18,6 +19,7 @@ export default function MessageHeader({
   messageType,
   profileSlug,
   showUserProfiles = true,
+  accentColor,
 }: Props) {
   const linkEnabled = showUserProfiles && !!profileSlug;
   const linkProps = linkEnabled
@@ -36,7 +38,7 @@ export default function MessageHeader({
         sx={{
           fontWeight: "bold",
           textDecoration: "none",
-          color: "inherit",
+          color: accentColor ?? "inherit",
           "&:hover": linkEnabled ? { textDecoration: "underline" } : undefined,
         }}
         {...linkProps}

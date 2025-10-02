@@ -14,4 +14,6 @@ public class UserProfileDto
     public bool IsOnline { get; set; }
     public DateTime? LastSeen { get; set; }
     public string Status { get; set; } = "Offline";
+    public string? ChatRoomDisplayRoleId { get; set; }
+    public string? ChatRoomDisplayRoleColor { get; set; }
 }

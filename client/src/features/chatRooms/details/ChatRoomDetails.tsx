@@ -1,5 +1,3 @@
-import {useNavigate, useParams} from "react-router";
-import {useChatRooms} from "../../../lib/hooks/useChatRooms";
 import {
   Avatar,
   Badge,
@@ -12,34 +10,54 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import ChatRoomDetailsChat from "./ChatRoomDetailsChat";
-import ChatRoomScreenSharePanel from "./ChatRoomScreenSharePanel.tsx";
-import { observer } from "mobx-react-lite";
-import { useAccount } from "../../../lib/hooks/useAccount";
-import { useEffect, useMemo, useRef, useState } from "react";
-import ChatRoomMemberPopover from "./ChatRoomMemberPopover";
+import {observer} from "mobx-react-lite";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {useNavigate, useParams} from "react-router";
+import {useAccount} from "../../../lib/hooks/useAccount";
 import {useChatRoomModerationEventsRealtime} from "../../../lib/hooks/useChatRoomModerationEventsRealtime";
-import { useChatRoomRolesRealtime } from "../../../lib/hooks/useChatRoomRolesRealtime.ts";
+import {useChatRoomRoles} from "../../../lib/hooks/useChatRoomRoles";
+import {useChatRoomRolesRealtime} from "../../../lib/hooks/useChatRoomRolesRealtime.ts";
+import {useChatRooms} from "../../../lib/hooks/useChatRooms";
 import {useStore} from "../../../lib/hooks/useStore.ts";
+import ChatRoomDetailsChat from "./ChatRoomDetailsChat";
+import ChatRoomMemberPopover from "./ChatRoomMemberPopover";
+import ChatRoomScreenSharePanel from "./ChatRoomScreenSharePanel.tsx";
 
 const ChatRoomDetails = observer(function ChatRoomDetails() {
   const {slug} = useParams();
   const navigate = useNavigate();
   const {currentUser} = useAccount();
   const {uiStore} = useStore();
-  const {chatRoom, isLoadingChatRoom } = useChatRooms(slug);
+  const {chatRoom, isLoadingChatRoom} = useChatRooms(slug);
 
   const activeRoomView = chatRoom ? uiStore.getChatRoomView(chatRoom.id) : "chat";
   const isScreenShareView = activeRoomView === "screen-share";
 
   useChatRoomModerationEventsRealtime(chatRoom, currentUser?.id);
   useChatRoomRolesRealtime(chatRoom, currentUser?.id);
+  const {usersRolesMap} = useChatRoomRoles(chatRoom?.id, currentUser?.id);
 
   useEffect(() => {
     if (chatRoom && slug && slug !== chatRoom.slug) {
       navigate(`/chat-rooms/${chatRoom.slug}`, {replace: true});
     }
   }, [chatRoom, chatRoom?.slug, slug, navigate]);
+
+  const memberAccentColors = useMemo(() => {
+    if (!chatRoom) return new Map<string, string>();
+    const map = new Map<string, string>();
+    usersRolesMap.forEach((roles, userKey) => {
+      if (roles.length > 0 && roles[0]?.color) {
+        map.set(userKey, roles[0].color);
+      }
+    });
+    return map;
+  }, [chatRoom, usersRolesMap]);
+
+  const resolveMemberAccent = useCallback(
+    (userKey?: string) => (userKey ? memberAccentColors.get(userKey) : undefined),
+    [memberAccentColors]
+  );
 
   const isOnlineStatus = (status?: string, fallbackIsOnline?: boolean) => {
     const s = (status || "").toLowerCase();
@@ -283,39 +301,52 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
                 No one is online right now
               </Typography>
             )}
-            {onlineMembers.map((m) => (
-              <ListItemButton
-                key={m.id}
-                onClick={(e) => {
-                  setSelectedMemberId(m.id);
-                  setAnchorEl(e.currentTarget);
-                }}
-              >
-                <ListItemAvatar>
-                  <Badge
-                    variant="dot"
-                    overlap="circular"
-                    anchorOrigin={{vertical: "bottom", horizontal: "right"}}
-                    sx={{
-                      "& .MuiBadge-badge": {
-                        bgcolor: statusColor(m.status, m.isOnline),
-                        width: 12,
-                        height: 12,
-                        borderRadius: "50%",
-                        border: "2px solid",
-                        borderColor: "background.paper",
+            {onlineMembers.map((m) => {
+              const accentColor = resolveMemberAccent(m.id);
+              return (
+                <ListItemButton
+                  key={m.id}
+                  onClick={(e) => {
+                    setSelectedMemberId(m.id);
+                    setAnchorEl(e.currentTarget);
+                  }}
+                >
+                  <ListItemAvatar>
+                    <Badge
+                      variant="dot"
+                      overlap="circular"
+                      anchorOrigin={{vertical: "bottom", horizontal: "right"}}
+                      sx={{
+                        "& .MuiBadge-badge": {
+                          bgcolor: statusColor(m.status, m.isOnline),
+                          width: 12,
+                          height: 12,
+                          borderRadius: "50%",
+                          border: "2px solid",
+                          borderColor: "background.paper",
+                        },
+                      }}
+                    >
+                      <Avatar src={m.imageUrl}>{m.displayName?.[0]}</Avatar>
+                    </Badge>
+                  </ListItemAvatar>
+                  <ListItemText
+                    primary={m.displayName}
+                    secondary={statusLabel(m.status, m.isOnline)}
+                    primaryTypographyProps={{
+                      noWrap: true,
+                      sx: {
+                        color: accentColor ?? "text.primary",
+                        fontWeight: accentColor ? 600 : 500,
                       },
                     }}
-                  >
-                    <Avatar src={m.imageUrl}>{m.displayName?.[0]}</Avatar>
-                  </Badge>
-                </ListItemAvatar>
-                <ListItemText
-                  primary={m.displayName}
-                  secondary={statusLabel(m.status, m.isOnline)}
-                />
-              </ListItemButton>
-            ))}
+                    secondaryTypographyProps={{
+                      sx: {color: "text.secondary"},
+                    }}
+                  />
+                </ListItemButton>
+              );
+            })}
           </List>
           <Divider sx={{my: 1}}/>
 
@@ -326,40 +357,53 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
             Offline - {offlineMembers.length}
           </Typography>
           <List dense>
-            {offlineMembers.map((m) => (
-              <ListItemButton
-                key={m.id}
-                onClick={(e) => {
-                  setSelectedMemberId(m.id);
-                  setAnchorEl(e.currentTarget);
-                }}
-                sx={{opacity: 0.6}}
-              >
-                <ListItemAvatar>
-                  <Badge
-                    variant="dot"
-                    overlap="circular"
-                    anchorOrigin={{vertical: "bottom", horizontal: "right"}}
-                    sx={{
-                      "& .MuiBadge-badge": {
-                        bgcolor: statusColor(m.status, m.isOnline),
-                        width: 12,
-                        height: 12,
-                        borderRadius: "50%",
-                        border: "2px solid",
-                        borderColor: "background.paper",
+            {offlineMembers.map((m) => {
+              const accentColor = resolveMemberAccent(m.id);
+              return (
+                <ListItemButton
+                  key={m.id}
+                  onClick={(e) => {
+                    setSelectedMemberId(m.id);
+                    setAnchorEl(e.currentTarget);
+                  }}
+                  sx={{opacity: 0.6}}
+                >
+                  <ListItemAvatar>
+                    <Badge
+                      variant="dot"
+                      overlap="circular"
+                      anchorOrigin={{vertical: "bottom", horizontal: "right"}}
+                      sx={{
+                        "& .MuiBadge-badge": {
+                          bgcolor: statusColor(m.status, m.isOnline),
+                          width: 12,
+                          height: 12,
+                          borderRadius: "50%",
+                          border: "2px solid",
+                          borderColor: "background.paper",
+                        },
+                      }}
+                    >
+                      <Avatar src={m.imageUrl}>{m.displayName?.[0]}</Avatar>
+                    </Badge>
+                  </ListItemAvatar>
+                  <ListItemText
+                    primary={m.displayName}
+                    secondary={statusLabel(m.status, m.isOnline)}
+                    primaryTypographyProps={{
+                      noWrap: true,
+                      sx: {
+                        color: accentColor ?? "text.primary",
+                        fontWeight: accentColor ? 600 : 500,
                       },
                     }}
-                  >
-                    <Avatar src={m.imageUrl}>{m.displayName?.[0]}</Avatar>
-                  </Badge>
-                </ListItemAvatar>
-                <ListItemText
-                  primary={m.displayName}
-                  secondary={statusLabel(m.status, m.isOnline)}
-                />
-              </ListItemButton>
-            ))}
+                    secondaryTypographyProps={{
+                      sx: {color: "text.secondary"},
+                    }}
+                  />
+                </ListItemButton>
+              );
+            })}
           </List>
         </Box>
       </Box>

@@ -11,6 +11,7 @@ using Application.Core;
 using Application.Development;
 using Application.EmojiPreferences.Validators;
 using Application.Friends.Validators;
+using Application.Initialization;
 using Application.Interfaces;
 using Application.Profiles.Validators;
 using Application.Status.Validators;
@@ -198,6 +199,8 @@ try
 
     if (builder.Environment.IsDevelopment())
         await DbInitializer.SeedData(context, userManager, rolePermissionService, chatRoomRoleService);
+    
+    await ProductionDbInitializer.SeedData(context, rolePermissionService);
 }
 catch (Exception ex)
 {

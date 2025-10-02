@@ -126,6 +126,8 @@ export type Profile = {
   displayName: string;
   tag?: number;
   bio?: string;
+  chatRoomDisplayRoleId?: string;
+  chatRoomDisplayRoleColor?: string;
   imageUrl?: string;
   bannerUrl?: string;
   slug: string;

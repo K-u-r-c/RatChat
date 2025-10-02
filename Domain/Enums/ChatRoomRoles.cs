@@ -1,16 +1,15 @@
 namespace Domain.Enums;
 
-public class ChatRoomRoles
+public static class ChatRoomRoles
 {
     public const string Moderator = "Moderator";
     public const string Member = "Member";
 
-    public static readonly Dictionary<string, (string Description, string Color)> Defaults
-        = new()
-        {
-            [Moderator] = ("Moderator with moderation permissions", "#00ff00"), // Green color
-            [Member] = ("Regular member with basic permissions", "#333333") // Grey color
-        };
+    public static readonly Dictionary<string, (string Description, string Color)> Defaults = new()
+    {
+        [Moderator] = ("Moderator with moderation permissions", "#00ff00"), // Green
+        [Member] = ("Regular member with basic permissions", "#c7c7c7") // Light gray
+    };
 
     public static readonly Dictionary<(string role, string permission), bool> DefaultsPermissions = new()
     {
@@ -23,11 +22,6 @@ public class ChatRoomRoles
         [(Moderator, ChatRoomPermissions.ManageChatRoomRoles)] = true,
 
         [(Member, ChatRoomPermissions.ViewChatRoom)] = true,
-        [(Member, ChatRoomPermissions.SendMessages)] = true,
-        [(Member, ChatRoomPermissions.CreateInviteLinks)] = false,
-        [(Member, ChatRoomPermissions.KickFromChatRoom)] = false,
-        [(Member, ChatRoomPermissions.BanFromChatRoom)] = false,
-        [(Member, ChatRoomPermissions.UnbanFromChatRoom)] = false,
-        [(Moderator, ChatRoomPermissions.ManageChatRoomRoles)] = false,
+        [(Member, ChatRoomPermissions.SendMessages)] = true
     };
 }
