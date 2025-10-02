@@ -5,7 +5,7 @@ import mkcert from "vite-plugin-mkcert";
 // https://vite.dev/config/
 export default defineConfig({
   build: {
-    outDir: "/dist",
+    outDir: "./dist",
     chunkSizeWarningLimit: 1500,
     emptyOutDir: true,
   },
