@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 using Application.Interfaces;
 using Domain.Enums;
+using Domain.Extensions;
+using Microsoft.EntityFrameworkCore;
 using Persistance;
 
 namespace Infrastructure.Services;
@@ -114,6 +116,27 @@ public class UserStatusService(AppDbContext context, IStatusNotificationService 
     public Task<bool> IsUserOnlineAsync(string userId)
     {
         return Task.FromResult(IsUserConnected(userId));
+    }
+
+    public async Task<Dictionary<string, (UserStatus Status, bool IsOnline, DateTime LastSeen)>> GetActualStatusesAsync(
+        IEnumerable<string> userIds)
+    {
+        var ids = userIds.Distinct().ToList();
+        var onlineSet = ids.Where(IsUserConnected).ToHashSet();
+
+        var users = await context.Users
+            .Where(u => ids.Contains(u.Id))
+            .Select(u => new { u.Id, u.Status, u.LastSeen })
+            .ToListAsync();
+
+        var map = new Dictionary<string, (UserStatus, bool, DateTime)>();
+        foreach (var u in users)
+        {
+            var status = onlineSet.Contains(u.Id) ? u.Status : UserStatus.Offline;
+            map[u.Id] = (status, onlineSet.Contains(u.Id) && status.IsConsideredOnline(), u.LastSeen);
+        }
+        // Any missing users treated as offline (optional)
+        return map;
     }
 
     private static bool IsUserConnected(string userId)

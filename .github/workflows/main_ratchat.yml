@@ -82,6 +82,7 @@ jobs:
           GITHUB_CLIENT_SECRET: ${{ secrets.GITHUB_CLIENT_SECRET }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          MESSAGE_ENCRYPTION_KEY: ${{ secrets.MESSAGE_ENCRYPTION_KEY }}
           CLIENT_APP_URL: ${{ secrets.CLIENT_APP_URL }}
           ALLOWED_HOSTS: ${{ secrets.ALLOWED_HOSTS }}
         run: |
@@ -116,6 +117,7 @@ jobs:
                 "ClientSecret": "__GOOGLE_CLIENT_SECRET__"
               }
             },
+            "MessageEncryptionKey": "__MESSAGE_ENCRYPTION_KEY__",
             "ClientAppUrl": "__CLIENT_APP_URL__",
             "AllowedHosts": "__ALLOWED_HOSTS__"
           }
@@ -130,6 +132,7 @@ jobs:
           sed -i "s|__GITHUB_CLIENT_SECRET__|${GITHUB_CLIENT_SECRET//|/\\|}|g" appsettings.json
           sed -i "s|__GOOGLE_CLIENT_ID__|${GOOGLE_CLIENT_ID//|/\\|}|g" appsettings.json
           sed -i "s|__GOOGLE_CLIENT_SECRET__|${GOOGLE_CLIENT_SECRET//|/\\|}|g" appsettings.json
+          sed -i "s|__MESSAGE_ENCRYPTION_KEY__|${MESSAGE_ENCRYPTION_KEY//|/\\|}|g" appsettings.json
           sed -i "s|__CLIENT_APP_URL__|${CLIENT_APP_URL//|/\\|}|g" appsettings.json
           sed -i "s|__ALLOWED_HOSTS__|${ALLOWED_HOSTS//|/\\|}|g" appsettings.json
           chmod 600 appsettings.json
