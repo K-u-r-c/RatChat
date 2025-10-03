@@ -11,8 +11,8 @@
     "preview": "vite preview",
     "electron:dev": "cross-env RATCHAT_DESKTOP=true VITE_DEV_SERVER_URL=https://localhost:3000 concurrently \"npm:dev\" \"npm:electron:wait\"",
     "electron:wait": "wait-on tcp:3000 && electron .",
-    "electron:build": "npm run build && electron-builder --dir",
-    "electron:package": "npm run build && electron-builder"
+    "electron:build": "npm run build -- --base=./ && electron-builder --dir",
+    "electron:package": "npm run build -- --base=./ && electron-builder"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.1.0",
