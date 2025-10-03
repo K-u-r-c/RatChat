@@ -47,6 +47,7 @@ const DEFAULT_SCREEN_SHARE_CONSTRAINTS: ScreenShareConstraints = {
   width: 1920,
   height: 1080,
   frameRate: 30,
+  audio: "none",
 };
 
 type MaybeNetworkInformation = {
@@ -57,6 +58,11 @@ type NavigatorWithConnection = Navigator & {
   connection?: MaybeNetworkInformation;
   mozConnection?: MaybeNetworkInformation;
   webkitConnection?: MaybeNetworkInformation;
+};
+
+type DisplayMediaAudioConstraints = MediaTrackConstraints & {
+  systemAudio?: "include" | "exclude";
+  suppressLocalAudioPlayback?: boolean;
 };
 
 class VoiceManager {
@@ -77,6 +83,7 @@ class VoiceManager {
     string,
     { camera?: RTCRtpSender; screen?: RTCRtpSender }
   >();
+  private screenAudioSenders = new Map<string, RTCRtpSender>();
   private negotiationStates = new Map<
     string,
     {
@@ -895,6 +902,7 @@ class VoiceManager {
       });
     }
     this.remoteVideoStreams.delete(connectionId);
+    this.detachScreenAudioSenderForConnection(connectionId);
     this.videoSenders.delete(connectionId);
     this.applyParticipantMediaState(connectionId, {
       isCameraEnabled: false,
@@ -947,7 +955,9 @@ class VoiceManager {
 
     this.detachLocalVideoTrack("camera");
     this.detachLocalVideoTrack("screen");
+    this.detachScreenAudioSenders();
     this.videoSenders.clear();
+    this.screenAudioSenders.clear();
 
     this.speakingMonitors.forEach((_, connectionId) => {
       this.stopRemoteSpeakingMonitor(connectionId);
@@ -1177,6 +1187,76 @@ class VoiceManager {
     });
   }
 
+  private publishScreenAudioTrack(track: MediaStreamTrack, stream: MediaStream) {
+    this.peerConnections.forEach((pc, connectionId) => {
+      const existingSender = this.screenAudioSenders.get(connectionId);
+      if (existingSender) {
+        this.updateSenderStreams(existingSender, stream);
+        Promise.resolve(existingSender.replaceTrack(track))
+          .then(() => {
+            this.renegotiateConnection(connectionId);
+          })
+          .catch((err) => {
+            if (import.meta.env.DEV) {
+              console.warn("Failed to replace screen audio track, retrying", err);
+            }
+            this.detachScreenAudioSenderForConnection(connectionId);
+            try {
+              const sender = pc.addTrack(track, stream);
+              this.screenAudioSenders.set(connectionId, sender);
+              this.updateSenderStreams(sender, stream);
+              this.renegotiateConnection(connectionId);
+            } catch (fallbackErr) {
+              if (import.meta.env.DEV) {
+                console.warn("Failed to publish screen audio track", fallbackErr);
+              }
+            }
+          });
+        return;
+      }
+
+      try {
+        const sender = pc.addTrack(track, stream);
+        this.screenAudioSenders.set(connectionId, sender);
+        this.updateSenderStreams(sender, stream);
+        this.renegotiateConnection(connectionId);
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.warn("Failed to publish screen audio track", err);
+        }
+      }
+    });
+  }
+
+  private stopPublishingScreenAudioTrack() {
+    this.screenAudioSenders.forEach((sender, connectionId) => {
+      const finalizeRenegotiation = () => {
+        this.renegotiateConnection(connectionId);
+      };
+
+      try {
+        this.updateSenderStreams(sender, null);
+        Promise.resolve(sender.replaceTrack(null))
+          .then(() => {
+            finalizeRenegotiation();
+          })
+          .catch((err) => {
+            if (import.meta.env.DEV) {
+              console.warn("Failed to clear screen audio track", err);
+            }
+            this.detachScreenAudioSenderForConnection(connectionId);
+            finalizeRenegotiation();
+          });
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.warn("Failed to stop screen audio track", err);
+        }
+        this.detachScreenAudioSenderForConnection(connectionId);
+        finalizeRenegotiation();
+      }
+    });
+  }
+
   private async applyPreferredTrackSettings(
     type: "camera" | "screen",
     track: MediaStreamTrack
@@ -1335,6 +1415,28 @@ class VoiceManager {
   private detachLocalVideoTrack(type: "camera" | "screen") {
     Array.from(this.videoSenders.keys()).forEach((connectionId) => {
       this.detachVideoSenderForConnection(connectionId, type);
+    });
+  }
+
+  private detachScreenAudioSenderForConnection(connectionId: string) {
+    const sender = this.screenAudioSenders.get(connectionId);
+    if (!sender) return;
+    const pc = this.peerConnections.get(connectionId);
+    if (pc) {
+      try {
+        pc.removeTrack(sender);
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.warn("Failed to remove screen audio track", err);
+        }
+      }
+    }
+    this.screenAudioSenders.delete(connectionId);
+  }
+
+  private detachScreenAudioSenders() {
+    Array.from(this.screenAudioSenders.keys()).forEach((connectionId) => {
+      this.detachScreenAudioSenderForConnection(connectionId);
     });
   }
 
@@ -1527,7 +1629,7 @@ class VoiceManager {
             }
             return;
           }
-          const { width, height, frameRate } = this.screenShareConstraints;
+          const { width, height, frameRate, audio } = this.screenShareConstraints;
           const videoConstraints: MediaTrackConstraints = {
             frameRate:
               typeof frameRate === "number" && frameRate > 0
@@ -1540,9 +1642,19 @@ class VoiceManager {
           if (typeof height === "number" && height > 0) {
             videoConstraints.height = { ideal: height };
           }
+          const audioMode = audio ?? "none";
+          let audioConstraints: boolean | MediaTrackConstraints = false;
+          if (audioMode === "application") {
+            audioConstraints = true;
+          } else if (audioMode === "system") {
+            audioConstraints = {
+              // `systemAudio` is currently chromium-specific but ignored elsewhere.
+              systemAudio: "include",
+            } as DisplayMediaAudioConstraints;
+          }
           stream = await mediaDevices.getDisplayMedia({
             video: videoConstraints,
-            audio: false,
+            audio: audioConstraints,
           });
         }
       } catch (err) {
@@ -1617,6 +1729,14 @@ class VoiceManager {
       }
 
       this.publishLocalVideoTrack(type, track, stream);
+      if (type === "screen") {
+        const [audioTrack] = stream.getAudioTracks();
+        if (audioTrack) {
+          this.publishScreenAudioTrack(audioTrack, stream);
+        } else {
+          this.stopPublishingScreenAudioTrack();
+        }
+      }
 
       if (this.selfConnectionId) {
         if (type === "camera") {
@@ -1646,6 +1766,9 @@ class VoiceManager {
     }
 
     this.stopPublishingLocalVideoTrack(type);
+    if (type === "screen") {
+      this.stopPublishingScreenAudioTrack();
+    }
 
     if (type === "camera") {
       const stream = this.localCameraStream;
@@ -1752,6 +1875,22 @@ class VoiceManager {
 
     addVideoTrack(this.localCameraStream, "camera");
     addVideoTrack(this.localScreenStream, "screen");
+
+    const screenStream = this.localScreenStream;
+    if (screenStream) {
+      const [screenAudioTrack] = screenStream.getAudioTracks();
+      if (screenAudioTrack) {
+        try {
+          const sender = pc.addTrack(screenAudioTrack, screenStream);
+          this.screenAudioSenders.set(connectionId, sender);
+          this.updateSenderStreams(sender, screenStream);
+        } catch (err) {
+          if (import.meta.env.DEV) {
+            console.warn("Failed to attach screen audio track", err);
+          }
+        }
+      }
+    }
 
     pc.onicecandidate = (event) => {
       if (!event.candidate) return;

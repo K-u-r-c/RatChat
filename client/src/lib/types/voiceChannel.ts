@@ -1,9 +1,12 @@
 ﻿import type { VoiceParticipant } from "../realtime/voiceHub";
 
+export type ScreenShareAudioMode = "none" | "application" | "system";
+
 export type ScreenShareConstraints = {
   width?: number;
   height?: number;
   frameRate?: number;
+  audio?: ScreenShareAudioMode;
 };
 
 type RemoteAudioStreamInfo = {

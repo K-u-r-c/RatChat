@@ -1,4 +1,7 @@
-import type { ScreenShareConstraints } from "../types/voiceChannel";
+import type {
+  ScreenShareAudioMode,
+  ScreenShareConstraints,
+} from "../types/voiceChannel";
 
 export type ScreenResolutionOption = {
   id: string;
@@ -11,6 +14,12 @@ export type ScreenFrameRateOption = {
   id: string;
   label: string;
   fps?: number;
+};
+
+export type ScreenAudioOption = {
+  id: ScreenShareAudioMode;
+  label: string;
+  helperText?: string;
 };
 
 export const SCREEN_RESOLUTION_OPTIONS: ScreenResolutionOption[] = [
@@ -27,6 +36,24 @@ export const SCREEN_FRAME_RATE_OPTIONS: ScreenFrameRateOption[] = [
   { id: "24", label: "24 FPS", fps: 24 },
   { id: "30", label: "30 FPS", fps: 30 },
   { id: "60", label: "60 FPS", fps: 60 },
+];
+
+export const SCREEN_AUDIO_OPTIONS: ScreenAudioOption[] = [
+  {
+    id: "none",
+    label: "Don't share audio",
+    helperText: "Screen video only.",
+  },
+  {
+    id: "application",
+    label: "Share app audio",
+    helperText: "Includes audio from the window or tab you pick.",
+  },
+  {
+    id: "system",
+    label: "Share system audio",
+    helperText: "Capture full system sound when sharing your screen.",
+  },
 ];
 
 export const DEFAULT_SCREEN_RESOLUTION_OPTION_ID = "1080p";
@@ -68,4 +95,15 @@ export const getFrameRateOptionForConstraints = (
       (option) => option.id === DEFAULT_SCREEN_FRAME_RATE_OPTION_ID
     ) ?? SCREEN_FRAME_RATE_OPTIONS[0]
   );
+};
+
+export const getAudioOptionForConstraints = (
+  constraints: ScreenShareConstraints
+): ScreenAudioOption => {
+  const audio: ScreenShareAudioMode = constraints.audio ?? "none";
+  const match = SCREEN_AUDIO_OPTIONS.find((option) => option.id === audio);
+  if (match) {
+    return match;
+  }
+  return SCREEN_AUDIO_OPTIONS[0];
 };

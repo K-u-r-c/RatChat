@@ -11,10 +11,15 @@ import {
   Typography,
 } from "@mui/material";
 import { ScreenShareRounded } from "@mui/icons-material";
-import type { ScreenShareConstraints } from "../../../lib/types/voiceChannel";
+import type {
+  ScreenShareAudioMode,
+  ScreenShareConstraints,
+} from "../../../lib/types/voiceChannel";
 import {
+  SCREEN_AUDIO_OPTIONS,
   SCREEN_FRAME_RATE_OPTIONS,
   SCREEN_RESOLUTION_OPTIONS,
+  getAudioOptionForConstraints,
   getFrameRateOptionForConstraints,
   getResolutionOptionForConstraints,
 } from "../../../lib/constants/screenShare";
@@ -40,6 +45,9 @@ export default function ScreenShareSettingsDialog({
   const [frameRateId, setFrameRateId] = useState(
     () => getFrameRateOptionForConstraints(initialConstraints).id
   );
+  const [audioId, setAudioId] = useState<ScreenShareAudioMode>(
+    () => getAudioOptionForConstraints(initialConstraints).id
+  );
 
   useEffect(() => {
     setResolutionId(getResolutionOptionForConstraints(initialConstraints).id);
@@ -47,6 +55,10 @@ export default function ScreenShareSettingsDialog({
 
   useEffect(() => {
     setFrameRateId(getFrameRateOptionForConstraints(initialConstraints).id);
+  }, [initialConstraints]);
+
+  useEffect(() => {
+    setAudioId(getAudioOptionForConstraints(initialConstraints).id);
   }, [initialConstraints]);
 
   const selectedResolution = useMemo(() => {
@@ -63,17 +75,26 @@ export default function ScreenShareSettingsDialog({
     );
   }, [frameRateId, initialConstraints]);
 
+  const selectedAudioOption = useMemo(() => {
+    return (
+      SCREEN_AUDIO_OPTIONS.find((option) => option.id === audioId) ||
+      getAudioOptionForConstraints(initialConstraints)
+    );
+  }, [audioId, initialConstraints]);
+
   const handleConfirm = useCallback(async () => {
     const constraints: ScreenShareConstraints = {
       width: selectedResolution.width,
       height: selectedResolution.height,
       frameRate: selectedFrameRate.fps,
+      audio: selectedAudioOption.id,
     };
 
     await onConfirm(constraints);
   }, [
     onConfirm,
     selectedFrameRate.fps,
+    selectedAudioOption.id,
     selectedResolution.height,
     selectedResolution.width,
   ]);
@@ -90,6 +111,14 @@ export default function ScreenShareSettingsDialog({
     (_: unknown, value: string | null) => {
       if (value === null) return;
       setFrameRateId(value);
+    },
+    []
+  );
+
+  const handleAudioChange = useCallback(
+    (_: unknown, value: string | null) => {
+      if (value === null) return;
+      setAudioId(value as ScreenShareAudioMode);
     },
     []
   );
@@ -159,6 +188,47 @@ export default function ScreenShareSettingsDialog({
                 </ToggleButton>
               ))}
             </ToggleButtonGroup>
+          </Stack>
+
+          <Stack spacing={1.5}>
+            <Typography variant="subtitle2" fontWeight={600}>
+              Audio
+            </Typography>
+            <ToggleButtonGroup
+              color="primary"
+              exclusive
+              value={audioId}
+              onChange={handleAudioChange}
+              orientation="vertical"
+            >
+              {SCREEN_AUDIO_OPTIONS.map((option) => (
+                <ToggleButton
+                  key={option.id}
+                  value={option.id}
+                  disabled={isSubmitting}
+                  sx={{
+                    justifyContent: "flex-start",
+                    textTransform: "none",
+                    alignItems: "flex-start",
+                  }}
+                >
+                  <Stack spacing={0.5} alignItems="flex-start">
+                    <Typography variant="body2" fontWeight={600}>
+                      {option.label}
+                    </Typography>
+                    {option.helperText ? (
+                      <Typography variant="caption" color="text.secondary">
+                        {option.helperText}
+                      </Typography>
+                    ) : null}
+                  </Stack>
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+            <Typography variant="caption" color="text.secondary">
+              System audio is only available when sharing your entire screen and
+              may not be supported by all browsers.
+            </Typography>
           </Stack>
         </Stack>
       </DialogContent>
