@@ -42,10 +42,22 @@ Quick Start (Development)
 - Run dev server: `npm run dev` (Vite listens on https://localhost:3000)
   - On first run, Vite may prompt to trust a dev certificate (via mkcert)
 
+
 4. Build for production (optional)
 
 - `cd client && npm run build` outputs to `API/wwwroot`
 - Serve SPA from the API: `dotnet run --project API`
+
+Desktop App (Electron)
+
+- `cd client`
+- Install dependencies if you haven’t already: `npm install`
+- Launch the desktop shell with live reload: `npm run electron:dev`
+  - Starts Vite and spins up Electron once the dev server is responding.
+  - Screen sharing defaults to include system audio on desktop; adjust under the screen share settings dialog.
+- Build native installers after bundling the renderer: `npm run electron:package`
+  - Outputs are written to `client/release/` for macOS (DMG/ZIP), Windows (NSIS/ZIP), and Linux (AppImage/DEB).
+  - Use `npm run electron:build` to generate unpacked artifacts when iterating on distribution.
 
 Usage Examples
 

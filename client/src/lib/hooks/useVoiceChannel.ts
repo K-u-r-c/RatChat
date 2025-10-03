@@ -25,6 +25,7 @@ import {
   type VoiceSignalMessage,
   watchChatRoom,
 } from "../realtime/voiceHub";
+import { isDesktopRuntime } from "../environment/runtime";
 
 import type {
   LeaveOptions,
@@ -47,7 +48,7 @@ const DEFAULT_SCREEN_SHARE_CONSTRAINTS: ScreenShareConstraints = {
   width: 1920,
   height: 1080,
   frameRate: 30,
-  audio: "none",
+  audio: isDesktopRuntime ? "system" : "none",
 };
 
 type MaybeNetworkInformation = {
@@ -1650,6 +1651,7 @@ class VoiceManager {
             audioConstraints = {
               // `systemAudio` is currently chromium-specific but ignored elsewhere.
               systemAudio: "include",
+              suppressLocalAudioPlayback: true,
             } as DisplayMediaAudioConstraints;
           }
           stream = await mediaDevices.getDisplayMedia({
