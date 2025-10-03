@@ -30,12 +30,13 @@ import {useVoiceChannel} from "../../../lib/hooks/useVoiceChannel";
 import {useChatRooms} from "../../../lib/hooks/useChatRooms";
 import {useDominantColor} from "../../../lib/hooks/useDominantColor";
 import MediaStreamVideo from "../../../app/shared/components/MediaStreamVideo";
-import ScreenShareSettingsDialog from "../../../app/shared/components/ScreenShareSettingsDialog";
+import ScreenShareSettingsDialog, {
+  type ScreenShareSelection,
+} from "../../../app/shared/components/ScreenShareSettingsDialog";
 import ParticipantTile from "./ParticipantTile";
 import type {VoiceParticipant} from "../../../lib/realtime/voiceHub";
 import {hasActiveVideoTrack} from "../../../lib/util/videoTrackUtils.ts";
 import type {ParticipantTileData} from "../../../lib/types/ParticipantTile.types.ts";
-import type {ScreenShareConstraints} from "../../../lib/types/voiceChannel";
 import {
   getFrameRateOptionForConstraints,
   getResolutionOptionForConstraints,
@@ -154,11 +155,13 @@ export default function ChatRoomScreenSharePanel({chatRoomId}: Props) {
   }, [isStartingScreenShare]);
 
   const handleScreenShareDialogConfirm = useCallback(
-    async (constraints: ScreenShareConstraints) => {
+    async ({ constraints, sourceId }: ScreenShareSelection) => {
       setIsStartingScreenShare(true);
       try {
         setScreenShareConstraints(constraints);
-        await toggleScreenShare(true);
+        await toggleScreenShare(true, {
+          sourceId: sourceId ?? null,
+        });
         setIsScreenShareDialogOpen(false);
       } catch (error) {
         toast.error("Failed to start screen sharing");

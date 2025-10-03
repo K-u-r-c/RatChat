@@ -1,4 +1,12 @@
-import {app, BrowserWindow, ipcMain, shell, session, nativeTheme} from 'electron';
+import {
+  app,
+  BrowserWindow,
+  desktopCapturer,
+  ipcMain,
+  shell,
+  session,
+  nativeTheme,
+} from 'electron';
 import path from 'node:path';
 import url from 'node:url';
 
@@ -90,6 +98,98 @@ const createMainWindow = () => {
 
 const allowedPermissions = new Set(['media', 'display-capture', 'fullscreen', 'mediaKeySystem']);
 
+const pendingScreenShareSelections = new Map();
+let lastPreparedScreenShareSelection = null;
+
+const listScreenSources = async (options = {}) => {
+  const {
+    types = ['screen', 'window'],
+    thumbnailSize = {width: 320, height: 180},
+    fetchWindowIcons = true,
+  } = options;
+
+  if (!Array.isArray(types) || types.length === 0) {
+    return [];
+  }
+
+  const sources = await desktopCapturer.getSources({
+    types,
+    thumbnailSize,
+    fetchWindowIcons,
+  });
+
+  return sources.map((source) => ({
+    id: source.id,
+    name: source.name,
+    displayId: source.display_id,
+    thumbnail: source.thumbnail?.toDataURL?.() ?? null,
+    appIcon: source.appIcon?.toDataURL?.() ?? null,
+    sourceType: source.id.startsWith('screen:') ? 'screen' : 'window',
+  }));
+};
+
+const prepareScreenShareSelection = (webContentsId, payload) => {
+  if (!payload || typeof payload !== 'object') {
+    return {success: false, message: 'Invalid selection payload'};
+  }
+
+  const {sourceId, audioMode} = payload;
+  if (typeof sourceId !== 'string' || sourceId.length === 0) {
+    return {success: false, message: 'Missing sourceId'};
+  }
+
+  const normalizedAudio = audioMode === 'system' ? 'system' : 'none';
+  const selection = {
+    sourceId,
+    audioMode: normalizedAudio,
+    ownerId: webContentsId,
+  };
+  pendingScreenShareSelections.set(webContentsId, selection);
+  lastPreparedScreenShareSelection = selection;
+  return {success: true};
+};
+
+const clearPreparedScreenShareSelection = (webContentsId, matchSourceId = null) => {
+  const stored = pendingScreenShareSelections.get(webContentsId);
+  if (stored) {
+    if (!matchSourceId || stored.sourceId === matchSourceId) {
+      pendingScreenShareSelections.delete(webContentsId);
+    }
+  }
+
+  if (lastPreparedScreenShareSelection) {
+    const matchesOwner = lastPreparedScreenShareSelection.ownerId === webContentsId;
+    const matchesSource =
+      !matchSourceId || lastPreparedScreenShareSelection.sourceId === matchSourceId;
+    if (matchesOwner && matchesSource) {
+      lastPreparedScreenShareSelection = null;
+    }
+  }
+  return {success: true};
+};
+
+const consumePreparedScreenShareSelection = (webContentsId) => {
+  if (typeof webContentsId === 'number') {
+    const existing = pendingScreenShareSelections.get(webContentsId);
+    if (existing) {
+      pendingScreenShareSelections.delete(webContentsId);
+      if (lastPreparedScreenShareSelection?.ownerId === webContentsId) {
+        lastPreparedScreenShareSelection = null;
+      }
+      return existing;
+    }
+  }
+
+  if (lastPreparedScreenShareSelection) {
+    const fallback = lastPreparedScreenShareSelection;
+    pendingScreenShareSelections.delete(fallback.ownerId);
+    lastPreparedScreenShareSelection = null;
+    return fallback;
+  }
+
+  return null;
+};
+
 const configureSessionPermissions = () => {
   const currentSession = session.defaultSession;
   currentSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
@@ -108,10 +208,49 @@ const configureSessionPermissions = () => {
   });
 };
 
+const configureDisplayMediaHandling = () => {
+  const currentSession = session.defaultSession;
+
+  currentSession.setDisplayMediaRequestHandler((request, callback) => {
+    const frame = request.frame;
+    const webContents = frame?.webContents ?? null;
+    const prepared = consumePreparedScreenShareSelection(webContents?.id ?? null);
+    if (!prepared) {
+      callback({ video: frame ?? undefined });
+      return;
+    }
+
+    void desktopCapturer
+      .getSources({
+        types: ['screen', 'window'],
+        thumbnailSize: {width: 0, height: 0},
+        fetchWindowIcons: false,
+      })
+      .then((sources) => {
+        const match = sources.find((source) => source.id === prepared.sourceId);
+        if (!match) {
+          callback({ video: frame ?? undefined });
+          return;
+        }
+
+        const response = {video: match};
+        if (prepared.audioMode === 'system' && process.platform === 'win32') {
+          response.audio = 'loopbackWithMute';
+        }
+
+        callback(response);
+      })
+      .catch(() => {
+        callback({ video: frame ?? undefined });
+      });
+  });
+};
+
 app.setAppUserModelId('com.ratchat.desktop');
 
 app.whenReady().then(() => {
   configureSessionPermissions();
+  configureDisplayMediaHandling();
   createMainWindow();
 
   app.on('activate', () => {
@@ -143,4 +282,37 @@ ipcMain.handle('app:open-external', async (_event, targetUrl) => {
   } catch (error) {
     return {success: false, message: error instanceof Error ? error.message : String(error)};
   }
+});
+
+ipcMain.handle('desktop:list-screen-sources', async () => {
+  try {
+    const sources = await listScreenSources();
+    return {success: true, sources};
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : String(error),
+    };
+  }
+});
+
+ipcMain.handle('desktop:prepare-screen-share', (event, payload) => {
+  return prepareScreenShareSelection(event.sender.id, payload);
+});
+
+ipcMain.handle('desktop:clear-prepared-screen-share', (event, payload) => {
+  const sourceId =
+    payload && typeof payload === 'object' && typeof payload.sourceId === 'string'
+      ? payload.sourceId
+      : null;
+  return clearPreparedScreenShareSelection(event.sender.id, sourceId);
+});
+
+app.on('web-contents-created', (_event, contents) => {
+  contents.on('destroyed', () => {
+    pendingScreenShareSelections.delete(contents.id);
+    if (lastPreparedScreenShareSelection?.ownerId === contents.id) {
+      lastPreparedScreenShareSelection = null;
+    }
+  });
 });

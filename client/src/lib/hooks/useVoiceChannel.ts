@@ -26,11 +26,16 @@ import {
   watchChatRoom,
 } from "../realtime/voiceHub";
 import { isDesktopRuntime } from "../environment/runtime";
+import {
+  clearDesktopScreenSharePreparation,
+  prepareDesktopScreenShare,
+} from "../desktop/screenShare";
 
 import type {
   LeaveOptions,
   LocalSpeakingMonitor,
   ScreenShareConstraints,
+  ScreenShareStartOptions,
   SpeakingMonitor,
   VoiceChannelSnapshot,
   VoiceChannelState,
@@ -339,17 +344,20 @@ class VoiceManager {
     await this.setLocalVideoEnabled("camera", next);
   };
 
-  startScreenShare = async () => {
-    await this.setLocalVideoEnabled("screen", true);
+  startScreenShare = async (options?: ScreenShareStartOptions) => {
+    await this.setLocalVideoEnabled("screen", true, true, options);
   };
 
   stopScreenShare = async () => {
     await this.setLocalVideoEnabled("screen", false);
   };
 
-  toggleScreenShare = async (enabled?: boolean) => {
+  toggleScreenShare = async (
+    enabled?: boolean,
+    options?: ScreenShareStartOptions
+  ) => {
     const next = typeof enabled === "boolean" ? enabled : !this.isScreenSharing;
-    await this.setLocalVideoEnabled("screen", next);
+    await this.setLocalVideoEnabled("screen", next, true, options);
   };
 
   setScreenShareConstraints = (constraints: ScreenShareConstraints) => {
@@ -1587,7 +1595,8 @@ class VoiceManager {
   private async setLocalVideoEnabled(
     type: "camera" | "screen",
     enabled: boolean,
-    notify = true
+    notify = true,
+    screenOptions?: ScreenShareStartOptions
   ) {
     const currentlyEnabled =
       type === "camera" ? this.isCameraEnabled : this.isScreenSharing;
@@ -1604,6 +1613,8 @@ class VoiceManager {
       }
 
       let stream: MediaStream | null = null;
+      const screenStartOptions =
+        type === "screen" && enabled ? screenOptions : undefined;
 
       try {
         if (type === "camera") {
@@ -1644,6 +1655,20 @@ class VoiceManager {
             videoConstraints.height = { ideal: height };
           }
           const audioMode = audio ?? "none";
+          if (isDesktopRuntime) {
+            const selectedSourceId = screenStartOptions?.sourceId ?? null;
+            const prepared = await prepareDesktopScreenShare(
+              selectedSourceId,
+              audioMode
+            );
+            if (!prepared) {
+              if (import.meta.env.DEV) {
+                console.warn("Failed to prepare desktop screen share");
+              }
+              await clearDesktopScreenSharePreparation(selectedSourceId);
+              return;
+            }
+          }
           let audioConstraints: boolean | MediaTrackConstraints = false;
           if (audioMode === "application") {
             audioConstraints = true;
@@ -1668,7 +1693,18 @@ class VoiceManager {
             err
           );
         }
+        if (type === "screen") {
+          await clearDesktopScreenSharePreparation(
+            screenStartOptions?.sourceId ?? null
+          );
+        }
         return;
+      }
+
+      if (type === "screen") {
+        void clearDesktopScreenSharePreparation(
+          screenStartOptions?.sourceId ?? null
+        );
       }
 
       if (!stream) return;

@@ -18,8 +18,9 @@ import { useAccount } from "../../lib/hooks/useAccount";
 import { useVoiceChannel } from "../../lib/hooks/useVoiceChannel";
 import UserMenuIcon from "./UserMenuIcon";
 import { useChatRooms } from "../../lib/hooks/useChatRooms";
-import ScreenShareSettingsDialog from "../shared/components/ScreenShareSettingsDialog";
-import type { ScreenShareConstraints } from "../../lib/types/voiceChannel";
+import ScreenShareSettingsDialog, {
+  type ScreenShareSelection,
+} from "../shared/components/ScreenShareSettingsDialog";
 import { toast } from "react-toastify";
 
 export const BASE_USER_ACTION_RIBBON_HEIGHT = 72;
@@ -134,11 +135,13 @@ export default function UserActionRibbon() {
   }, [isStartingScreenShare]);
 
   const handleScreenShareDialogConfirm = useCallback(
-    async (constraints: ScreenShareConstraints) => {
+    async ({ constraints, sourceId }: ScreenShareSelection) => {
       setIsStartingScreenShare(true);
       try {
         setScreenShareConstraints(constraints);
-        await toggleScreenShare(true);
+        await toggleScreenShare(true, {
+          sourceId: sourceId ?? null,
+        });
         setIsScreenShareDialogOpen(false);
       } catch (error) {
         toast.error("Failed to start screen sharing");

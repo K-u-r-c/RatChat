@@ -9,6 +9,10 @@ export type ScreenShareConstraints = {
   audio?: ScreenShareAudioMode;
 };
 
+export type ScreenShareStartOptions = {
+  sourceId?: string | null;
+};
+
 type RemoteAudioStreamInfo = {
   connectionId: string;
   stream: MediaStream;
@@ -71,8 +75,11 @@ export type VoiceChannelState = VoiceChannelSnapshot & {
   startCamera: () => Promise<void>;
   stopCamera: () => Promise<void>;
   toggleCamera: (enabled?: boolean) => Promise<void>;
-  startScreenShare: () => Promise<void>;
+  startScreenShare: (options?: ScreenShareStartOptions) => Promise<void>;
   stopScreenShare: () => Promise<void>;
-  toggleScreenShare: (enabled?: boolean) => Promise<void>;
+  toggleScreenShare: (
+    enabled?: boolean,
+    options?: ScreenShareStartOptions
+  ) => Promise<void>;
   setScreenShareConstraints: (constraints: ScreenShareConstraints) => void;
 };
