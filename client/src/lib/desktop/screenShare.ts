@@ -1,14 +1,10 @@
 import type { ScreenShareAudioMode } from "../types/voiceChannel";
-import { getDesktopApi, isDesktopRuntime } from "../environment/runtime";
+import { getDesktopApi } from "../environment/runtime";
 import type { DesktopScreenSource } from "../environment/runtime";
 
 const DEFAULT_THUMBNAIL_SIZE = { width: 320, height: 180 } as const;
 
 export const fetchDesktopScreenSources = async (): Promise<DesktopScreenSource[]> => {
-  if (!isDesktopRuntime) {
-    return [];
-  }
-
   const api = getDesktopApi();
   if (!api?.listScreenSources) {
     return [];
@@ -23,7 +19,7 @@ export const fetchDesktopScreenSources = async (): Promise<DesktopScreenSource[]
     if (import.meta.env.DEV) {
       console.error("Failed to load desktop screen sources", error);
     }
-    return [];
+    throw error instanceof Error ? error : new Error(String(error));
   }
 };
 
@@ -31,17 +27,17 @@ export const prepareDesktopScreenShare = async (
   sourceId: string | null,
   audioMode: ScreenShareAudioMode | undefined
 ): Promise<boolean> => {
-  if (!isDesktopRuntime) {
+  const api = getDesktopApi();
+  if (!api) {
     return true;
   }
 
-  const api = getDesktopApi();
-  if (!api?.prepareScreenShare) {
+  if (!api.prepareScreenShare) {
     return false;
   }
 
   if (!sourceId) {
-    return false;
+    return true;
   }
 
   try {
@@ -59,19 +55,13 @@ export const prepareDesktopScreenShare = async (
 export const clearDesktopScreenSharePreparation = async (
   sourceId?: string | null
 ): Promise<void> => {
-  if (!isDesktopRuntime) {
-    return;
-  }
-
   const api = getDesktopApi();
-  if (!api?.clearPreparedScreenShare) {
+  if (!api || !api.clearPreparedScreenShare) {
     return;
   }
 
   try {
-    await api.clearPreparedScreenShare(
-      sourceId ? { sourceId } : undefined
-    );
+    await api.clearPreparedScreenShare(sourceId ? { sourceId } : undefined);
   } catch (error) {
     if (import.meta.env.DEV) {
       console.error("Failed to clear desktop screen share preparation", error);

@@ -201,8 +201,11 @@ export default function ScreenShareSettingsDialog({
     if (sourceError) {
       return false;
     }
+    if (sources.length === 0) {
+      return true;
+    }
     return Boolean(selectedSourceId);
-  }, [isLoadingSources, selectedSourceId, sourceError]);
+  }, [isLoadingSources, selectedSourceId, sourceError, sources.length]);
 
   return (
     <Dialog
@@ -246,7 +249,7 @@ export default function ScreenShareSettingsDialog({
                 </Typography>
               ) : sources.length === 0 ? (
                 <Typography variant="body2" color="text.secondary">
-                  No shareable sources were found.
+                  No shareable sources were found. You can still continue to use the system picker or try again later.
                 </Typography>
               ) : (
                 <Box

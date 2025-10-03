@@ -34,6 +34,8 @@ declare global {
       clearPreparedScreenShare: (
         payload?: { sourceId?: string }
       ) => Promise<void>;
+      openScreenRecordingPreferences?: () => Promise<void>;
+
     };
     __RATCHAT_DESKTOP__?: true;
   }

@@ -1,5 +1,26 @@
-export const isDesktopRuntime =
-  typeof globalThis !== "undefined" && "__RATCHAT_DESKTOP__" in globalThis;
+const detectDesktopRuntime = (): boolean => {
+  if (typeof window !== "undefined") {
+    if ("__RATCHAT_DESKTOP__" in window || "RatChatDesktop" in window) {
+      return true;
+    }
+  }
+
+  if (
+    typeof navigator !== "undefined" &&
+    typeof navigator.userAgent === "string" &&
+    navigator.userAgent.toLowerCase().includes("electron")
+  ) {
+    return true;
+  }
+
+  if (typeof process !== "undefined" && process.versions?.electron) {
+    return true;
+  }
+
+  return false;
+};
+
+export const isDesktopRuntime = detectDesktopRuntime();
 
 export type DesktopScreenSource = {
   id: string;
@@ -28,15 +49,29 @@ type DesktopApi = {
     audioMode?: "none" | "system";
   }) => Promise<{ success: boolean }>;
   clearPreparedScreenShare: (payload?: { sourceId?: string }) => Promise<void>;
+  openScreenRecordingPreferences?: () => Promise<void>;
+};
+
+type DesktopRuntimeScope = typeof globalThis & {
+  RatChatDesktop?: DesktopApi;
+};
+
+const getDesktopRuntimeScope = (): DesktopRuntimeScope | undefined => {
+  if (typeof window !== "undefined") {
+    return window as DesktopRuntimeScope;
+  }
+  if (typeof globalThis !== "undefined") {
+    return globalThis as DesktopRuntimeScope;
+  }
+  return undefined;
 };
 
 export const getDesktopApi = (): DesktopApi | null => {
-  if (!isDesktopRuntime) {
+  const scope = getDesktopRuntimeScope();
+  if (!scope) {
     return null;
   }
 
-  const api = (globalThis as typeof globalThis & { RatChatDesktop?: DesktopApi })
-    .RatChatDesktop;
-
-  return api ?? null;
+  return scope.RatChatDesktop ?? null;
 };
+
