@@ -23,6 +23,7 @@ using Infrastructure.Media;
 using Infrastructure.Security;
 using Infrastructure.Services;
 using Infrastructure.Storage;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Authorization;
@@ -154,22 +155,57 @@ builder.Services.AddTransient<IAuthorizationHandler, IsOwnerRequirementHandler>(
 builder.Services.AddTransient<IAuthorizationHandler, HasPermissionRequirementHandler>();
 MessageCrypto.Initialize(builder.Configuration);
 
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.Cookie.SameSite = SameSiteMode.None;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.HttpOnly = true;
+
+    options.Events.OnRedirectToLogin = ctx =>
+    {
+        if (ctx.Request.Path.StartsWithSegments("/api") &&
+            string.Equals(ctx.Request.Method, "GET", StringComparison.OrdinalIgnoreCase))
+        {
+            ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return Task.CompletedTask;
+        }
+        ctx.Response.Redirect(ctx.RedirectUri);
+        return Task.CompletedTask;
+    };
+});
+
+builder.Services.PostConfigure<CookieAuthenticationOptions>(IdentityConstants.ExternalScheme, o =>
+{
+    o.Cookie.SameSite = SameSiteMode.None;
+    o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+});
+builder.Services.PostConfigure<CookieAuthenticationOptions>(IdentityConstants.TwoFactorUserIdScheme, o =>
+{
+    o.Cookie.SameSite = SameSiteMode.None;
+    o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+});
+
 var clientAppOrigins = builder.Configuration["ClientAppUrl"]?
     .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-var corsOrigins = clientAppOrigins is { Length: > 0 }
-    ? clientAppOrigins
-    : ["https://localhost:3000"];
+
+var corsOrigins = clientAppOrigins is { Length: > 0 } ? clientAppOrigins : new[] { "https://localhost:3000" };
+
+// Include Electron packaged (file:// => Origin: null)
+var corsOriginsWithNull = corsOrigins.Concat(new[] { "null" }).ToArray();
 
 var app = builder.Build();
 
 app.UseMiddleware<ExceptionMiddleware>();
 
-app.UseCors(x => x
-    .AllowAnyHeader()
-    .AllowAnyMethod()
-    .WithOrigins(corsOrigins)
-    .AllowCredentials()
-);
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
+app.UseCors(policy =>
+    policy
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .WithOrigins(corsOriginsWithNull)
+        .AllowCredentials());
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -187,6 +223,8 @@ app.MapHub<ChatRoomsProfileUpdateHub>("/chatroom-image-update");
 app.MapHub<ChatRoomModerationEventsHub>("/chatroom-moderationevents");
 app.MapHub<VoiceChannelHub>("/voice");
 
+app.MapFallbackToFile("index.html");
+
 using var scope = app.Services.CreateScope();
 var services = scope.ServiceProvider;
 try
@@ -199,7 +237,7 @@ try
 
     if (builder.Environment.IsDevelopment())
         await DbInitializer.SeedData(context, userManager, rolePermissionService, chatRoomRoleService);
-    
+
     await ProductionDbInitializer.SeedData(context, rolePermissionService);
 }
 catch (Exception ex)

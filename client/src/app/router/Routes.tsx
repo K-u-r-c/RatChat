@@ -1,4 +1,4 @@
-﻿import { createBrowserRouter, Navigate } from "react-router";
+﻿import { createBrowserRouter, createHashRouter, Navigate } from "react-router";
 import App from "../layout/App";
 import RequireAuth from "./RequireAuth";
 import NotFound from "../../features/errors/NotFound";
@@ -18,7 +18,12 @@ import EmptyPage from "../layout/EmptyPage";
 import DirectChatDetails from "../../features/directChats/DirectChatDetails";
 import EncryptedDirectChatDetails from "../../features/encryptedDirectChats/EncryptedDirectChatDetails";
 
-export const router = createBrowserRouter([
+const isElectronFile =
+  typeof navigator !== "undefined" &&
+  /Electron/i.test(navigator.userAgent) &&
+  window.location.protocol === "file:";
+
+const routes = [
   {
     path: "/",
     element: <App />,
@@ -43,7 +48,6 @@ export const router = createBrowserRouter([
       },
     ],
   },
-
   {
     path: "/",
     element: <AuthLayout />,
@@ -56,9 +60,11 @@ export const router = createBrowserRouter([
       { path: "reset-password", element: <ResetPasswordForm /> },
     ],
   },
-
   { path: "/not-found", element: <NotFound /> },
   { path: "/server-error", element: <ServerError /> },
-
   { path: "*", element: <Navigate to="/not-found" replace /> },
-]);
+];
+
+export const router = isElectronFile
+  ? createHashRouter(routes)
+  : createBrowserRouter(routes);

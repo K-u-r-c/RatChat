@@ -71,10 +71,21 @@ const createMainWindow = () => {
     process.env.VITE_DEV_SERVER_URL ?? "https://localhost:3000";
 
   if (isDev) {
-    void mainWindow.loadURL(devServerUrl);
+    void mainWindow.loadURL(`${devServerUrl}/login`);
   } else {
     const indexFile = resolveFromApp("dist", "index.html");
-    void mainWindow.loadFile(indexFile); // removed __dirname reference
+    void mainWindow.loadFile(indexFile).then(() => {
+      // Ensure initial hash route for HashRouter in file:// context
+      mainWindow?.webContents
+        .executeJavaScript(
+          `
+        if (location.protocol === 'file:' && !location.hash) {
+          location.hash = '#/login';
+        }
+      `
+        )
+        .catch(() => {});
+    });
   }
 
   mainWindow.webContents.setWindowOpenHandler(({ url: targetUrl }) => {
