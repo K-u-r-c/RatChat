@@ -1,3 +1,4 @@
+import type { HubConnection } from "@microsoft/signalr";
 import { useEffect, useSyncExternalStore } from "react";
 import {
   type IceCandidatePayload,
@@ -11,6 +12,7 @@ import {
   type SessionDescriptionPayload,
   startVoiceHub,
   stopVoiceHub,
+  connection as getVoiceHubConnection,
   unwatchChatRoom,
   updateMediaState,
   type VoiceChannelJoinResponse,
@@ -112,6 +114,21 @@ class VoiceManager {
 
   private hubStartPromise: Promise<void> | null = null;
   private hubHandlersAttached = false;
+  private hubLifecycleHandlersAttached = false;
+  private rejoinTargetChannelId: string | null = null;
+
+  private handleHubReconnecting = () => {
+    if (this.currentChannelId) {
+      this.rejoinTargetChannelId = this.currentChannelId;
+    }
+    if (!this.rejoinTargetChannelId) return;
+    this.setError("Connection lost. Attempting to reconnect...");
+  };
+
+  private handleHubReconnected = () => {
+    this.setError(null);
+    void this.resumeAfterReconnect();
+  };
 
   private watchedChatRoomId: string | null = null;
   private watchedChatRoomRefCount = 0;
@@ -355,7 +372,21 @@ class VoiceManager {
       return;
     }
 
+    await this.performJoin(channelId);
+  };
+
+  private async performJoin(
+    channelId: string,
+    options: {
+      preserveLocalMedia?: boolean;
+      failureMessage?: string;
+    } = {}
+  ) {
     if (this.isJoining) return;
+
+    const preserveLocalMedia = options.preserveLocalMedia ?? false;
+    const failureMessage =
+      options.failureMessage ?? "Unable to join the voice channel";
 
     this.isJoining = true;
     this.setError(null);
@@ -363,7 +394,10 @@ class VoiceManager {
 
     try {
       await this.ensureHub();
-      await this.leave({ keepLocalStream: true });
+      await this.leave({
+        keepLocalStream: true,
+        preserveMediaState: preserveLocalMedia,
+      });
 
       const stream = await this.ensureLocalMicrophoneStream();
       if (!stream) throw new Error("Unable to access microphone");
@@ -387,6 +421,7 @@ class VoiceManager {
       }
 
       this.currentChannelId = response.channelId;
+      this.rejoinTargetChannelId = response.channelId;
       this.setChannelPresence(response.channelId, response.participants);
       this.ensurePingMonitor(true);
       this.emit();
@@ -411,35 +446,67 @@ class VoiceManager {
       }
     } catch (err) {
       if (import.meta.env.DEV) console.error(err);
-      this.setError("Unable to join the voice channel");
-      await this.leave({ keepLocalStream: false });
+      this.setError(failureMessage);
+      await this.leave({
+        keepLocalStream: preserveLocalMedia,
+        preserveMediaState: preserveLocalMedia,
+      });
     } finally {
       this.isJoining = false;
       this.emit();
     }
-  };
+  }
+
+  private async resumeAfterReconnect() {
+    const chatRoomId = this.watchedChatRoomId;
+    if (chatRoomId) {
+      void this.startPresenceWatch(chatRoomId);
+    }
+
+    const channelId = this.rejoinTargetChannelId;
+    if (!channelId) return;
+    if (this.isJoining) return;
+
+    const preserveLocalMedia =
+      Boolean(this.localCameraStream) || Boolean(this.localScreenStream);
+
+    try {
+      await this.performJoin(channelId, {
+        preserveLocalMedia,
+        failureMessage: "Unable to rejoin the voice channel",
+      });
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        console.error("Failed to rejoin voice channel after reconnect", err);
+      }
+    }
+  }
 
   leave = async (options: LeaveOptions = {}) => {
     const keepLocalStream = options.keepLocalStream ?? false;
+    const preserveMediaState = options.preserveMediaState ?? false;
 
-    await this.setLocalVideoEnabled("screen", false, false);
-    await this.setLocalVideoEnabled("camera", false, false);
+    if (!preserveMediaState) {
+      await this.setLocalVideoEnabled("screen", false, false);
+      await this.setLocalVideoEnabled("camera", false, false);
+    }
 
-    if (!this.currentChannelId) {
-      if (!keepLocalStream) {
-        this.releaseLocalMicrophoneStream();
+    if (this.currentChannelId) {
+      try {
+        await leaveVoiceChannelHub();
+      } catch {
+        // ignored
       }
-      return;
     }
 
-    try {
-      await leaveVoiceChannelHub();
-    } catch {
-      // ignored
-    }
+    this.resetState({
+      stopLocalMicrophoneStream: !keepLocalStream,
+      preserveLocalVideo: preserveMediaState,
+    });
 
-    this.resetState(!keepLocalStream);
-    this.emit();
+    if (!preserveMediaState) {
+      this.rejoinTargetChannelId = null;
+    }
   };
 
   forceDisconnect = async () => {
@@ -467,8 +534,9 @@ class VoiceManager {
     }
 
     this.hubStartPromise = startVoiceHub()
-      .then(() => {
+      .then((hub) => {
         this.attachHubHandlers();
+        this.attachHubLifecycleHandlers(hub);
       })
       .catch((err) => {
         this.hubStartPromise = null;
@@ -488,6 +556,9 @@ class VoiceManager {
       off("ChannelPresenceUpdated", this.handleChannelPresenceUpdated);
       off("PeerMediaStateChanged", this.handlePeerMediaStateChanged);
       this.hubHandlersAttached = false;
+    }
+    if (this.hubLifecycleHandlersAttached) {
+      this.detachHubLifecycleHandlers(getVoiceHubConnection());
     }
     await stopVoiceHub().catch(() => {});
     this.hubStartPromise = null;
@@ -512,6 +583,20 @@ class VoiceManager {
       this.handlePeerMediaStateChanged
     );
     this.hubHandlersAttached = true;
+  }
+
+  private attachHubLifecycleHandlers(connection: HubConnection) {
+    if (this.hubLifecycleHandlersAttached) return;
+    connection.onreconnecting(this.handleHubReconnecting);
+    connection.onreconnected(this.handleHubReconnected);
+    this.hubLifecycleHandlersAttached = true;
+  }
+
+  private detachHubLifecycleHandlers(connection: HubConnection | null) {
+    if (!this.hubLifecycleHandlersAttached || !connection) return;
+    connection.off("reconnecting", this.handleHubReconnecting);
+    connection.off("reconnected", this.handleHubReconnected);
+    this.hubLifecycleHandlersAttached = false;
   }
 
   private schedulePresenceRelease() {
@@ -844,7 +929,14 @@ class VoiceManager {
     this.emit();
   }
 
-  private resetState(stopLocalMicrophoneStream: boolean) {
+  private resetState(options: {
+    stopLocalMicrophoneStream: boolean;
+    preserveLocalVideo?: boolean;
+  }) {
+    const {
+      stopLocalMicrophoneStream,
+      preserveLocalVideo = false,
+    } = options;
     const previousChannelId = this.currentChannelId;
     const currentUserId = this.currentUserId;
 
@@ -872,8 +964,10 @@ class VoiceManager {
     this.remoteVideoStreamTypes.clear();
     this.participants.clear();
 
-    this.isCameraEnabled = false;
-    this.isScreenSharing = false;
+    if (!preserveLocalVideo) {
+      this.isCameraEnabled = false;
+      this.isScreenSharing = false;
+    }
     this.selfConnectionId = null;
 
     this.stopPingMonitor();
@@ -896,7 +990,7 @@ class VoiceManager {
 
     this.currentChannelId = null;
 
-    if (this.localCameraStream) {
+    if (!preserveLocalVideo && this.localCameraStream) {
       const track = this.localCameraStream.getVideoTracks()[0];
       if (track && this.localCameraEndedHandler) {
         track.removeEventListener("ended", this.localCameraEndedHandler);
@@ -912,7 +1006,7 @@ class VoiceManager {
       this.localCameraEndedHandler = null;
     }
 
-    if (this.localScreenStream) {
+    if (!preserveLocalVideo && this.localScreenStream) {
       const track = this.localScreenStream.getVideoTracks()[0];
       if (track && this.localScreenEndedHandler) {
         track.removeEventListener("ended", this.localScreenEndedHandler);

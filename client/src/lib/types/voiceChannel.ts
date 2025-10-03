@@ -21,6 +21,7 @@ type RemoteVideoStreamInfo = {
 
 export type LeaveOptions = {
   keepLocalStream?: boolean;
+  preserveMediaState?: boolean;
 };
 
 export type SpeakingMonitor = {
