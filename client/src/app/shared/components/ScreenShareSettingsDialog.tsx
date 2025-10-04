@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Box,
   Button,
+  ButtonBase,
+  Chip,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -23,12 +27,20 @@ import {
   getFrameRateOptionForConstraints,
   getResolutionOptionForConstraints,
 } from "../../../lib/constants/screenShare";
+import { isDesktopRuntime } from "../../../lib/environment/runtime";
+import { fetchDesktopScreenSources } from "../../../lib/desktop/screenShare";
+import type { DesktopScreenSource } from "../../../lib/environment/runtime";
+
+export type ScreenShareSelection = {
+  constraints: ScreenShareConstraints;
+  sourceId?: string | null;
+};
 
 export type ScreenShareSettingsDialogProps = {
   open: boolean;
   initialConstraints: ScreenShareConstraints;
   onCancel: () => void;
-  onConfirm: (constraints: ScreenShareConstraints) => Promise<void> | void;
+  onConfirm: (selection: ScreenShareSelection) => Promise<void> | void;
   isSubmitting?: boolean;
 };
 
@@ -48,6 +60,10 @@ export default function ScreenShareSettingsDialog({
   const [audioId, setAudioId] = useState<ScreenShareAudioMode>(
     () => getAudioOptionForConstraints(initialConstraints).id
   );
+  const [sources, setSources] = useState<DesktopScreenSource[]>([]);
+  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
+  const [isLoadingSources, setIsLoadingSources] = useState(false);
+  const [sourceError, setSourceError] = useState<string | null>(null);
 
   useEffect(() => {
     setResolutionId(getResolutionOptionForConstraints(initialConstraints).id);
@@ -60,6 +76,50 @@ export default function ScreenShareSettingsDialog({
   useEffect(() => {
     setAudioId(getAudioOptionForConstraints(initialConstraints).id);
   }, [initialConstraints]);
+
+  useEffect(() => {
+    if (!isDesktopRuntime) {
+      return;
+    }
+
+    if (!open) {
+      setSources([]);
+      setSelectedSourceId(null);
+      setIsLoadingSources(false);
+      setSourceError(null);
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoadingSources(true);
+    setSourceError(null);
+
+    void fetchDesktopScreenSources()
+      .then((items) => {
+        if (cancelled) return;
+        setSources(items);
+        setIsLoadingSources(false);
+        setSelectedSourceId((previous) => {
+          if (previous && items.some((source) => source.id === previous)) {
+            return previous;
+          }
+          return items.length > 0 ? items[0].id : null;
+        });
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setIsLoadingSources(false);
+        setSelectedSourceId(null);
+        setSources([]);
+        setSourceError(
+          error instanceof Error ? error.message : "Unable to load sources"
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   const selectedResolution = useMemo(() => {
     return (
@@ -90,11 +150,15 @@ export default function ScreenShareSettingsDialog({
       audio: selectedAudioOption.id,
     };
 
-    await onConfirm(constraints);
+    await onConfirm({
+      constraints,
+      sourceId: isDesktopRuntime ? selectedSourceId : undefined,
+    });
   }, [
     onConfirm,
     selectedFrameRate.fps,
     selectedAudioOption.id,
+    selectedSourceId,
     selectedResolution.height,
     selectedResolution.width,
   ]);
@@ -123,6 +187,26 @@ export default function ScreenShareSettingsDialog({
     []
   );
 
+  const handleSourceSelect = useCallback((sourceId: string) => {
+    setSelectedSourceId(sourceId);
+  }, []);
+
+  const canConfirm = useMemo(() => {
+    if (!isDesktopRuntime) {
+      return true;
+    }
+    if (isLoadingSources) {
+      return false;
+    }
+    if (sourceError) {
+      return false;
+    }
+    if (sources.length === 0) {
+      return true;
+    }
+    return Boolean(selectedSourceId);
+  }, [isLoadingSources, selectedSourceId, sourceError, sources.length]);
+
   return (
     <Dialog
       open={open}
@@ -137,10 +221,137 @@ export default function ScreenShareSettingsDialog({
       <DialogContent sx={{ pt: 1 }}>
         <Stack spacing={3}>
           <Typography variant="body2" color="text.secondary">
-            Pick the resolution and frame rate for your stream. After you
-            continue, your browser will ask you to choose the window or screen
-            to share.
+            {isDesktopRuntime
+              ? "Pick the resolution and frame rate for your stream, then choose which screen or window to share below."
+              : "Pick the resolution and frame rate for your stream. After you continue, your browser will ask you to choose the window or screen to share."}
           </Typography>
+
+          {isDesktopRuntime ? (
+            <Stack spacing={1.5}>
+              <Typography variant="subtitle2" fontWeight={600}>
+                Screen or window
+              </Typography>
+              {isLoadingSources ? (
+                <Stack
+                  spacing={1}
+                  alignItems="center"
+                  justifyContent="center"
+                  sx={{ py: 3 }}
+                >
+                  <CircularProgress size={24} />
+                  <Typography variant="caption" color="text.secondary">
+                    Loading available sources…
+                  </Typography>
+                </Stack>
+              ) : sourceError ? (
+                <Typography variant="body2" color="error">
+                  {sourceError}
+                </Typography>
+              ) : sources.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">
+                  No shareable sources were found. You can still continue to use the system picker or try again later.
+                </Typography>
+              ) : (
+                <Box
+                  sx={{
+                    display: "grid",
+                    gap: 1.5,
+                    gridTemplateColumns: {
+                      xs: "1fr",
+                      sm: "1fr 1fr",
+                    },
+                  }}
+                >
+                  {sources.map((source) => {
+                    const selected = source.id === selectedSourceId;
+                    return (
+                      <ButtonBase
+                        key={source.id}
+                        onClick={() => handleSourceSelect(source.id)}
+                        disabled={isSubmitting}
+                        sx={{
+                          position: "relative",
+                          borderRadius: 2,
+                          border: (theme) =>
+                            `2px solid ${
+                              selected
+                                ? theme.palette.primary.main
+                                : theme.palette.divider
+                            }`,
+                          overflow: "hidden",
+                          p: 1,
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "stretch",
+                          gap: 1,
+                          textAlign: "left",
+                          bgcolor: selected
+                            ? "action.selected"
+                            : "background.paper",
+                          transition: (theme) =>
+                            theme.transitions.create(["border-color", "box-shadow"], {
+                              duration: theme.transitions.duration.shorter,
+                            }),
+                          boxShadow: selected ? 2 : 0,
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            width: "100%",
+                            aspectRatio: "16 / 9",
+                            borderRadius: 1,
+                            overflow: "hidden",
+                            bgcolor: "background.default",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          {source.thumbnail ? (
+                            <Box
+                              component="img"
+                              src={source.thumbnail}
+                              alt={source.name}
+                              sx={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "cover",
+                              }}
+                            />
+                          ) : (
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              No preview available
+                            </Typography>
+                          )}
+                        </Box>
+                        <Stack spacing={0.5} alignItems="flex-start">
+                          <Typography
+                            variant="body2"
+                            fontWeight={600}
+                            sx={{ maxWidth: "100%" }}
+                            noWrap
+                          >
+                            {source.name}
+                          </Typography>
+                          <Chip
+                            size="small"
+                            label={
+                              source.sourceType === "screen"
+                                ? "Screen"
+                                : "Window"
+                            }
+                          />
+                        </Stack>
+                      </ButtonBase>
+                    );
+                  })}
+                </Box>
+              )}
+            </Stack>
+          ) : null}
 
           <Stack spacing={1.5}>
             <Typography variant="subtitle2" fontWeight={600}>
@@ -240,7 +451,7 @@ export default function ScreenShareSettingsDialog({
           onClick={handleConfirm}
           variant="contained"
           startIcon={<ScreenShareRounded />}
-          disabled={isSubmitting}
+          disabled={isSubmitting || !canConfirm}
         >
           Share screen
         </Button>
