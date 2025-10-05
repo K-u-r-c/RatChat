@@ -3,13 +3,12 @@ import {
   BrowserWindow,
   desktopCapturer,
   ipcMain,
-  shell,
-  session,
   nativeTheme,
-  systemPreferences, // added
+  session,
+  shell,
+  systemPreferences,
 } from "electron";
 import path from "node:path";
-import url from "node:url";
 
 const isDev = !app.isPackaged;
 const PLATFORM = process.platform;
@@ -278,7 +277,8 @@ const configureDisplayMediaHandling = () => {
 
         const response = { video: match };
         if (prepared.audioMode === "system" && process.platform === "win32") {
-          response.audio = "loopbackWithMute";
+          response.audio = "loopback";
+          response.enableLocalEcho = true;
         }
 
         callback(response);
