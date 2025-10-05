@@ -1,26 +1,21 @@
-import { useForm } from "react-hook-form";
-import { useAccount } from "../../lib/hooks/useAccount";
-import { loginSchema, type LoginSchema } from "../../lib/schemas/loginSchema";
-import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  Box,
-  Button,
-  Paper,
-  Typography,
-  useTheme,
-  useMediaQuery,
-} from "@mui/material";
-import { GitHub } from "@mui/icons-material";
-import { FcGoogle } from "react-icons/fc";
-import TextInput from "../../app/shared/components/TextInput";
-import { Link, useLocation, useNavigate } from "react-router";
-import { useState } from "react";
-import { toast } from "react-toastify";
+import {zodResolver} from "@hookform/resolvers/zod";
+import {GitHub} from "@mui/icons-material";
+import {Box, Button, Paper, Typography, useMediaQuery, useTheme,} from "@mui/material";
+import {useState} from "react";
+import {useForm} from "react-hook-form";
+import {FcGoogle} from "react-icons/fc";
+import {Link, useLocation, useNavigate} from "react-router";
+import {toast} from "react-toastify";
 import PasswordInput from "../../app/shared/components/PasswordInput";
+import TextInput from "../../app/shared/components/TextInput";
+import {getDesktopApi, isDesktopRuntime} from "../../lib/environment/runtime";
+import {useAccount} from "../../lib/hooks/useAccount";
+import {getOAuthRedirectUrl} from "../../lib/oauth/getOAuthRedirectUrl";
+import {loginSchema, type LoginSchema} from "../../lib/schemas/loginSchema";
 
 export default function LoginForm() {
   const [notVerified, setNotVerified] = useState(false);
-  const { loginUser, resendConfirmationEmail } = useAccount();
+  const {loginUser, resendConfirmationEmail} = useAccount();
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
@@ -30,7 +25,7 @@ export default function LoginForm() {
     control,
     handleSubmit,
     watch,
-    formState: { isValid, isSubmitting },
+    formState: {isValid, isSubmitting},
   } = useForm<LoginSchema>({
     mode: "onTouched",
     resolver: zodResolver(loginSchema),
@@ -39,7 +34,7 @@ export default function LoginForm() {
 
   const handleResendEmail = async () => {
     try {
-      await resendConfirmationEmail.mutateAsync({ email });
+      await resendConfirmationEmail.mutateAsync({email});
       setNotVerified(false);
     } catch (error) {
       if (import.meta.env.DEV) console.log(error);
@@ -58,19 +53,51 @@ export default function LoginForm() {
     });
   };
 
+  const openOAuthUrl = (url: string) => {
+    if (isDesktopRuntime) {
+      const desktopApi = getDesktopApi();
+      if (desktopApi) {
+        desktopApi.openExternal(url).catch(() => {
+          window.location.href = url;
+        });
+        return;
+      }
+    }
+    window.location.href = url;
+  };
+
   const loginWithGithub = () => {
     const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
-    const redirectUrl = import.meta.env.VITE_REDIRECT_URL;
+    if (!clientId) {
+      toast.error("GitHub client is not configured");
+      return;
+    }
 
-    window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUrl}?provider=github&scope=read:user user:email`;
+    const redirectUri = getOAuthRedirectUrl("github");
+    const authUrl = new URL("https://github.com/login/oauth/authorize");
+    authUrl.searchParams.set("client_id", clientId);
+    authUrl.searchParams.set("redirect_uri", redirectUri);
+    authUrl.searchParams.set("scope", "read:user user:email");
+
+    openOAuthUrl(authUrl.toString());
   };
 
   const loginWithGoogle = () => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    const redirectUrl = import.meta.env.VITE_REDIRECT_URL;
-    const scope = "openid email profile";
+    if (!clientId) {
+      toast.error("Google client is not configured");
+      return;
+    }
 
-    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUrl}?provider=google&scope=${scope}&response_type=code`;
+    const redirectUri = getOAuthRedirectUrl("google");
+    const scope = "openid email profile";
+    const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+    authUrl.searchParams.set("client_id", clientId);
+    authUrl.searchParams.set("redirect_uri", redirectUri);
+    authUrl.searchParams.set("scope", scope);
+    authUrl.searchParams.set("response_type", "code");
+
+    openOAuthUrl(authUrl.toString());
   };
 
   return (
@@ -78,10 +105,10 @@ export default function LoginForm() {
       sx={{
         display: "flex",
         justifyContent: "center",
-        px: { xs: 0, sm: 0, md: 4 },
-        pt: { xs: 2, sm: 3 },
+        px: {xs: 0, sm: 0, md: 4},
+        pt: {xs: 2, sm: 3},
         width: "100%",
-        minHeight: { xs: "90vh", sm: "90vh", md: "auto" },
+        minHeight: {xs: "90vh", sm: "90vh", md: "auto"},
       }}
     >
       <Paper
@@ -110,32 +137,32 @@ export default function LoginForm() {
             sm: "600px",
             md: "690px",
           },
-          gap: { xs: "16px", sm: "20px", md: "24px" },
-          px: { xs: "24px", sm: "48px", md: "72px" },
-          py: { xs: "32px", sm: "40px", md: "48px" },
-          borderRadius: { xs: "16px 16px 0 0", sm: 3 },
+          gap: {xs: "16px", sm: "20px", md: "24px"},
+          px: {xs: "24px", sm: "48px", md: "72px"},
+          py: {xs: "32px", sm: "40px", md: "48px"},
+          borderRadius: {xs: "16px 16px 0 0", sm: 3},
         }}
       >
         <Typography
           sx={{
             color: "white",
-            fontSize: { xs: "24px", sm: "26px", md: "28px" },
+            fontSize: {xs: "24px", sm: "26px", md: "28px"},
             fontWeight: "550",
-            textAlign: { xs: "center", sm: "left" },
-            mb: { xs: 1, sm: 0 },
+            textAlign: {xs: "center", sm: "left"},
+            mb: {xs: 1, sm: 0},
           }}
         >
           Login to your account
         </Typography>
 
         <Box>
-          <Box sx={{ mb: { xs: 1.5, sm: 2 } }}>
+          <Box sx={{mb: {xs: 1.5, sm: 2}}}>
             <Typography
               sx={{
                 color: "#D1D1D6",
                 mb: 0.5,
                 ml: 0.5,
-                fontSize: { xs: 14, sm: 15 },
+                fontSize: {xs: 14, sm: 15},
               }}
             >
               Email
@@ -149,7 +176,7 @@ export default function LoginForm() {
             />
           </Box>
 
-          <Box sx={{ color: "#D1D1D6", textDecoration: "none", mb: 1 }}>
+          <Box sx={{color: "#D1D1D6", textDecoration: "none", mb: 1}}>
             <Box
               sx={{
                 display: "flex",
@@ -160,7 +187,7 @@ export default function LoginForm() {
                 ml: 0.5,
               }}
             >
-              <Typography sx={{ fontSize: { xs: 14, sm: 15 } }}>
+              <Typography sx={{fontSize: {xs: 14, sm: 15}}}>
                 Password
               </Typography>
               <Typography>
@@ -192,8 +219,8 @@ export default function LoginForm() {
           sx={{
             display: "flex",
             flexDirection: "column",
-            gap: { xs: 2, sm: 2.5 },
-            mt: { xs: 1, sm: 0 },
+            gap: {xs: 2, sm: 2.5},
+            mt: {xs: 1, sm: 0},
           }}
         >
           <Button
@@ -203,10 +230,10 @@ export default function LoginForm() {
             size="large"
             fullWidth
             sx={{
-              py: { xs: 1.2, sm: 1.5 },
+              py: {xs: 1.2, sm: 1.5},
               textTransform: "none",
               fontWeight: "bold",
-              fontSize: { xs: "14px", sm: "16px" },
+              fontSize: {xs: "14px", sm: "16px"},
               backgroundColor: !isValid || isSubmitting ? "#333" : "primary",
               color: !isValid || isSubmitting ? "#888" : "white",
               borderRadius: "8px",
@@ -222,15 +249,15 @@ export default function LoginForm() {
 
           <Button
             onClick={loginWithGoogle}
-            startIcon={<FcGoogle size={isMobile ? 18 : 20} />}
+            startIcon={<FcGoogle size={isMobile ? 18 : 20}/>}
             sx={{
-              py: { xs: 1.2, sm: 1.5 },
+              py: {xs: 1.2, sm: 1.5},
               backgroundColor: "#26272B",
               color: "#A0A0AB",
               fontWeight: "bold",
               textTransform: "none",
               borderRadius: "8px",
-              fontSize: { xs: "14px", sm: "16px" },
+              fontSize: {xs: "14px", sm: "16px"},
               "&:hover": {
                 backgroundColor: "#2A2B30",
               },
@@ -246,16 +273,16 @@ export default function LoginForm() {
           <Button
             onClick={loginWithGithub}
             startIcon={
-              <GitHub sx={{ color: "white", fontSize: isMobile ? 18 : 20 }} />
+              <GitHub sx={{color: "white", fontSize: isMobile ? 18 : 20}}/>
             }
             sx={{
-              py: { xs: 1.2, sm: 1.5 },
+              py: {xs: 1.2, sm: 1.5},
               backgroundColor: "#26272B",
               color: "#A0A0AB",
               fontWeight: "bold",
               textTransform: "none",
               borderRadius: "8px",
-              fontSize: { xs: "14px", sm: "16px" },
+              fontSize: {xs: "14px", sm: "16px"},
               "&:hover": {
                 backgroundColor: "#2A2B30",
               },
@@ -275,14 +302,14 @@ export default function LoginForm() {
             flexDirection="column"
             justifyContent="center"
             gap={2}
-            sx={{ mt: { xs: 1, sm: 0 } }}
+            sx={{mt: {xs: 1, sm: 0}}}
           >
             <Typography
               textAlign="center"
               color="error"
               sx={{
-                fontSize: { xs: "14px", sm: "16px" },
-                px: { xs: 1, sm: 0 },
+                fontSize: {xs: "14px", sm: "16px"},
+                px: {xs: 1, sm: 0},
               }}
             >
               Your email has not been verified. You can click the button to
@@ -294,7 +321,7 @@ export default function LoginForm() {
               variant="outlined"
               sx={{
                 py: 1,
-                fontSize: { xs: "14px", sm: "16px" },
+                fontSize: {xs: "14px", sm: "16px"},
                 textTransform: "none",
               }}
             >
@@ -306,17 +333,17 @@ export default function LoginForm() {
             display="flex"
             alignItems="center"
             justifyContent="center"
-            gap={{ xs: 1, sm: 3 }}
+            gap={{xs: 1, sm: 3}}
             sx={{
-              mt: { xs: 1, sm: 0 },
-              flexDirection: { xs: "column", sm: "row" },
+              mt: {xs: 1, sm: 0},
+              flexDirection: {xs: "column", sm: "row"},
             }}
           >
             <Typography
               sx={{
                 textAlign: "center",
                 color: "#70707B",
-                fontSize: { xs: "14px", sm: "16px" },
+                fontSize: {xs: "14px", sm: "16px"},
               }}
             >
               Don't Have An Account?
@@ -325,7 +352,7 @@ export default function LoginForm() {
               sx={{
                 color: "#A0A0AB",
                 textDecoration: "none",
-                fontSize: { xs: "14px", sm: "16px" },
+                fontSize: {xs: "14px", sm: "16px"},
               }}
               component={Link}
               to="/register"

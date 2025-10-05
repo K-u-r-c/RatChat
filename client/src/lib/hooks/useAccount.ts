@@ -1,17 +1,19 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { LoginSchema } from "../schemas/loginSchema";
+import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
+import {useNavigate} from "react-router";
+import {toast} from "react-toastify";
 import agent from "../api/agent";
-import { useNavigate } from "react-router";
-import type { RegisterSchema } from "../schemas/registerSchema";
-import { toast } from "react-toastify";
-import type { ResetPassword, User } from "../types";
-import type { ChangePasswordSchema } from "../schemas/changePasswordSchema";
+import {isDesktopRuntime} from "../environment/runtime";
+import {getOAuthRedirectUrl} from "../oauth/getOAuthRedirectUrl";
+import type {ChangePasswordSchema} from "../schemas/changePasswordSchema";
+import type {LoginSchema} from "../schemas/loginSchema";
+import type {RegisterSchema} from "../schemas/registerSchema";
+import type {ResetPassword, User} from "../types";
 
 export const useAccount = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const { data: currentUser, isLoading: loadingUserInfo } = useQuery({
+  const {data: currentUser, isLoading: loadingUserInfo} = useQuery({
     queryKey: ["user"],
     queryFn: async () => {
       const response = await agent.get<User>("/account/user-info");
@@ -41,23 +43,23 @@ export const useAccount = () => {
       await agent.post("/account/logout");
     },
     onSuccess: () => {
-      queryClient.removeQueries({ queryKey: ["user"] });
-      queryClient.removeQueries({ queryKey: ["activities"] });
+      queryClient.removeQueries({queryKey: ["user"]});
+      queryClient.removeQueries({queryKey: ["activities"]});
       navigate("/");
     },
   });
 
   const verifyEmail = useMutation({
-    mutationFn: async ({ userId, code }: { userId: string; code: string }) => {
+    mutationFn: async ({userId, code}: { userId: string; code: string }) => {
       await agent.get(`/confirmEmail?userId=${userId}&code=${code}`);
     },
   });
 
   const resendConfirmationEmail = useMutation({
     mutationFn: async ({
-      email,
-      userId,
-    }: {
+                         email,
+                         userId,
+                       }: {
       email?: string;
       userId?: string | null;
     }) => {
@@ -81,7 +83,7 @@ export const useAccount = () => {
 
   const forgotPassword = useMutation({
     mutationFn: async (email: string) => {
-      await agent.post("/forgotPassword", { email });
+      await agent.post("/forgotPassword", {email});
     },
   });
 
@@ -93,7 +95,14 @@ export const useAccount = () => {
 
   const fetchGithubToken = useMutation({
     mutationFn: async (code: string) => {
-      const response = await agent.post(`/account/github-login?code=${code}`);
+      const params: Record<string, string> = {code};
+      if (isDesktopRuntime) {
+        params.redirectUri = getOAuthRedirectUrl("github");
+      }
+
+      const response = await agent.post(`/account/github-login`, undefined, {
+        params,
+      });
       return response.data;
     },
     onSuccess: async () => {
@@ -105,7 +114,14 @@ export const useAccount = () => {
 
   const fetchGoogleToken = useMutation({
     mutationFn: async (code: string) => {
-      const response = await agent.post(`/account/google-login?code=${code}`);
+      const params: Record<string, string> = {code};
+      if (isDesktopRuntime) {
+        params.redirectUri = getOAuthRedirectUrl("google");
+      }
+
+      const response = await agent.post(`/account/google-login`, undefined, {
+        params,
+      });
       return response.data;
     },
     onSuccess: async () => {

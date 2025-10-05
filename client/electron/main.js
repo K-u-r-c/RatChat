@@ -1,17 +1,15 @@
-import {
-  app,
-  BrowserWindow,
-  desktopCapturer,
-  ipcMain,
-  nativeTheme,
-  session,
-  shell,
-  systemPreferences,
-} from "electron";
+import {app, BrowserWindow, desktopCapturer, ipcMain, nativeTheme, session, shell, systemPreferences,} from "electron";
 import path from "node:path";
 
 const isDev = !app.isPackaged;
 const PLATFORM = process.platform;
+
+const DESKTOP_PROTOCOL = "ratchat-desktop";
+const DESKTOP_AUTH_HOST = "auth-callback";
+const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL ?? "https://localhost:3000";
+const PROD_APP_URL = "https://ratchat.pl";
+
+const pendingAuthCallbacks = [];
 
 const unsupportedAudioWarnings = new Set();
 
@@ -27,20 +25,20 @@ const buildAudioResponseForSelection = (mode, source) => {
   if (mode === "system") {
     if (PLATFORM === "win32") {
       // Use loopback so system audio capture does not mute the microphone stream.
-      return { audio: "loopback", enableLocalEcho: false };
+      return {audio: "loopback", enableLocalEcho: false};
     }
     if (PLATFORM === "linux") {
-      return { audio: "loopback", enableLocalEcho: false };
+      return {audio: "loopback", enableLocalEcho: false};
     }
     if (PLATFORM === "darwin") {
-      return { audio: "loopback", enableLocalEcho: false };
+      return {audio: "loopback", enableLocalEcho: false};
     }
     return null;
   }
 
   if (mode === "application") {
     if (PLATFORM === "win32" || PLATFORM === "linux" || PLATFORM === "darwin") {
-      return { audio: source, enableLocalEcho: false };
+      return {audio: source, enableLocalEcho: false};
     }
     return null;
   }
@@ -70,6 +68,103 @@ const resolveFromApp = (...segments) => {
   return path.join(appPath, ...segments);
 };
 
+const getAppBaseUrl = () => (isDev ? DEV_SERVER_URL : PROD_APP_URL);
+
+const buildAppUrl = (pathname, params = {}) => {
+  try {
+    const baseUrl = getAppBaseUrl();
+    const url = new URL(pathname, baseUrl);
+    for (const [key, value] of Object.entries(params)) {
+      if (typeof value === "string" && value.length > 0) {
+        url.searchParams.set(key, value);
+      }
+    }
+    return url.toString();
+  } catch {
+    return pathname;
+  }
+};
+
+const parseUrl = (rawUrl) => {
+  if (typeof rawUrl !== "string" || rawUrl.length === 0) {
+    return null;
+  }
+  try {
+    return new URL(rawUrl);
+  } catch {
+    return null;
+  }
+};
+
+const OAUTH_HOSTS = new Set(["github.com", "accounts.google.com"]);
+
+const focusMainWindow = () => {
+  if (!mainWindow) {
+    return;
+  }
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore();
+  }
+  if (!mainWindow.isVisible()) {
+    mainWindow.show();
+  }
+  mainWindow.focus();
+};
+
+const enqueueAuthCallbackNavigation = (url) => {
+  pendingAuthCallbacks.push(url);
+  if (mainWindow) {
+    flushPendingAuthCallbackNavigations();
+  }
+};
+
+const flushPendingAuthCallbackNavigations = () => {
+  if (!mainWindow) {
+    return;
+  }
+  while (pendingAuthCallbacks.length > 0) {
+    const targetUrl = pendingAuthCallbacks.shift();
+    if (typeof targetUrl === "string" && targetUrl.length > 0) {
+      focusMainWindow();
+      setImmediate(() => {
+        void mainWindow
+          ?.loadURL(targetUrl)
+          .catch(() => {
+            // ignore load errors; renderer can surface issues if needed
+          });
+      });
+    }
+  }
+};
+
+const handleDeepLink = (rawUrl) => {
+  const parsed = parseUrl(rawUrl);
+  if (!parsed) {
+    return;
+  }
+
+  if (parsed.protocol !== `${DESKTOP_PROTOCOL}:`) {
+    return;
+  }
+
+  if (parsed.hostname !== DESKTOP_AUTH_HOST) {
+    return;
+  }
+
+  const code = parsed.searchParams.get("code");
+  if (!code) {
+    return;
+  }
+  const provider = parsed.searchParams.get("provider") ?? undefined;
+
+  const callbackUrl = buildAppUrl("/auth-callback", {
+    code,
+    provider,
+  });
+
+  enqueueAuthCallbackNavigation(callbackUrl);
+};
+
 const createMainWindow = () => {
   const preloadPath = resolveFromApp("electron", "preload.js");
 
@@ -94,7 +189,7 @@ const createMainWindow = () => {
   mainWindow.once("ready-to-show", () => {
     mainWindow?.show();
     if (isDev) {
-      mainWindow?.webContents.openDevTools({ mode: "detach" });
+      mainWindow?.webContents.openDevTools({mode: "detach"});
     }
   });
 
@@ -102,41 +197,145 @@ const createMainWindow = () => {
     mainWindow = null;
   });
 
-  const devServerUrl =
-    process.env.VITE_DEV_SERVER_URL ?? "https://localhost:3000";
+  const internalOrigins = new Set();
+  const registerOrigin = (candidate) => {
+    const parsed = parseUrl(candidate);
+    if (!parsed) return;
+    internalOrigins.add(parsed.origin);
+  };
 
-  if (isDev) {
-    void mainWindow.loadURL(`${devServerUrl}/login`);
-  } else {
-    // Instead of loading local dist file, point to hosted SPA so origin matches API
-    void mainWindow.loadURL("https://ratchat.pl/login");
-  }
+  const appBaseUrl = getAppBaseUrl();
 
-  mainWindow.webContents.setWindowOpenHandler(({ url: targetUrl }) => {
-    if (targetUrl.startsWith("http:") || targetUrl.startsWith("https:")) {
-      shell.openExternal(targetUrl).catch(() => {
-        // no-op: external open failures are non-fatal
-      });
+  registerOrigin(appBaseUrl);
+  registerOrigin("https://localhost:3000");
+  registerOrigin("http://localhost:3000");
+  registerOrigin("https://localhost:5173");
+  registerOrigin("http://localhost:5173");
+  registerOrigin("https://ratchat.pl");
+
+  const isInternalAppUrl = (targetUrl) => {
+    const parsed = parseUrl(targetUrl);
+    if (!parsed) {
+      return false;
     }
-    return { action: "deny" };
+    if (parsed.protocol === "about:") {
+      return true;
+    }
+    if (internalOrigins.has(parsed.origin)) {
+      return true;
+    }
+    const hostname = parsed.hostname.toLowerCase();
+    return (
+      hostname === "ratchat.pl" || hostname.endsWith(".ratchat.pl")
+    );
+  };
+
+  const loadInMainWindow = (targetUrl) => {
+    if (!mainWindow || !isInternalAppUrl(targetUrl)) {
+      return false;
+    }
+    const toLoad = targetUrl;
+    setImmediate(() => {
+      void mainWindow?.loadURL(toLoad).catch(() => {
+        // Ignore load errors; renderer can recover via manual navigation.
+      });
+    });
+    return true;
+  };
+
+  const openInSystemBrowser = (targetUrl) => {
+    if (!targetUrl) {
+      return false;
+    }
+    const parsed = parseUrl(targetUrl);
+    if (!parsed) {
+      return false;
+    }
+    const protocol = parsed.protocol?.toLowerCase();
+    if (protocol === "http:" || protocol === "https:") {
+      const hostname = parsed.hostname.toLowerCase();
+      if (!isInternalAppUrl(targetUrl) || OAUTH_HOSTS.has(hostname)) {
+        shell.openExternal(targetUrl).catch(() => {
+          // no-op: external open failures are non-fatal
+        });
+        return true;
+      }
+    }
+    if (protocol === "mailto:") {
+      shell.openExternal(targetUrl).catch(() => {
+        // ignore mail failures
+      });
+      return true;
+    }
+    return false;
+  };
+
+  const loginUrl = buildAppUrl("/login");
+  void mainWindow.loadURL(loginUrl);
+
+  mainWindow.webContents.setWindowOpenHandler(({url: targetUrl}) => {
+    if (loadInMainWindow(targetUrl)) {
+      return {action: "deny"};
+    }
+    openInSystemBrowser(targetUrl);
+    return {action: "deny"};
   });
 
   mainWindow.webContents.on("will-navigate", (event, navigationUrl) => {
-    const parsed = new URL(navigationUrl);
-    const current = new URL(mainWindow?.webContents.getURL() ?? devServerUrl);
-    if (parsed.origin !== current.origin) {
-      event.preventDefault();
-      if (
-        navigationUrl.startsWith("http:") ||
-        navigationUrl.startsWith("https:")
-      ) {
-        shell.openExternal(navigationUrl).catch(() => {
-          // ignore
-        });
-      }
+    if (isInternalAppUrl(navigationUrl)) {
+      return;
     }
+    event.preventDefault();
+    openInSystemBrowser(navigationUrl);
   });
+
+  flushPendingAuthCallbackNavigations();
 };
+
+const registerProtocolHandler = () => {
+  if (process.defaultApp) {
+    if (process.argv.length >= 2) {
+      app.setAsDefaultProtocolClient(
+        DESKTOP_PROTOCOL,
+        process.execPath,
+        [path.resolve(process.argv[1])]
+      );
+    }
+  } else {
+    app.setAsDefaultProtocolClient(DESKTOP_PROTOCOL);
+  }
+};
+
+const deepLinkArgumentFrom = (argv = []) => {
+  return argv.find((arg) =>
+    typeof arg === "string" && arg.startsWith(`${DESKTOP_PROTOCOL}://`)
+  );
+};
+
+const singleInstanceLock = app.requestSingleInstanceLock();
+if (!singleInstanceLock) {
+  app.quit();
+}
+
+app.on("second-instance", (_event, commandLine) => {
+  const deepLinkArg = deepLinkArgumentFrom(commandLine);
+  if (deepLinkArg) {
+    handleDeepLink(deepLinkArg);
+  }
+  focusMainWindow();
+});
+
+app.on("open-url", (event, url) => {
+  event.preventDefault();
+  handleDeepLink(url);
+});
+
+const initialDeepLink = deepLinkArgumentFrom(process.argv);
+if (initialDeepLink) {
+  setImmediate(() => {
+    handleDeepLink(initialDeepLink);
+  });
+}
 
 const allowedPermissions = new Set([
   "media",
@@ -151,7 +350,7 @@ let lastPreparedScreenShareSelection = null;
 const listScreenSources = async (options = {}) => {
   const {
     types = ["screen", "window"],
-    thumbnailSize = { width: 320, height: 180 },
+    thumbnailSize = {width: 320, height: 180},
     fetchWindowIcons = true,
   } = options;
 
@@ -172,7 +371,7 @@ const listScreenSources = async (options = {}) => {
 
   if (sources.length === 0) {
     sources = await loadSources({
-      thumbnailSize: { width: 0, height: 0 },
+      thumbnailSize: {width: 0, height: 0},
       fetchWindowIcons: false,
     });
   }
@@ -199,12 +398,12 @@ const listScreenSources = async (options = {}) => {
 
 const prepareScreenShareSelection = (webContentsId, payload) => {
   if (!payload || typeof payload !== "object") {
-    return { success: false, message: "Invalid selection payload" };
+    return {success: false, message: "Invalid selection payload"};
   }
 
-  const { sourceId, audioMode } = payload;
+  const {sourceId, audioMode} = payload;
   if (typeof sourceId !== "string" || sourceId.length === 0) {
-    return { success: false, message: "Missing sourceId" };
+    return {success: false, message: "Missing sourceId"};
   }
 
   let normalizedAudio = "none";
@@ -220,7 +419,7 @@ const prepareScreenShareSelection = (webContentsId, payload) => {
   };
   pendingScreenShareSelections.set(webContentsId, selection);
   lastPreparedScreenShareSelection = selection;
-  return { success: true };
+  return {success: true};
 };
 
 const clearPreparedScreenShareSelection = (
@@ -244,7 +443,7 @@ const clearPreparedScreenShareSelection = (
       lastPreparedScreenShareSelection = null;
     }
   }
-  return { success: true };
+  return {success: true};
 };
 
 const consumePreparedScreenShareSelection = (webContentsId) => {
@@ -299,24 +498,24 @@ const configureDisplayMediaHandling = () => {
       webContents?.id ?? null
     );
     if (!prepared) {
-      callback({ video: frame ?? undefined });
+      callback({video: frame ?? undefined});
       return;
     }
 
     void desktopCapturer
       .getSources({
         types: ["screen", "window"],
-        thumbnailSize: { width: 0, height: 0 },
+        thumbnailSize: {width: 0, height: 0},
         fetchWindowIcons: false,
       })
       .then((sources) => {
         const match = sources.find((source) => source.id === prepared.sourceId);
         if (!match) {
-          callback({ video: frame ?? undefined });
+          callback({video: frame ?? undefined});
           return;
         }
 
-        const response = { video: match };
+        const response = {video: match};
         if (request.audioRequested && prepared.audioMode && prepared.audioMode !== "none") {
           const isScreenSource = typeof match.id === "string" && match.id.startsWith("screen:");
           if (prepared.audioMode === "system" && !isScreenSource) {
@@ -350,7 +549,7 @@ const configureDisplayMediaHandling = () => {
         callback(response);
       })
       .catch(() => {
-        callback({ video: frame ?? undefined });
+        callback({video: frame ?? undefined});
       });
   });
 };
@@ -358,6 +557,7 @@ const configureDisplayMediaHandling = () => {
 app.setAppUserModelId("com.ratchat.desktop");
 
 app.whenReady().then(() => {
+  registerProtocolHandler();
   configureSessionPermissions();
   configureDisplayMediaHandling();
   createMainWindow();
@@ -384,10 +584,10 @@ ipcMain.handle("app:get-platform", () => ({
 }));
 
 ipcMain.handle("app:open-external", async (_event, targetUrl) => {
-  if (typeof targetUrl !== "string") return { success: false };
+  if (typeof targetUrl !== "string") return {success: false};
   try {
     await shell.openExternal(targetUrl);
-    return { success: true };
+    return {success: true};
   } catch (error) {
     return {
       success: false,
@@ -399,7 +599,7 @@ ipcMain.handle("app:open-external", async (_event, targetUrl) => {
 ipcMain.handle("desktop:list-screen-sources", async () => {
   try {
     const sources = await listScreenSources();
-    return { success: true, sources };
+    return {success: true, sources};
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const code =
@@ -429,7 +629,7 @@ ipcMain.handle("desktop:clear-prepared-screen-share", (event, payload) => {
 });
 ipcMain.handle("desktop:open-screen-recording-preferences", async () => {
   if (process.platform !== "darwin") {
-    return { success: false };
+    return {success: false};
   }
 
   try {
@@ -439,7 +639,7 @@ ipcMain.handle("desktop:open-screen-recording-preferences", async () => {
         "Privacy_ScreenRecording"
       );
     }
-    return { success: true };
+    return {success: true};
   } catch (error) {
     return {
       success: false,

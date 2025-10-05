@@ -1,28 +1,21 @@
-import { useForm } from "react-hook-form";
-import { useAccount } from "../../lib/hooks/useAccount";
-import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  Box,
-  Button,
-  Paper,
-  Typography,
-  useTheme,
-  useMediaQuery,
-} from "@mui/material";
-import { GitHub } from "@mui/icons-material";
-import { FcGoogle } from "react-icons/fc";
-import TextInput from "../../app/shared/components/TextInput";
-import { Link } from "react-router";
-import {
-  registerSchema,
-  type RegisterSchema,
-} from "../../lib/schemas/registerSchema";
-import { useState } from "react";
-import RegisterSuccess from "./RegisterSuccess";
+import {zodResolver} from "@hookform/resolvers/zod";
+import {GitHub} from "@mui/icons-material";
+import {Box, Button, Paper, Typography, useMediaQuery, useTheme,} from "@mui/material";
+import {useState} from "react";
+import {useForm} from "react-hook-form";
+import {FcGoogle} from "react-icons/fc";
+import {Link} from "react-router";
+import {toast} from "react-toastify";
 import PasswordInput from "../../app/shared/components/PasswordInput";
+import TextInput from "../../app/shared/components/TextInput";
+import {getDesktopApi, isDesktopRuntime} from "../../lib/environment/runtime";
+import {useAccount} from "../../lib/hooks/useAccount";
+import {getOAuthRedirectUrl} from "../../lib/oauth/getOAuthRedirectUrl";
+import {registerSchema, type RegisterSchema,} from "../../lib/schemas/registerSchema";
+import RegisterSuccess from "./RegisterSuccess";
 
 export default function RegisterForm() {
-  const { registerUser } = useAccount();
+  const {registerUser} = useAccount();
   const [registerSuccess, setRegisterSuccess] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -32,7 +25,7 @@ export default function RegisterForm() {
     handleSubmit,
     setError,
     watch,
-    formState: { isValid, isSubmitting },
+    formState: {isValid, isSubmitting},
   } = useForm<RegisterSchema>({
     mode: "onTouched",
     resolver: zodResolver(registerSchema),
@@ -48,11 +41,11 @@ export default function RegisterForm() {
         if (Array.isArray(error)) {
           error.forEach((err) => {
             if (err.includes("Email")) {
-              setError("email", { message: err });
+              setError("email", {message: err});
             } else if (err.includes("Password")) {
-              setError("password", { message: err });
+              setError("password", {message: err});
             } else if (err.includes("DisplayName")) {
-              setError("displayName", { message: err });
+              setError("displayName", {message: err});
             }
           });
         }
@@ -60,34 +53,66 @@ export default function RegisterForm() {
     });
   };
 
+  const openOAuthUrl = (url: string) => {
+    if (isDesktopRuntime) {
+      const desktopApi = getDesktopApi();
+      if (desktopApi) {
+        desktopApi.openExternal(url).catch(() => {
+          window.location.href = url;
+        });
+        return;
+      }
+    }
+    window.location.href = url;
+  };
+
   const loginWithGithub = () => {
     const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
-    const redirectUrl = import.meta.env.VITE_REDIRECT_URL;
+    if (!clientId) {
+      toast.error("GitHub client is not configured");
+      return;
+    }
 
-    window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUrl}?provider=github&scope=read:user user:email`;
+    const redirectUri = getOAuthRedirectUrl("github");
+    const authUrl = new URL("https://github.com/login/oauth/authorize");
+    authUrl.searchParams.set("client_id", clientId);
+    authUrl.searchParams.set("redirect_uri", redirectUri);
+    authUrl.searchParams.set("scope", "read:user user:email");
+
+    openOAuthUrl(authUrl.toString());
   };
 
   const loginWithGoogle = () => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    const redirectUrl = import.meta.env.VITE_REDIRECT_URL;
-    const scope = "openid email profile";
+    if (!clientId) {
+      toast.error("Google client is not configured");
+      return;
+    }
 
-    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUrl}?provider=google&scope=${scope}&response_type=code`;
+    const redirectUri = getOAuthRedirectUrl("google");
+    const scope = "openid email profile";
+    const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+    authUrl.searchParams.set("client_id", clientId);
+    authUrl.searchParams.set("redirect_uri", redirectUri);
+    authUrl.searchParams.set("scope", scope);
+    authUrl.searchParams.set("response_type", "code");
+
+    openOAuthUrl(authUrl.toString());
   };
 
   return (
     <>
       {registerSuccess ? (
-        <RegisterSuccess email={email} />
+        <RegisterSuccess email={email}/>
       ) : (
         <Box
           sx={{
             display: "flex",
             justifyContent: "center",
-            px: { xs: 0, sm: 0, md: 4 },
-            pt: { xs: 2, sm: 3 },
+            px: {xs: 0, sm: 0, md: 4},
+            pt: {xs: 2, sm: 3},
             width: "100%",
-            minHeight: { xs: "90vh", sm: "90vh", md: "auto" },
+            minHeight: {xs: "90vh", sm: "90vh", md: "auto"},
           }}
         >
           <Paper
@@ -114,32 +139,32 @@ export default function RegisterForm() {
                 sm: "700px",
                 md: "800px",
               },
-              gap: { xs: "16px", sm: "20px", md: "24px" },
-              px: { xs: "24px", sm: "48px", md: "72px" },
-              py: { xs: "32px", sm: "40px", md: "48px" },
-              borderRadius: { xs: "16px 16px 0 0", sm: 3 },
+              gap: {xs: "16px", sm: "20px", md: "24px"},
+              px: {xs: "24px", sm: "48px", md: "72px"},
+              py: {xs: "32px", sm: "40px", md: "48px"},
+              borderRadius: {xs: "16px 16px 0 0", sm: 3},
             }}
           >
             <Typography
               sx={{
                 color: "white",
-                fontSize: { xs: "24px", sm: "26px", md: "28px" },
+                fontSize: {xs: "24px", sm: "26px", md: "28px"},
                 fontWeight: "550",
-                textAlign: { xs: "center", sm: "left" },
-                mb: { xs: 1, sm: 0 },
+                textAlign: {xs: "center", sm: "left"},
+                mb: {xs: 1, sm: 0},
               }}
             >
               Create your account
             </Typography>
 
             <Box>
-              <Box sx={{ mb: { xs: 1.5, sm: 2 } }}>
+              <Box sx={{mb: {xs: 1.5, sm: 2}}}>
                 <Typography
                   sx={{
                     color: "#D1D1D6",
                     mb: 0.5,
                     ml: 0.5,
-                    fontSize: { xs: 14, sm: 15 },
+                    fontSize: {xs: 14, sm: 15},
                   }}
                 >
                   Email
@@ -152,13 +177,13 @@ export default function RegisterForm() {
                 />
               </Box>
 
-              <Box sx={{ mb: { xs: 1.5, sm: 2 } }}>
+              <Box sx={{mb: {xs: 1.5, sm: 2}}}>
                 <Typography
                   sx={{
                     color: "#D1D1D6",
                     mb: 0.5,
                     ml: 0.5,
-                    fontSize: { xs: 14, sm: 15 },
+                    fontSize: {xs: 14, sm: 15},
                   }}
                 >
                   Display Name
@@ -171,13 +196,13 @@ export default function RegisterForm() {
                 />
               </Box>
 
-              <Box sx={{ mb: { xs: 1.5, sm: 2 } }}>
+              <Box sx={{mb: {xs: 1.5, sm: 2}}}>
                 <Typography
                   sx={{
                     color: "#D1D1D6",
                     mb: 0.5,
                     ml: 0.5,
-                    fontSize: { xs: 14, sm: 15 },
+                    fontSize: {xs: 14, sm: 15},
                   }}
                 >
                   Password
@@ -190,13 +215,13 @@ export default function RegisterForm() {
                 />
               </Box>
 
-              <Box sx={{ mb: { xs: 1, sm: 0 } }}>
+              <Box sx={{mb: {xs: 1, sm: 0}}}>
                 <Typography
                   sx={{
                     color: "#D1D1D6",
                     mb: 0.5,
                     ml: 0.5,
-                    fontSize: { xs: 14, sm: 15 },
+                    fontSize: {xs: 14, sm: 15},
                   }}
                 >
                   Confirm Password
@@ -214,8 +239,8 @@ export default function RegisterForm() {
               sx={{
                 display: "flex",
                 flexDirection: "column",
-                gap: { xs: 2, sm: 2.5 },
-                mt: { xs: 1, sm: 0 },
+                gap: {xs: 2, sm: 2.5},
+                mt: {xs: 1, sm: 0},
               }}
             >
               <Button
@@ -225,10 +250,10 @@ export default function RegisterForm() {
                 size="large"
                 fullWidth
                 sx={{
-                  py: { xs: 1.2, sm: 1.5 },
+                  py: {xs: 1.2, sm: 1.5},
                   textTransform: "none",
                   fontWeight: "bold",
-                  fontSize: { xs: "14px", sm: "16px" },
+                  fontSize: {xs: "14px", sm: "16px"},
                   backgroundColor:
                     !isValid || isSubmitting ? "#333" : "primary",
                   color: !isValid || isSubmitting ? "#888" : "white",
@@ -245,15 +270,15 @@ export default function RegisterForm() {
 
               <Button
                 onClick={loginWithGoogle}
-                startIcon={<FcGoogle size={isMobile ? 18 : 20} />}
+                startIcon={<FcGoogle size={isMobile ? 18 : 20}/>}
                 sx={{
-                  py: { xs: 1.2, sm: 1.5 },
+                  py: {xs: 1.2, sm: 1.5},
                   backgroundColor: "#26272B",
                   color: "#A0A0AB",
                   fontWeight: "bold",
                   textTransform: "none",
                   borderRadius: "8px",
-                  fontSize: { xs: "14px", sm: "16px" },
+                  fontSize: {xs: "14px", sm: "16px"},
                   "&:hover": {
                     backgroundColor: "#2A2B30",
                   },
@@ -270,17 +295,17 @@ export default function RegisterForm() {
                 onClick={loginWithGithub}
                 startIcon={
                   <GitHub
-                    sx={{ color: "white", fontSize: isMobile ? 18 : 20 }}
+                    sx={{color: "white", fontSize: isMobile ? 18 : 20}}
                   />
                 }
                 sx={{
-                  py: { xs: 1.2, sm: 1.5 },
+                  py: {xs: 1.2, sm: 1.5},
                   backgroundColor: "#26272B",
                   color: "#A0A0AB",
                   fontWeight: "bold",
                   textTransform: "none",
                   borderRadius: "8px",
-                  fontSize: { xs: "14px", sm: "16px" },
+                  fontSize: {xs: "14px", sm: "16px"},
                   "&:hover": {
                     backgroundColor: "#2A2B30",
                   },
@@ -298,17 +323,17 @@ export default function RegisterForm() {
               display="flex"
               alignItems="center"
               justifyContent="center"
-              gap={{ xs: 1, sm: 3 }}
+              gap={{xs: 1, sm: 3}}
               sx={{
-                mt: { xs: 1, sm: 0 },
-                flexDirection: { xs: "column", sm: "row" },
+                mt: {xs: 1, sm: 0},
+                flexDirection: {xs: "column", sm: "row"},
               }}
             >
               <Typography
                 sx={{
                   textAlign: "center",
                   color: "#70707B",
-                  fontSize: { xs: "14px", sm: "16px" },
+                  fontSize: {xs: "14px", sm: "16px"},
                 }}
               >
                 Already Have An Account?
@@ -317,7 +342,7 @@ export default function RegisterForm() {
                 sx={{
                   color: "#A0A0AB",
                   textDecoration: "none",
-                  fontSize: { xs: "14px", sm: "16px" },
+                  fontSize: {xs: "14px", sm: "16px"},
                 }}
                 component={Link}
                 to="/login"

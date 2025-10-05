@@ -4,6 +4,7 @@ using Application.Account.DTOs;
 using Application.Interfaces;
 using Application.Users.Helpers;
 using Domain;
+using Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -24,29 +25,35 @@ public class AccountController(
 {
     [AllowAnonymous]
     [HttpPost("github-login")]
-    public async Task<ActionResult> LoginWithGitHub(string code)
+    public async Task<ActionResult> LoginWithGitHub(string code, string? redirectUri = null)
     {
         if (string.IsNullOrEmpty(code)) return BadRequest("Missing authorization code");
 
-        using var httpClient = new HttpClient();
+        using HttpClient httpClient = new();
         httpClient.DefaultRequestHeaders.Accept
             .Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-        var tokenResponse = await httpClient.PostAsJsonAsync(
+        string clientAppUrl = (configuration["ClientAppUrl"] ?? string.Empty).TrimEnd('/');
+        string defaultRedirect = string.IsNullOrEmpty(clientAppUrl)
+            ? "/auth-callback"
+            : $"{clientAppUrl}/auth-callback";
+        string effectiveRedirect = ResolveRedirectUri(redirectUri, defaultRedirect);
+
+        HttpResponseMessage tokenResponse = await httpClient.PostAsJsonAsync(
             "https://github.com/login/oauth/access_token",
             new GitHubAuthRequest
             {
                 Code = code,
                 ClientId = configuration["Authentication:GitHub:ClientId"]!,
                 ClientSecret = configuration["Authentication:GitHub:ClientSecret"]!,
-                RedirectUri = $"{configuration["ClientAppUrl"]}/auth-callback"
+                RedirectUri = effectiveRedirect
             }
         );
 
         if (!tokenResponse.IsSuccessStatusCode)
             return BadRequest("Failed to get access token");
 
-        var tokenContent =
+        GitHubTokenResponse? tokenContent =
             await tokenResponse.Content.ReadFromJsonAsync<GitHubTokenResponse>();
 
         if (string.IsNullOrEmpty(tokenContent?.AccessToken))
@@ -57,20 +64,20 @@ public class AccountController(
 
         httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Reactivities");
 
-        var userResponse =
+        HttpResponseMessage userResponse =
             await httpClient.GetAsync("https://api.github.com/user");
 
         if (!userResponse.IsSuccessStatusCode)
             return BadRequest("Failed to fetch user from GitHub");
 
-        var user = await userResponse.Content.ReadFromJsonAsync<GitHubUser>();
+        GitHubUser? user = await userResponse.Content.ReadFromJsonAsync<GitHubUser>();
 
         if (user == null)
             return BadRequest("Failed to read user from GitHub");
 
         if (string.IsNullOrEmpty(user!.Email))
         {
-            var emailResponse =
+            HttpResponseMessage emailResponse =
                 await httpClient.GetAsync("https://api.github.com/user/emails");
 
             if (emailResponse.IsSuccessStatusCode)
@@ -78,7 +85,7 @@ public class AccountController(
                 var emails =
                     await emailResponse.Content.ReadFromJsonAsync<List<GitHubEmail>>();
 
-                var primary =
+                string? primary =
                     emails?.FirstOrDefault(e => e is { Primary: true, Verified: true })?.Email;
 
                 if (string.IsNullOrEmpty(primary))
@@ -88,7 +95,7 @@ public class AccountController(
             }
         }
 
-        var existingUser = await signInManager.UserManager.FindByEmailAsync(user.Email);
+        User? existingUser = await signInManager.UserManager.FindByEmailAsync(user.Email);
 
         if (existingUser == null)
         {
@@ -102,7 +109,7 @@ public class AccountController(
 
             existingUser.Slug = await GenerateUniqueUserSlugAsync();
 
-            var createdResult = await signInManager.UserManager.CreateAsync(existingUser);
+            IdentityResult createdResult = await signInManager.UserManager.CreateAsync(existingUser);
 
             if (!createdResult.Succeeded)
                 return BadRequest("Failed to create user");
@@ -121,23 +128,29 @@ public class AccountController(
 
     [AllowAnonymous]
     [HttpPost("google-login")]
-    public async Task<ActionResult> LoginWithGoogle(string code)
+    public async Task<ActionResult> LoginWithGoogle(string code, string? redirectUri = null)
     {
         if (string.IsNullOrEmpty(code)) return BadRequest("Missing authorization code");
 
-        using var httpClient = new HttpClient();
+        using HttpClient httpClient = new();
         httpClient.DefaultRequestHeaders.Accept
             .Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-        var tokenRequest = new GoogleAuthRequest
+        string clientAppUrl = (configuration["ClientAppUrl"] ?? string.Empty).TrimEnd('/');
+        string defaultRedirect = string.IsNullOrEmpty(clientAppUrl)
+            ? "/auth-callback?provider=google"
+            : $"{clientAppUrl}/auth-callback?provider=google";
+        string effectiveRedirect = ResolveRedirectUri(redirectUri, defaultRedirect);
+
+        GoogleAuthRequest tokenRequest = new()
         {
             Code = code,
             ClientId = configuration["Authentication:Google:ClientId"]!,
             ClientSecret = configuration["Authentication:Google:ClientSecret"]!,
-            RedirectUri = $"{configuration["ClientAppUrl"]}/auth-callback?provider=google"
+            RedirectUri = effectiveRedirect
         };
 
-        var tokenResponse = await httpClient.PostAsJsonAsync(
+        HttpResponseMessage tokenResponse = await httpClient.PostAsJsonAsync(
             "https://oauth2.googleapis.com/token",
             tokenRequest
         );
@@ -145,7 +158,7 @@ public class AccountController(
         if (!tokenResponse.IsSuccessStatusCode)
             return BadRequest("Failed to get access token from Google");
 
-        var tokenContent = await tokenResponse.Content.ReadFromJsonAsync<GoogleTokenResponse>();
+        GoogleTokenResponse? tokenContent = await tokenResponse.Content.ReadFromJsonAsync<GoogleTokenResponse>();
 
         if (string.IsNullOrEmpty(tokenContent?.AccessToken))
             return BadRequest("Failed to retrieve access token from Google");
@@ -153,12 +166,12 @@ public class AccountController(
         httpClient.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", tokenContent.AccessToken);
 
-        var userResponse = await httpClient.GetAsync("https://www.googleapis.com/oauth2/v2/userinfo");
+        HttpResponseMessage userResponse = await httpClient.GetAsync("https://www.googleapis.com/oauth2/v2/userinfo");
 
         if (!userResponse.IsSuccessStatusCode)
             return BadRequest("Failed to fetch user from Google");
 
-        var googleUser = await userResponse.Content.ReadFromJsonAsync<GoogleUser>();
+        GoogleUser? googleUser = await userResponse.Content.ReadFromJsonAsync<GoogleUser>();
 
         if (googleUser == null || string.IsNullOrEmpty(googleUser.Email))
             return BadRequest("Failed to read user from Google");
@@ -166,7 +179,7 @@ public class AccountController(
         if (!googleUser.VerifiedEmail)
             return BadRequest("Google account email is not verified");
 
-        var existingUser = await signInManager.UserManager.FindByEmailAsync(googleUser.Email);
+        User? existingUser = await signInManager.UserManager.FindByEmailAsync(googleUser.Email);
 
         if (existingUser == null)
         {
@@ -180,7 +193,7 @@ public class AccountController(
 
             existingUser.Slug = await GenerateUniqueUserSlugAsync();
 
-            var createdResult = await signInManager.UserManager.CreateAsync(existingUser);
+            IdentityResult createdResult = await signInManager.UserManager.CreateAsync(existingUser);
 
             if (!createdResult.Succeeded)
                 return BadRequest("Failed to create user");
@@ -201,7 +214,7 @@ public class AccountController(
     [HttpPost("register")]
     public async Task<ActionResult> RegisterUser(RegisterDto registerDto)
     {
-        var user = new User
+        User user = new()
         {
             UserName = registerDto.Email,
             Email = registerDto.Email,
@@ -210,7 +223,7 @@ public class AccountController(
 
         user.Slug = await GenerateUniqueUserSlugAsync();
 
-        var result = await signInManager.UserManager.CreateAsync(user, registerDto.Password);
+        IdentityResult result = await signInManager.UserManager.CreateAsync(user, registerDto.Password);
 
         if (result.Succeeded)
         {
@@ -218,10 +231,7 @@ public class AccountController(
             return Ok();
         }
 
-        foreach (var error in result.Errors)
-        {
-            ModelState.AddModelError(error.Code, error.Description);
-        }
+        foreach (IdentityError error in result.Errors) ModelState.AddModelError(error.Code, error.Description);
 
         return ValidationProblem();
     }
@@ -233,7 +243,7 @@ public class AccountController(
         if (string.IsNullOrEmpty(email) && string.IsNullOrEmpty(userId))
             return BadRequest("Email or UserId must be provided");
 
-        var user = await signInManager.UserManager.Users
+        User? user = await signInManager.UserManager.Users
             .FirstOrDefaultAsync(x => x.Email == email || x.Id == userId);
 
         if (user == null || string.IsNullOrEmpty(user.Email))
@@ -247,10 +257,10 @@ public class AccountController(
 
     private async Task SendConfirmationEmailAsync(User user, string email)
     {
-        var code = await signInManager.UserManager.GenerateEmailConfirmationTokenAsync(user);
+        string code = await signInManager.UserManager.GenerateEmailConfirmationTokenAsync(user);
         code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
 
-        var confirmEmailUrl = $"{configuration["ClientAppUrl"]}/confirm-email?userId={user.Id}&code={code}";
+        string confirmEmailUrl = $"{configuration["ClientAppUrl"]}/confirm-email?userId={user.Id}&code={code}";
 
         await emailSender.SendConfirmationLinkAsync(user, email, confirmEmailUrl);
     }
@@ -261,21 +271,18 @@ public class AccountController(
     {
         if (User.Identity?.IsAuthenticated == false) return NoContent();
 
-        var user = await signInManager.UserManager.GetUserAsync(User);
+        User? user = await signInManager.UserManager.GetUserAsync(User);
 
         if (user == null) return Unauthorized();
 
-        var hasPassword = await signInManager.UserManager.HasPasswordAsync(user);
-        var actualStatus = await userStatusService.GetActualUserStatusAsync(user.Id);
+        bool hasPassword = await signInManager.UserManager.HasPasswordAsync(user);
+        UserStatus actualStatus = await userStatusService.GetActualUserStatusAsync(user.Id);
 
         // If the status service reports offline, but this is an authenticated API call,
         // it's likely the user is online but the status hub hasn't connected yet.
         // We can be optimistic here, unless the user's status is set to Invisible.
         // In that case user will see the corrected status only after refetch of data.
-        if (actualStatus == Domain.Enums.UserStatus.Offline && user.Status != Domain.Enums.UserStatus.Invisible)
-        {
-            actualStatus = Domain.Enums.UserStatus.Online;
-        }
+        if (actualStatus == UserStatus.Offline && user.Status != UserStatus.Invisible) actualStatus = UserStatus.Online;
 
         return Ok(new
         {
@@ -304,18 +311,17 @@ public class AccountController(
     [HttpPost("change-password")]
     public async Task<ActionResult> ChangePassword(ChangePasswordDto passwordDto)
     {
-        var user = await signInManager.UserManager.GetUserAsync(User);
+        User? user = await signInManager.UserManager.GetUserAsync(User);
 
         if (user == null) return Unauthorized();
 
-        var hasPassword = await signInManager.UserManager.HasPasswordAsync(user);
+        bool hasPassword = await signInManager.UserManager.HasPasswordAsync(user);
 
         if (!hasPassword)
-        {
-            return BadRequest("Password change is not available for users authenticated through external providers. Please manage your password through your authentication provider.");
-        }
+            return BadRequest(
+                "Password change is not available for users authenticated through external providers. Please manage your password through your authentication provider.");
 
-        var result = await signInManager.UserManager
+        IdentityResult result = await signInManager.UserManager
             .ChangePasswordAsync(user, passwordDto.CurrentPassword, passwordDto.NewPassword);
 
         if (result.Succeeded) return Ok();
@@ -323,10 +329,40 @@ public class AccountController(
         return BadRequest(result.Errors.First().Description);
     }
 
-    private Task<string> GenerateUniqueUserSlugAsync(string? excludeUserId = null, CancellationToken cancellationToken = default)
+    private Task<string> GenerateUniqueUserSlugAsync(string? excludeUserId = null,
+        CancellationToken cancellationToken = default)
     {
-        var token = cancellationToken == default ? HttpContext?.RequestAborted ?? CancellationToken.None : cancellationToken;
+        CancellationToken token = cancellationToken == default
+            ? HttpContext?.RequestAborted ?? CancellationToken.None
+            : cancellationToken;
         return UserSlugGenerator.GenerateUniqueSlugAsync(signInManager.UserManager.Users, excludeUserId, token);
     }
 
+    private static string ResolveRedirectUri(string? redirectUri, string defaultRedirect)
+    {
+        if (string.IsNullOrWhiteSpace(redirectUri)) return defaultRedirect;
+
+        if (!Uri.TryCreate(redirectUri, UriKind.Absolute, out Uri? candidate))
+            return defaultRedirect;
+
+        if (
+            string.Equals(candidate.Scheme, "ratchat-desktop", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(candidate.Host, "auth-callback", StringComparison.OrdinalIgnoreCase)
+        )
+            return redirectUri;
+
+        if (!Uri.TryCreate(defaultRedirect, UriKind.Absolute, out Uri? fallback))
+            return defaultRedirect;
+
+        bool sameHost = string.Equals(candidate.Host, fallback.Host, StringComparison.OrdinalIgnoreCase);
+        bool sameScheme = string.Equals(candidate.Scheme, fallback.Scheme, StringComparison.OrdinalIgnoreCase);
+        bool samePort = candidate.Port == fallback.Port;
+        bool samePath = string.Equals(
+            candidate.AbsolutePath.TrimEnd('/'),
+            fallback.AbsolutePath.TrimEnd('/'),
+            StringComparison.OrdinalIgnoreCase
+        );
+
+        return sameHost && sameScheme && samePort && samePath ? redirectUri : defaultRedirect;
+    }
 }
