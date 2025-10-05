@@ -54,7 +54,6 @@ public class MediaCleanupService(
                 !context.Users.Any(u => u.BannerUrl != null && u.BannerUrl.Contains(m.PublicId)) &&
                 !context.Messages.Any(msg => msg.MediaPublicId == m.PublicId) &&
                 !context.DirectMessages.Any(dm => dm.MediaPublicId == m.PublicId) &&
-                !context.EncryptedDirectMessages.Any(edm => edm.ReplyToEncryptedDirectMessageId == m.PublicId) &&
                 !context.ChatRooms.Any(ctr => ctr.ImageUrl == m.PublicId))
             .ToListAsync(cancellationToken);
 
