@@ -1,4 +1,5 @@
 using Application.Interfaces;
+using Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -15,7 +16,6 @@ public class MediaCleanupService(
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
-        {
             try
             {
                 await CleanupOrphanedMediaFiles(stoppingToken);
@@ -37,16 +37,15 @@ public class MediaCleanupService(
                     break;
                 }
             }
-        }
     }
 
     private async Task CleanupOrphanedMediaFiles(CancellationToken cancellationToken)
     {
-        using var scope = serviceProvider.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var fileStorage = scope.ServiceProvider.GetRequiredService<IFileStorage>();
+        using IServiceScope scope = serviceProvider.CreateScope();
+        AppDbContext context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        IFileStorage fileStorage = scope.ServiceProvider.GetRequiredService<IFileStorage>();
 
-        var cutoffDate = DateTime.UtcNow.AddHours(-24);
+        DateTime cutoffDate = DateTime.UtcNow.AddHours(-24);
 
         var orphanedFiles = await context.MediaFiles
             .Where(m => m.CreatedAt < cutoffDate)
@@ -54,7 +53,9 @@ public class MediaCleanupService(
                 !context.Users.Any(u => u.ImageUrl != null && u.ImageUrl.Contains(m.PublicId)) &&
                 !context.Users.Any(u => u.BannerUrl != null && u.BannerUrl.Contains(m.PublicId)) &&
                 !context.Messages.Any(msg => msg.MediaPublicId == m.PublicId) &&
-                !context.DirectMessages.Any(dm => dm.MediaPublicId == m.PublicId))
+                !context.DirectMessages.Any(dm => dm.MediaPublicId == m.PublicId) &&
+                !context.EncryptedDirectMessages.Any(edm => edm.ReplyToEncryptedDirectMessageId == m.PublicId) &&
+                !context.ChatRooms.Any(ctr => ctr.ImageUrl == m.PublicId))
             .ToListAsync(cancellationToken);
 
         if (orphanedFiles.Count == 0)
@@ -63,11 +64,11 @@ public class MediaCleanupService(
             return;
         }
 
-        var deletedCount = 0;
+        int deletedCount = 0;
 
-        foreach (var mediaFile in orphanedFiles)
+        foreach (MediaFile mediaFile in orphanedFiles)
         {
-            var folderPath = GetFolderPathForCleanup(mediaFile);
+            string folderPath = GetFolderPathForCleanup(mediaFile);
 
             var deleteResult = await fileStorage.DeleteFileAsync(mediaFile.PublicId, folderPath);
 
@@ -91,7 +92,7 @@ public class MediaCleanupService(
         }
     }
 
-    private static string GetFolderPathForCleanup(Domain.MediaFile mediaFile)
+    private static string GetFolderPathForCleanup(MediaFile mediaFile)
     {
         return mediaFile.Category switch
         {
@@ -111,7 +112,7 @@ public class MediaCleanupService(
         if (string.IsNullOrEmpty(chatRoomId))
             return $"misc/{mediaType}";
 
-        var basePath = $"chatrooms/{chatRoomId}";
+        string basePath = $"chatrooms/{chatRoomId}";
 
         if (!string.IsNullOrEmpty(channelId))
             basePath += $"/channels/{channelId}";
