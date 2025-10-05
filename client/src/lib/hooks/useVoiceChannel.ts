@@ -90,6 +90,7 @@ class VoiceManager {
     { camera?: RTCRtpSender; screen?: RTCRtpSender }
   >();
   private screenAudioSenders = new Map<string, RTCRtpSender>();
+  private screenAudioTransceivers = new Map<string, RTCRtpTransceiver>();
   private negotiationStates = new Map<
     string,
     {
@@ -912,6 +913,7 @@ class VoiceManager {
     }
     this.remoteVideoStreams.delete(connectionId);
     this.detachScreenAudioSenderForConnection(connectionId);
+    this.screenAudioTransceivers.delete(connectionId);
     this.videoSenders.delete(connectionId);
     this.applyParticipantMediaState(connectionId, {
       isCameraEnabled: false,
@@ -964,6 +966,7 @@ class VoiceManager {
     this.detachScreenAudioSenders();
     this.videoSenders.clear();
     this.screenAudioSenders.clear();
+    this.screenAudioTransceivers.clear();
 
     this.speakingMonitors.forEach((_, connectionId) => {
       this.stopRemoteSpeakingMonitor(connectionId);
@@ -1199,9 +1202,14 @@ class VoiceManager {
   ) {
     this.peerConnections.forEach((pc, connectionId) => {
       const existingSender = this.screenAudioSenders.get(connectionId);
-      if (existingSender) {
-        this.updateSenderStreams(existingSender, stream);
-        Promise.resolve(existingSender.replaceTrack(track))
+      const transceiver =
+        this.screenAudioTransceivers.get(connectionId) ?? null;
+      const sender = existingSender ?? transceiver?.sender ?? null;
+
+      if (sender) {
+        this.screenAudioSenders.set(connectionId, sender);
+        this.updateSenderStreams(sender, stream);
+        Promise.resolve(sender.replaceTrack(track))
           .then(() => {
             this.renegotiateConnection(connectionId);
           })
@@ -1212,11 +1220,19 @@ class VoiceManager {
                 err
               );
             }
-            this.detachScreenAudioSenderForConnection(connectionId);
             try {
-              const sender = pc.addTrack(track, stream);
-              this.screenAudioSenders.set(connectionId, sender);
-              this.updateSenderStreams(sender, stream);
+              const result = sender.replaceTrack(null);
+              if (result instanceof Promise) {
+                result.catch(() => {});
+              }
+            } catch {
+              // ignore cleanup errors
+            }
+            this.screenAudioSenders.delete(connectionId);
+            try {
+              const fallbackSender = pc.addTrack(track, stream);
+              this.screenAudioSenders.set(connectionId, fallbackSender);
+              this.updateSenderStreams(fallbackSender, stream);
               this.renegotiateConnection(connectionId);
             } catch (fallbackErr) {
               if (import.meta.env.DEV) {
@@ -1231,9 +1247,9 @@ class VoiceManager {
       }
 
       try {
-        const sender = pc.addTrack(track, stream);
-        this.screenAudioSenders.set(connectionId, sender);
-        this.updateSenderStreams(sender, stream);
+        const newSender = pc.addTrack(track, stream);
+        this.screenAudioSenders.set(connectionId, newSender);
+        this.updateSenderStreams(newSender, stream);
         this.renegotiateConnection(connectionId);
       } catch (err) {
         if (import.meta.env.DEV) {
@@ -1437,14 +1453,29 @@ class VoiceManager {
     const sender = this.screenAudioSenders.get(connectionId);
     if (!sender) return;
     const pc = this.peerConnections.get(connectionId);
-    if (pc) {
+    let detached = false;
+    try {
+      this.updateSenderStreams(sender, null);
+      const result = sender.replaceTrack(null);
+      if (result instanceof Promise) {
+        result.catch(() => {});
+      }
+      detached = true;
+    } catch {
+      // fall through to removeTrack
+    }
+    if (!detached && pc) {
       try {
         pc.removeTrack(sender);
+        detached = true;
       } catch (err) {
         if (import.meta.env.DEV) {
           console.warn("Failed to remove screen audio track", err);
         }
       }
+    }
+    if (!detached && import.meta.env.DEV) {
+      console.warn("Unable to detach screen audio sender");
     }
     this.screenAudioSenders.delete(connectionId);
   }
@@ -1896,9 +1927,27 @@ class VoiceManager {
 
     const stream = await this.ensureLocalMicrophoneStream();
 
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    const pc = new RTCPeerConnection({
+      iceServers: ICE_SERVERS,
+    });
 
     stream?.getAudioTracks().forEach((track) => pc.addTrack(track, stream));
+
+    if (
+      !this.screenAudioTransceivers.has(connectionId) &&
+      typeof pc.addTransceiver === "function"
+    ) {
+      try {
+        const transceiver = pc.addTransceiver("audio", {
+          direction: "sendrecv",
+        });
+        this.screenAudioTransceivers.set(connectionId, transceiver);
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.warn("Failed to prepare screen audio transceiver", err);
+        }
+      }
+    }
 
     const addVideoTrack = (
       mediaStream: MediaStream | null,
@@ -1969,14 +2018,18 @@ class VoiceManager {
             if (import.meta.env.DEV) {
               console.warn("Failed to attach remote audio track", err);
             }
-            if (!hadExistingStream && aggregateStream.getAudioTracks().length === 0) {
+            if (
+              !hadExistingStream &&
+              aggregateStream.getAudioTracks().length === 0
+            ) {
               this.remoteAudioStreams.delete(connectionId);
             }
             return;
           }
 
           let handleRemovetrack:
-            ((removeEvent: MediaStreamTrackEvent) => void) | null = null;
+            | ((removeEvent: MediaStreamTrackEvent) => void)
+            | null = null;
 
           const handleTrackRemoval = () => {
             audioTrack.removeEventListener("ended", handleTrackRemoval);
