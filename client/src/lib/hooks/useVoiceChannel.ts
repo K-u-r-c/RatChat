@@ -1951,8 +1951,74 @@ class VoiceManager {
       const [trackStream] = event.streams;
       if (!trackStream) return;
       if (event.track.kind === "audio") {
-        this.remoteAudioStreams.set(connectionId, trackStream);
-        this.startRemoteSpeakingMonitor(connectionId, trackStream);
+        const audioTrack = event.track;
+        const existingStream = this.remoteAudioStreams.get(connectionId);
+        const aggregateStream = existingStream ?? new MediaStream();
+        const hadExistingStream = Boolean(existingStream);
+        if (!hadExistingStream) {
+          this.remoteAudioStreams.set(connectionId, aggregateStream);
+        }
+        const trackAlreadyAttached = aggregateStream
+          .getAudioTracks()
+          .some((existing) => existing.id === audioTrack.id);
+
+        if (!trackAlreadyAttached) {
+          try {
+            aggregateStream.addTrack(audioTrack);
+          } catch (err) {
+            if (import.meta.env.DEV) {
+              console.warn("Failed to attach remote audio track", err);
+            }
+            if (!hadExistingStream && aggregateStream.getAudioTracks().length === 0) {
+              this.remoteAudioStreams.delete(connectionId);
+            }
+            return;
+          }
+
+          let handleRemovetrack:
+            ((removeEvent: MediaStreamTrackEvent) => void) | null = null;
+
+          const handleTrackRemoval = () => {
+            audioTrack.removeEventListener("ended", handleTrackRemoval);
+            if (handleRemovetrack) {
+              trackStream.removeEventListener("removetrack", handleRemovetrack);
+              handleRemovetrack = null;
+            }
+            const remainingTracks = aggregateStream.getAudioTracks();
+            const stillPresent = remainingTracks.some(
+              (track) => track.id === audioTrack.id
+            );
+            if (stillPresent) {
+              try {
+                aggregateStream.removeTrack(audioTrack);
+              } catch (err) {
+                if (import.meta.env.DEV) {
+                  console.warn("Failed to detach remote audio track", err);
+                }
+              }
+            }
+            if (aggregateStream.getAudioTracks().length === 0) {
+              this.remoteAudioStreams.delete(connectionId);
+              this.stopRemoteSpeakingMonitor(connectionId);
+            } else {
+              this.startRemoteSpeakingMonitor(connectionId, aggregateStream);
+            }
+            this.emit();
+          };
+
+          handleRemovetrack = (removeEvent: MediaStreamTrackEvent) => {
+            if (removeEvent.track.id === audioTrack.id) {
+              handleTrackRemoval();
+            }
+          };
+
+          audioTrack.addEventListener("ended", handleTrackRemoval);
+          if (handleRemovetrack) {
+            trackStream.addEventListener("removetrack", handleRemovetrack);
+          }
+        }
+
+        this.startRemoteSpeakingMonitor(connectionId, aggregateStream);
         this.emit();
         return;
       }

@@ -26,7 +26,8 @@ const warnUnsupportedAudio = (key, message) => {
 const buildAudioResponseForSelection = (mode, source) => {
   if (mode === "system") {
     if (PLATFORM === "win32") {
-      return { audio: "loopbackWithMute", enableLocalEcho: false };
+      // Use loopback so system audio capture does not mute the microphone stream.
+      return { audio: "loopback", enableLocalEcho: false };
     }
     if (PLATFORM === "linux") {
       return { audio: "loopback", enableLocalEcho: false };
