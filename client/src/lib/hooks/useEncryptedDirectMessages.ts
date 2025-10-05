@@ -1,27 +1,20 @@
-﻿import { useLocalObservable } from "mobx-react-lite";
-import { useQueryClient } from "@tanstack/react-query";
-import {
-  HubConnection,
-  HubConnectionBuilder,
-  HubConnectionState,
-} from "@microsoft/signalr";
-import { useEffect, useRef } from "react";
-import type {
-  EncryptedDirectMessage,
-  MessageReaction,
-  PagedList,
-} from "../types";
-import { runInAction } from "mobx";
-import { toast } from "react-toastify";
-import { calculatePageSizeForMessages } from "../util/util";
+﻿import {useLocalObservable} from "mobx-react-lite";
+import {useQueryClient} from "@tanstack/react-query";
+import {HubConnection, HubConnectionBuilder, HubConnectionState,} from "@microsoft/signalr";
+import {useEffect, useRef} from "react";
+import type {EncryptedDirectMessage, MessageReaction, PagedList,} from "../types";
+import {runInAction} from "mobx";
+import {toast} from "react-toastify";
+import {calculatePageSizeForMessages} from "../util/util";
 import notificationsApi from "../api/notifications";
-import { useStore } from "./useStore";
-import { useAccount } from "./useAccount";
+import {useStore} from "./useStore";
+import {useAccount} from "./useAccount";
+import {hubLogger} from "../util/hubLogger.ts";
 
 export const useEncryptedDirectMessages = (encryptedDirectChatId?: string) => {
   const queryClient = useQueryClient();
-  const { messagesNotificationsStore } = useStore();
-  const { currentUser } = useAccount();
+  const {messagesNotificationsStore} = useStore();
+  const {currentUser} = useAccount();
   const currentUserIdRef = useRef<string | undefined>(undefined);
   currentUserIdRef.current = currentUser?.id;
 
@@ -45,7 +38,8 @@ export const useEncryptedDirectMessages = (encryptedDirectChatId?: string) => {
       }
 
       if (this.hubConnection) {
-        await this.hubConnection.stop().catch(() => {});
+        await this.hubConnection.stop().catch(() => {
+        });
         this.hubConnection = null;
       }
 
@@ -61,6 +55,7 @@ export const useEncryptedDirectMessages = (encryptedDirectChatId?: string) => {
             withCredentials: true,
           }
         )
+        .configureLogging(new hubLogger())
         .withAutomaticReconnect()
         .build();
 
@@ -80,7 +75,8 @@ export const useEncryptedDirectMessages = (encryptedDirectChatId?: string) => {
         }
 
         if (!isNegotiationAbort) {
-          this.hubConnection?.stop().catch(() => {});
+          this.hubConnection?.stop().catch(() => {
+          });
           this.hubConnection = null;
           this.currentChatId = null;
         }
@@ -190,7 +186,8 @@ export const useEncryptedDirectMessages = (encryptedDirectChatId?: string) => {
           if (cleared) {
             notificationsApi
               .markEncryptedDirectChatRead(encryptedDirectChatId)
-              .catch(() => {});
+              .catch(() => {
+              });
           }
         }
       );
@@ -291,7 +288,8 @@ export const useEncryptedDirectMessages = (encryptedDirectChatId?: string) => {
       if (this.hubConnection) {
         const connection = this.hubConnection;
         this.hubConnection = null;
-        await connection.stop().catch(() => {});
+        await connection.stop().catch(() => {
+        });
       }
       this.currentChatId = null;
     },
@@ -313,7 +311,8 @@ export const useEncryptedDirectMessages = (encryptedDirectChatId?: string) => {
 
     encryptedDirectMessageStore
       .createHubConnection(encryptedDirectChatId)
-      .catch(() => {});
+      .catch(() => {
+      });
   }, [encryptedDirectChatId, encryptedDirectMessageStore]);
 
   useEffect(() => {
@@ -328,7 +327,8 @@ export const useEncryptedDirectMessages = (encryptedDirectChatId?: string) => {
     if (shouldSync) {
       notificationsApi
         .markEncryptedDirectChatRead(encryptedDirectChatId)
-        .catch(() => {});
+        .catch(() => {
+        });
     }
 
     return () => {

@@ -1,14 +1,11 @@
-import {
-  HubConnectionBuilder,
-  HubConnectionState,
-  type HubConnection,
-} from "@microsoft/signalr";
-import { useLocalObservable } from "mobx-react-lite";
-import { useEffect, useRef } from "react";
-import type { ChatRoom, ChatRoomBan, Profile, User } from "../types";
-import { toast } from "react-toastify";
-import { router } from "../../app/router/Routes";
-import { useQueryClient } from "@tanstack/react-query";
+import {type HubConnection, HubConnectionBuilder, HubConnectionState,} from "@microsoft/signalr";
+import {useLocalObservable} from "mobx-react-lite";
+import {useEffect, useRef} from "react";
+import type {ChatRoom, ChatRoomBan, Profile, User} from "../types";
+import {toast} from "react-toastify";
+import {router} from "../../app/router/Routes";
+import {useQueryClient} from "@tanstack/react-query";
+import {hubLogger} from "../util/hubLogger.ts";
 
 export const useChatRoomModerationEventsRealtime = (
   chatRoom?: ChatRoom,
@@ -43,8 +40,9 @@ export const useChatRoomModerationEventsRealtime = (
           `${import.meta.env.VITE_CHATROOM_NOTIFICATIONS_URL}?chatRoomId=${
             chatRoom.id
           }`,
-          { withCredentials: true }
+          {withCredentials: true}
         )
+        .configureLogging(new hubLogger())
         .withAutomaticReconnect()
         .build();
 
@@ -84,10 +82,10 @@ export const useChatRoomModerationEventsRealtime = (
             const members = (prev.members ?? []).filter(
               (m: Profile) => m.id !== kickedUser.id
             );
-            return { ...prev, members };
+            return {...prev, members};
           }
         );
-        queryClient.invalidateQueries({ queryKey: ["chatRooms"] });
+        queryClient.invalidateQueries({queryKey: ["chatRooms"]});
       });
 
       this.hubConnection.on("UserBanned", (bannedUser: User) => {
@@ -123,10 +121,10 @@ export const useChatRoomModerationEventsRealtime = (
                 dateBanned: new Date().toISOString(),
               } as ChatRoomBan,
             ];
-            return { ...prev, members, bans };
+            return {...prev, members, bans};
           }
         );
-        queryClient.invalidateQueries({ queryKey: ["chatRooms"] });
+        queryClient.invalidateQueries({queryKey: ["chatRooms"]});
       });
 
       this.hubConnection.on("UserUnbanned", (unbannedUser: User) => {
@@ -151,10 +149,10 @@ export const useChatRoomModerationEventsRealtime = (
             const bans = (prev.bans ?? []).filter(
               (b: ChatRoomBan) => b.userId !== unbannedUser.id
             );
-            return { ...prev, bans };
+            return {...prev, bans};
           }
         );
-        queryClient.invalidateQueries({ queryKey: ["chatRooms"] });
+        queryClient.invalidateQueries({queryKey: ["chatRooms"]});
       });
     },
 
@@ -200,5 +198,5 @@ export const useChatRoomModerationEventsRealtime = (
     };
   }, [moderationEventStore]);
 
-  return { moderationEventStore };
+  return {moderationEventStore};
 };
