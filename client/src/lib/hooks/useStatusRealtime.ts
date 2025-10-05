@@ -1,19 +1,9 @@
-import { useEffect, useRef } from "react";
-import { useLocalObservable } from "mobx-react-lite";
-import {
-  HubConnection,
-  HubConnectionBuilder,
-  HubConnectionState,
-} from "@microsoft/signalr";
-import { useQueryClient } from "@tanstack/react-query";
-import type {
-  Friend,
-  UserStatusDto,
-  User,
-  ChatRoom,
-  PagedList,
-  DirectChat,
-} from "../types";
+import {useEffect, useRef} from "react";
+import {useLocalObservable} from "mobx-react-lite";
+import {HubConnection, HubConnectionBuilder, HubConnectionState,} from "@microsoft/signalr";
+import {useQueryClient} from "@tanstack/react-query";
+import type {ChatRoom, DirectChat, Friend, PagedList, User, UserStatusDto,} from "../types";
+import {hubLogger} from "../util/hubLogger.ts";
 
 export const useStatusRealtime = () => {
   const queryClient = useQueryClient();
@@ -31,13 +21,14 @@ export const useStatusRealtime = () => {
             withCredentials: true,
           }
         )
+        .configureLogging(new hubLogger())
         .withAutomaticReconnect()
         .build();
 
       this.hubConnection
         .start()
         .then(() => {
-          queryClient.invalidateQueries({ queryKey: ["user"] });
+          queryClient.invalidateQueries({queryKey: ["user"]});
         })
         .catch((error) => {
           if (import.meta.env.DEV) {
@@ -66,11 +57,11 @@ export const useStatusRealtime = () => {
             const updated = old.map((friend) =>
               friend.id === statusData.UserId
                 ? {
-                    ...friend,
-                    status: statusData.Status,
-                    isOnline,
-                    lastSeen: isOnline ? friend.lastSeen : new Date(),
-                  }
+                  ...friend,
+                  status: statusData.Status,
+                  isOnline,
+                  lastSeen: isOnline ? friend.lastSeen : new Date(),
+                }
                 : friend
             );
             return updated;
@@ -104,11 +95,11 @@ export const useStatusRealtime = () => {
                   members: chatRoom.members.map((member) =>
                     member.id === statusData.UserId
                       ? {
-                          ...member,
-                          status: statusData.Status,
-                          isOnline,
-                          lastSeen: isOnline ? member.lastSeen : new Date(),
-                        }
+                        ...member,
+                        status: statusData.Status,
+                        isOnline,
+                        lastSeen: isOnline ? member.lastSeen : new Date(),
+                      }
                       : member
                   ),
                 })),
@@ -136,10 +127,10 @@ export const useStatusRealtime = () => {
             return old.map((chat) =>
               chat.otherUserId === statusData.UserId
                 ? {
-                    ...chat,
-                    status: statusData.Status,
-                    isOnline,
-                  }
+                  ...chat,
+                  status: statusData.Status,
+                  isOnline,
+                }
                 : chat
             );
           });

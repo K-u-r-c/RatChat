@@ -1,18 +1,11 @@
-import { useEffect, useRef } from "react";
-import {
-  HubConnection,
-  HubConnectionBuilder,
-  HubConnectionState,
-} from "@microsoft/signalr";
-import { useQueryClient } from "@tanstack/react-query";
-import type { ChatRoom } from "../types";
-import { useLocalObservable } from "mobx-react-lite";
-import type {
-  AssignedChatRoomRole,
-  ChatRoomRole,
-  UnassignedChatRoomRole,
-} from "../schemas/chatRoomRoleSchema";
-import { chatRoomRolesQueryKeys } from "./useChatRoomRoles";
+import {useEffect, useRef} from "react";
+import {HubConnection, HubConnectionBuilder, HubConnectionState,} from "@microsoft/signalr";
+import {useQueryClient} from "@tanstack/react-query";
+import type {ChatRoom} from "../types";
+import {useLocalObservable} from "mobx-react-lite";
+import type {AssignedChatRoomRole, ChatRoomRole, UnassignedChatRoomRole,} from "../schemas/chatRoomRoleSchema";
+import {chatRoomRolesQueryKeys} from "./useChatRoomRoles";
+import {hubLogger} from "../util/hubLogger.ts";
 
 export function useChatRoomRolesRealtime(
   chatRoom?: ChatRoom,
@@ -53,6 +46,7 @@ export function useChatRoomRolesRealtime(
             withCredentials: true,
           }
         )
+        .configureLogging(new hubLogger())
         .withAutomaticReconnect()
         .build();
 
@@ -177,17 +171,17 @@ export function useChatRoomRolesRealtime(
             }
           );
 
+          queryClient.invalidateQueries({
+            queryKey: chatRoomRolesQueryKeys.usersRolesKey(chatRoom.id),
+          });
+          if (assignedRole.userId === currentUserIdRef.current) {
             queryClient.invalidateQueries({
-              queryKey: chatRoomRolesQueryKeys.usersRolesKey(chatRoom.id),
+              queryKey: chatRoomRolesQueryKeys.userPermsKey(
+                chatRoom.id,
+                assignedRole.userId
+              ),
             });
-            if (assignedRole.userId === currentUserIdRef.current) {
-              queryClient.invalidateQueries({
-                queryKey: chatRoomRolesQueryKeys.userPermsKey(
-                  chatRoom.id,
-                  assignedRole.userId
-                ),
-              });
-            }
+          }
         }
       );
 
@@ -288,13 +282,13 @@ export function useChatRoomRolesRealtime(
                 const members = room.members.map((member: any) =>
                   member.id === payload.userId
                     ? {
-                        ...member,
-                        chatRoomDisplayRoleId: payload.roleId ?? null,
-                        chatRoomDisplayRoleColor: selectedRole?.color ?? null,
-                      }
+                      ...member,
+                      chatRoomDisplayRoleId: payload.roleId ?? null,
+                      chatRoomDisplayRoleColor: selectedRole?.color ?? null,
+                    }
                     : member
                 );
-                return { ...room, members };
+                return {...room, members};
               };
 
               queryClient.setQueryData(["chatRooms", chatRoom.id], applyMemberUpdate);

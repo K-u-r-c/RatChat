@@ -1,23 +1,20 @@
-import { useLocalObservable } from "mobx-react-lite";
-import { useQueryClient } from "@tanstack/react-query";
-import {
-  HubConnection,
-  HubConnectionBuilder,
-  HubConnectionState,
-} from "@microsoft/signalr";
-import { useEffect, useRef } from "react";
-import type { DirectMessage, MessageReaction, PagedList } from "../types";
-import { runInAction } from "mobx";
-import { toast } from "react-toastify";
-import { calculatePageSizeForMessages } from "../util/util";
+import {useLocalObservable} from "mobx-react-lite";
+import {useQueryClient} from "@tanstack/react-query";
+import {HubConnection, HubConnectionBuilder, HubConnectionState,} from "@microsoft/signalr";
+import {useEffect, useRef} from "react";
+import type {DirectMessage, MessageReaction, PagedList} from "../types";
+import {runInAction} from "mobx";
+import {toast} from "react-toastify";
+import {calculatePageSizeForMessages} from "../util/util";
 import notificationsApi from "../api/notifications";
-import { useStore } from "./useStore";
-import { useAccount } from "./useAccount";
+import {useStore} from "./useStore";
+import {useAccount} from "./useAccount";
+import {hubLogger} from "../util/hubLogger.ts";
 
 export const useDirectMessages = (directChatId?: string) => {
   const queryClient = useQueryClient();
-  const { messagesNotificationsStore } = useStore();
-  const { currentUser } = useAccount();
+  const {messagesNotificationsStore} = useStore();
+  const {currentUser} = useAccount();
   const currentUserIdRef = useRef<string | undefined>(undefined);
   currentUserIdRef.current = currentUser?.id;
 
@@ -41,7 +38,8 @@ export const useDirectMessages = (directChatId?: string) => {
       }
 
       if (this.hubConnection) {
-        await this.hubConnection.stop().catch(() => {});
+        await this.hubConnection.stop().catch(() => {
+        });
         this.hubConnection = null;
       }
 
@@ -57,6 +55,7 @@ export const useDirectMessages = (directChatId?: string) => {
             withCredentials: true,
           }
         )
+        .configureLogging(new hubLogger())
         .withAutomaticReconnect()
         .build();
 
@@ -73,7 +72,8 @@ export const useDirectMessages = (directChatId?: string) => {
         }
 
         if (!isNegotiationAbort) {
-          this.hubConnection?.stop().catch(() => {});
+          this.hubConnection?.stop().catch(() => {
+          });
           this.hubConnection = null;
           this.currentChatId = null;
         }
@@ -133,7 +133,8 @@ export const useDirectMessages = (directChatId?: string) => {
           const cleared =
             messagesNotificationsStore.markDirectChatRead(directChatId);
           if (cleared) {
-            notificationsApi.markDirectChatRead(directChatId).catch(() => {});
+            notificationsApi.markDirectChatRead(directChatId).catch(() => {
+            });
           }
         }
       );
@@ -180,7 +181,7 @@ export const useDirectMessages = (directChatId?: string) => {
               );
               if (i !== -1) list.splice(i, 1);
             }
-            this.messages[idx] = { ...(msg as DirectMessage), reactions: list };
+            this.messages[idx] = {...(msg as DirectMessage), reactions: list};
           });
         }
       );
@@ -277,7 +278,8 @@ export const useDirectMessages = (directChatId?: string) => {
       if (this.hubConnection) {
         const connection = this.hubConnection;
         this.hubConnection = null;
-        await connection.stop().catch(() => {});
+        await connection.stop().catch(() => {
+        });
       }
       this.currentChatId = null;
     },
@@ -297,7 +299,8 @@ export const useDirectMessages = (directChatId?: string) => {
       return;
     }
 
-    directMessageStore.createHubConnection(directChatId).catch(() => {});
+    directMessageStore.createHubConnection(directChatId).catch(() => {
+    });
   }, [directChatId, directMessageStore]);
 
   useEffect(() => {
@@ -309,7 +312,8 @@ export const useDirectMessages = (directChatId?: string) => {
     const shouldSync =
       messagesNotificationsStore.setActiveDirectChat(directChatId);
     if (shouldSync) {
-      notificationsApi.markDirectChatRead(directChatId).catch(() => {});
+      notificationsApi.markDirectChatRead(directChatId).catch(() => {
+      });
     }
 
     return () => {

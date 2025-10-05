@@ -1,11 +1,8 @@
-import {
-  HubConnection,
-  HubConnectionBuilder,
-  HubConnectionState,
-} from "@microsoft/signalr";
-import { useQueryClient } from "@tanstack/react-query";
-import { useLocalObservable } from "mobx-react-lite";
-import { useEffect, useRef } from "react";
+import {HubConnection, HubConnectionBuilder, HubConnectionState,} from "@microsoft/signalr";
+import {useQueryClient} from "@tanstack/react-query";
+import {useLocalObservable} from "mobx-react-lite";
+import {useEffect, useRef} from "react";
+import {hubLogger} from "../util/hubLogger.ts";
 
 export const useChatRoomsProfileImageRealtime = () => {
   const queryClient = useQueryClient();
@@ -19,12 +16,14 @@ export const useChatRoomsProfileImageRealtime = () => {
         .withUrl(import.meta.env.VITE_CHATROOM_IMAGES_URL, {
           withCredentials: true,
         })
+        .configureLogging(new hubLogger())
         .withAutomaticReconnect()
         .build();
 
       this.hubConnection
         .start()
-        .then(() => {})
+        .then(() => {
+        })
         .catch((error) => {
           if (import.meta.env.DEV) {
             console.error("Error starting chatroom images connection:", error);
@@ -32,7 +31,7 @@ export const useChatRoomsProfileImageRealtime = () => {
         });
 
       this.hubConnection.on("ChatRoomImageUpdated", () => {
-        queryClient.invalidateQueries({ queryKey: ["chatRooms"] });
+        queryClient.invalidateQueries({queryKey: ["chatRooms"]});
       });
     },
 

@@ -1,8 +1,5 @@
-﻿import {
-  HubConnection,
-  HubConnectionBuilder,
-  HubConnectionState,
-} from "@microsoft/signalr";
+﻿import {HubConnection, HubConnectionBuilder, HubConnectionState,} from "@microsoft/signalr";
+import {hubLogger} from "../util/hubLogger.ts";
 
 let hubConnection: HubConnection | null = null;
 let startPromise: Promise<void> | null = null;
@@ -31,7 +28,8 @@ export async function startEncryptedMessagesHub(): Promise<HubConnection> {
   }
 
   hubConnection = new HubConnectionBuilder()
-    .withUrl(url, { withCredentials: true })
+    .withUrl(url, {withCredentials: true})
+    .configureLogging(new hubLogger())
     .withAutomaticReconnect()
     .build();
 

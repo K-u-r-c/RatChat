@@ -1,13 +1,10 @@
-import { useEffect, useRef } from "react";
-import { useLocalObservable } from "mobx-react-lite";
-import {
-  HubConnection,
-  HubConnectionBuilder,
-  HubConnectionState,
-} from "@microsoft/signalr";
-import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "react-toastify";
-import type { Friend, FriendRequest, FriendRequestsResponse } from "../types";
+import {useEffect, useRef} from "react";
+import {useLocalObservable} from "mobx-react-lite";
+import {HubConnection, HubConnectionBuilder, HubConnectionState,} from "@microsoft/signalr";
+import {useQueryClient} from "@tanstack/react-query";
+import {toast} from "react-toastify";
+import type {Friend, FriendRequest, FriendRequestsResponse} from "../types";
+import {hubLogger} from "../util/hubLogger.ts";
 
 export const useFriendsRealtime = () => {
   const queryClient = useQueryClient();
@@ -24,11 +21,14 @@ export const useFriendsRealtime = () => {
             withCredentials: true,
           }
         )
+        .configureLogging(new hubLogger())
         .withAutomaticReconnect()
         .build();
 
       this.hubConnection.start().catch((error) => {
-        console.error("Error establishing friends connection:", error);
+        if (import.meta.env.DEV) {
+          console.error("Error establishing friends connection:", error);
+        }
       });
 
       this.hubConnection.on(
@@ -75,8 +75,10 @@ export const useFriendsRealtime = () => {
             }
           );
 
-          queryClient.invalidateQueries({ queryKey: ["direct-chats"] });
-          queryClient.invalidateQueries({ queryKey: ["encrypted-direct-chats"] });
+          queryClient.invalidateQueries({queryKey: ["direct-chats"]});
+          queryClient.invalidateQueries({
+            queryKey: ["encrypted-direct-chats"],
+          });
 
           toast.success(
             `${newFriend.displayName} accepted your friend request!`
@@ -146,8 +148,8 @@ export const useFriendsRealtime = () => {
           );
         });
 
-        queryClient.invalidateQueries({ queryKey: ["direct-chats"] });
-        queryClient.invalidateQueries({ queryKey: ["encrypted-direct-chats"] });
+        queryClient.invalidateQueries({queryKey: ["direct-chats"]});
+        queryClient.invalidateQueries({queryKey: ["encrypted-direct-chats"]});
       });
 
       this.hubConnection.on("FriendRemoved", (removedByUserId: string) => {
@@ -167,15 +169,17 @@ export const useFriendsRealtime = () => {
           return updatedFriends;
         });
 
-        queryClient.invalidateQueries({ queryKey: ["direct-chats"] });
-        queryClient.invalidateQueries({ queryKey: ["encrypted-direct-chats"] });
+        queryClient.invalidateQueries({queryKey: ["direct-chats"]});
+        queryClient.invalidateQueries({queryKey: ["encrypted-direct-chats"]});
       });
     },
 
     stopHubConnection() {
       if (this.hubConnection?.state === HubConnectionState.Connected) {
         this.hubConnection.stop().catch((error) => {
-          console.error("Error stopping friends connection:", error);
+          if (import.meta.env.DEV) {
+            console.error("Error stopping friends connection:", error);
+          }
         });
       }
     },
