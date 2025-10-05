@@ -71,6 +71,20 @@ type DisplayMediaAudioConstraints = MediaTrackConstraints & {
   suppressLocalAudioPlayback?: boolean;
 };
 
+type ScreenAudioMix = {
+  destination: MediaStreamAudioDestinationNode;
+  micSource: MediaStreamAudioSourceNode;
+  screenSource: MediaStreamAudioSourceNode;
+  micGain: GainNode;
+  screenGain: GainNode;
+  mixedTrack: MediaStreamTrack;
+  screenTrack: MediaStreamTrack;
+  screenTrackStream: MediaStream;
+  originalSenderTracks: Map<string, MediaStreamTrack | null>;
+  senderClones: Map<string, MediaStreamTrack>;
+  onEnded: () => void;
+};
+
 class VoiceManager {
   private participants = new Map<string, VoiceParticipant>();
   private remoteAudioStreams = new Map<string, MediaStream>();
@@ -79,6 +93,8 @@ class VoiceManager {
     Map<"camera" | "screen", MediaStream>
   >();
   private remoteVideoStreamTypes = new Map<string, "camera" | "screen">();
+  private microphoneSenders = new Map<string, RTCRtpSender>();
+  private screenAudioMix: ScreenAudioMix | null = null;
   private peerConnections = new Map<string, RTCPeerConnection>();
   private localMicrophoneStream: MediaStream | null = null;
   private localCameraStream: MediaStream | null = null;
@@ -90,7 +106,6 @@ class VoiceManager {
     { camera?: RTCRtpSender; screen?: RTCRtpSender }
   >();
   private screenAudioSenders = new Map<string, RTCRtpSender>();
-  private screenAudioTransceivers = new Map<string, RTCRtpTransceiver>();
   private negotiationStates = new Map<
     string,
     {
@@ -532,11 +547,16 @@ class VoiceManager {
   };
 
   private applyLocalMuteState() {
-    if (!this.localMicrophoneStream) return;
     const disable = this.selfMuted || this.selfDeafened;
-    this.localMicrophoneStream.getAudioTracks().forEach((track) => {
-      track.enabled = !disable;
-    });
+    if (this.localMicrophoneStream) {
+      this.localMicrophoneStream.getAudioTracks().forEach((track) => {
+        track.enabled = !disable;
+      });
+    }
+    const mix = this.screenAudioMix;
+    if (mix) {
+      mix.micGain.gain.value = disable ? 0 : 1;
+    }
   }
 
   private emit() {
@@ -913,7 +933,12 @@ class VoiceManager {
     }
     this.remoteVideoStreams.delete(connectionId);
     this.detachScreenAudioSenderForConnection(connectionId);
-    this.screenAudioTransceivers.delete(connectionId);
+    this.microphoneSenders.delete(connectionId);
+    const mix = this.screenAudioMix;
+    if (mix) {
+      mix.originalSenderTracks.delete(connectionId);
+      mix.senderClones.delete(connectionId);
+    }
     this.videoSenders.delete(connectionId);
     this.applyParticipantMediaState(connectionId, {
       isCameraEnabled: false,
@@ -966,7 +991,8 @@ class VoiceManager {
     this.detachScreenAudioSenders();
     this.videoSenders.clear();
     this.screenAudioSenders.clear();
-    this.screenAudioTransceivers.clear();
+    this.microphoneSenders.clear();
+    this.stopScreenAudioMix();
 
     this.speakingMonitors.forEach((_, connectionId) => {
       this.stopRemoteSpeakingMonitor(connectionId);
@@ -1200,16 +1226,31 @@ class VoiceManager {
     track: MediaStreamTrack,
     stream: MediaStream
   ) {
+    void this.enableScreenShareAudio(track, stream);
+  }
+
+  private async enableScreenShareAudio(
+    track: MediaStreamTrack,
+    stream: MediaStream
+  ) {
+    const mixed = await this.startScreenAudioMix(track);
+    if (mixed) {
+      this.stopPublishingScreenAudioTrackLegacy();
+      return;
+    }
+
+    this.publishScreenAudioTrackLegacy(track, stream);
+  }
+
+  private publishScreenAudioTrackLegacy(
+    track: MediaStreamTrack,
+    stream: MediaStream
+  ) {
     this.peerConnections.forEach((pc, connectionId) => {
       const existingSender = this.screenAudioSenders.get(connectionId);
-      const transceiver =
-        this.screenAudioTransceivers.get(connectionId) ?? null;
-      const sender = existingSender ?? transceiver?.sender ?? null;
-
-      if (sender) {
-        this.screenAudioSenders.set(connectionId, sender);
-        this.updateSenderStreams(sender, stream);
-        Promise.resolve(sender.replaceTrack(track))
+      if (existingSender) {
+        this.updateSenderStreams(existingSender, stream);
+        Promise.resolve(existingSender.replaceTrack(track))
           .then(() => {
             this.renegotiateConnection(connectionId);
           })
@@ -1220,19 +1261,11 @@ class VoiceManager {
                 err
               );
             }
+            this.detachScreenAudioSenderForConnection(connectionId);
             try {
-              const result = sender.replaceTrack(null);
-              if (result instanceof Promise) {
-                result.catch(() => {});
-              }
-            } catch {
-              // ignore cleanup errors
-            }
-            this.screenAudioSenders.delete(connectionId);
-            try {
-              const fallbackSender = pc.addTrack(track, stream);
-              this.screenAudioSenders.set(connectionId, fallbackSender);
-              this.updateSenderStreams(fallbackSender, stream);
+              const sender = pc.addTrack(track, stream);
+              this.screenAudioSenders.set(connectionId, sender);
+              this.updateSenderStreams(sender, stream);
               this.renegotiateConnection(connectionId);
             } catch (fallbackErr) {
               if (import.meta.env.DEV) {
@@ -1247,9 +1280,9 @@ class VoiceManager {
       }
 
       try {
-        const newSender = pc.addTrack(track, stream);
-        this.screenAudioSenders.set(connectionId, newSender);
-        this.updateSenderStreams(newSender, stream);
+        const sender = pc.addTrack(track, stream);
+        this.screenAudioSenders.set(connectionId, sender);
+        this.updateSenderStreams(sender, stream);
         this.renegotiateConnection(connectionId);
       } catch (err) {
         if (import.meta.env.DEV) {
@@ -1260,6 +1293,11 @@ class VoiceManager {
   }
 
   private stopPublishingScreenAudioTrack() {
+    this.stopScreenAudioMix();
+    this.stopPublishingScreenAudioTrackLegacy();
+  }
+
+  private stopPublishingScreenAudioTrackLegacy() {
     this.screenAudioSenders.forEach((sender, connectionId) => {
       const finalizeRenegotiation = () => {
         this.renegotiateConnection(connectionId);
@@ -1288,6 +1326,197 @@ class VoiceManager {
     });
   }
 
+  private async startScreenAudioMix(
+    screenTrack: MediaStreamTrack
+  ): Promise<boolean> {
+    try {
+      const micStream = await this.ensureLocalMicrophoneStream();
+      if (!micStream) {
+        return false;
+      }
+
+      this.stopScreenAudioMix();
+
+      const audioContext = this.ensureAudioContext();
+      const destination = audioContext.createMediaStreamDestination();
+      const micSource = audioContext.createMediaStreamSource(micStream);
+      const screenTrackStream = new MediaStream([screenTrack]);
+      const screenSource =
+        audioContext.createMediaStreamSource(screenTrackStream);
+      const micGain = audioContext.createGain();
+      const screenGain = audioContext.createGain();
+      micGain.gain.value = 1;
+      screenGain.gain.value = 1;
+      micSource.connect(micGain).connect(destination);
+      screenSource.connect(screenGain).connect(destination);
+
+      const mixedTrack = destination.stream.getAudioTracks()[0];
+      if (!mixedTrack) {
+        try {
+          micSource.disconnect();
+        } catch {
+          /* ignore cleanup errors */
+        }
+        try {
+          screenSource.disconnect();
+        } catch {
+          /* ignore cleanup errors */
+        }
+        try {
+          micGain.disconnect();
+        } catch {
+          /* ignore cleanup errors */
+        }
+        try {
+          screenGain.disconnect();
+        } catch {
+          /* ignore cleanup errors */
+        }
+        return false;
+      }
+
+      const onEnded = () => {
+        this.stopScreenAudioMix();
+        this.stopPublishingScreenAudioTrackLegacy();
+      };
+
+      mixedTrack.addEventListener("ended", onEnded);
+      screenTrack.addEventListener("ended", onEnded);
+
+      this.screenAudioMix = {
+        destination,
+        micSource,
+        screenSource,
+        micGain,
+        screenGain,
+        mixedTrack,
+        screenTrack,
+        screenTrackStream,
+        originalSenderTracks: new Map(),
+        senderClones: new Map(),
+        onEnded,
+      };
+
+      const replacements = Array.from(this.microphoneSenders.entries()).map(
+        ([connectionId, sender]) =>
+          this.applyScreenAudioMixToSender(connectionId, sender)
+      );
+
+      if (replacements.length > 0) {
+        const results = await Promise.allSettled(replacements);
+        const success = results.every(
+          (result) => result.status === "fulfilled"
+        );
+        if (!success) {
+          this.stopScreenAudioMix();
+          return false;
+        }
+      }
+
+      this.applyLocalMuteState();
+      return true;
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        console.warn("Failed to start screen audio mix", err);
+      }
+      this.stopScreenAudioMix();
+      return false;
+    }
+  }
+
+  private applyScreenAudioMixToSender(
+    connectionId: string,
+    sender: RTCRtpSender
+  ): Promise<void> {
+    const mix = this.screenAudioMix;
+    if (!mix) {
+      return Promise.resolve();
+    }
+
+    if (!mix.originalSenderTracks.has(connectionId)) {
+      mix.originalSenderTracks.set(connectionId, sender.track ?? null);
+    }
+
+    const clone = mix.mixedTrack.clone();
+    mix.senderClones.set(connectionId, clone);
+
+    return Promise.resolve(sender.replaceTrack(clone))
+      .then(() => {
+        this.updateSenderStreams(sender, mix.destination.stream);
+        this.renegotiateConnection(connectionId);
+      })
+      .catch((err) => {
+        mix.senderClones.delete(connectionId);
+        mix.originalSenderTracks.delete(connectionId);
+        if (import.meta.env.DEV) {
+          console.warn("Failed to apply screen audio mix to sender", err);
+        }
+        throw err;
+      });
+  }
+
+  private stopScreenAudioMix() {
+    const mix = this.screenAudioMix;
+    if (!mix) return;
+
+    mix.mixedTrack.removeEventListener("ended", mix.onEnded);
+    mix.screenTrack.removeEventListener("ended", mix.onEnded);
+
+    const micStream = this.localMicrophoneStream;
+
+    this.microphoneSenders.forEach((sender, connectionId) => {
+      const originalTrack =
+        mix.originalSenderTracks.get(connectionId) ??
+        micStream?.getAudioTracks()[0] ??
+        null;
+      Promise.resolve(sender.replaceTrack(originalTrack))
+        .then(() => {
+          this.updateSenderStreams(sender, micStream ?? null);
+          this.renegotiateConnection(connectionId);
+        })
+        .catch((err) => {
+          if (import.meta.env.DEV) {
+            console.warn("Failed to restore microphone track", err);
+          }
+        });
+    });
+
+    mix.senderClones.clear();
+    mix.originalSenderTracks.clear();
+
+    try {
+      mix.micSource.disconnect();
+    } catch {
+      /* ignore cleanup errors */
+    }
+    try {
+      mix.screenSource.disconnect();
+    } catch {
+      /* ignore cleanup errors */
+    }
+    try {
+      mix.micGain.disconnect();
+    } catch {
+      /* ignore cleanup errors */
+    }
+    try {
+      mix.screenGain.disconnect();
+    } catch {
+      /* ignore cleanup errors */
+    }
+
+    mix.screenTrackStream.getAudioTracks().forEach((audioTrack) => {
+      if (audioTrack !== mix.screenTrack) {
+        try {
+          audioTrack.stop();
+        } catch {
+          // ignore stop errors
+        }
+      }
+    });
+
+    this.screenAudioMix = null;
+  }
   private async applyPreferredTrackSettings(
     type: "camera" | "screen",
     track: MediaStreamTrack
@@ -1570,37 +1799,6 @@ class VoiceManager {
 
     streams.set(resolvedType, stream);
     this.remoteVideoStreamTypes.set(stream.id, resolvedType);
-    this.emit();
-  }
-
-  private removeRemoteVideoStream(
-    connectionId: string,
-    mediaType: "camera" | "screen",
-    streamId?: string
-  ) {
-    const streams = this.remoteVideoStreams.get(connectionId);
-    if (!streams) return;
-
-    const resolvedType =
-      streamId != null
-        ? this.remoteVideoStreamTypes.get(streamId) ?? mediaType
-        : mediaType;
-
-    if (streamId) {
-      const target = streams.get(resolvedType);
-      if (!target || target.id !== streamId) return;
-    }
-
-    if (!streams.delete(resolvedType)) return;
-
-    if (streamId != null) {
-      this.remoteVideoStreamTypes.delete(streamId);
-    }
-
-    if (streams.size === 0) {
-      this.remoteVideoStreams.delete(connectionId);
-    }
-
     this.emit();
   }
 
@@ -1931,22 +2129,15 @@ class VoiceManager {
       iceServers: ICE_SERVERS,
     });
 
-    stream?.getAudioTracks().forEach((track) => pc.addTrack(track, stream));
-
-    if (
-      !this.screenAudioTransceivers.has(connectionId) &&
-      typeof pc.addTransceiver === "function"
-    ) {
-      try {
-        const transceiver = pc.addTransceiver("audio", {
-          direction: "sendrecv",
-        });
-        this.screenAudioTransceivers.set(connectionId, transceiver);
-      } catch (err) {
-        if (import.meta.env.DEV) {
-          console.warn("Failed to prepare screen audio transceiver", err);
+    if (stream) {
+      stream.getAudioTracks().forEach((track, index) => {
+        const sender = pc.addTrack(track, stream);
+        this.updateSenderStreams(sender, stream);
+        if (index === 0) {
+          this.microphoneSenders.set(connectionId, sender);
+          void this.applyScreenAudioMixToSender(connectionId, sender);
         }
-      }
+      });
     }
 
     const addVideoTrack = (
@@ -1971,7 +2162,7 @@ class VoiceManager {
     addVideoTrack(this.localScreenStream, "screen");
 
     const screenStream = this.localScreenStream;
-    if (screenStream) {
+    if (screenStream && !this.screenAudioMix) {
       const [screenAudioTrack] = screenStream.getAudioTracks();
       if (screenAudioTrack) {
         try {
@@ -2083,25 +2274,13 @@ class VoiceManager {
           this.applyParticipantMediaState(connectionId, {
             isScreenSharing: true,
           });
-        } else {
+        } else if (mediaType === "camera") {
           this.applyParticipantMediaState(connectionId, {
             isCameraEnabled: true,
           });
         }
-        const handleEnded = () => {
-          this.removeRemoteVideoStream(connectionId, mediaType, trackStream.id);
-          if (mediaType === "screen") {
-            this.applyParticipantMediaState(connectionId, {
-              isScreenSharing: false,
-            });
-          } else {
-            this.applyParticipantMediaState(connectionId, {
-              isCameraEnabled: false,
-            });
-          }
-        };
-        event.track.addEventListener("ended", handleEnded, { once: true });
         this.emit();
+        return;
       }
     };
 
