@@ -54,7 +54,7 @@ Desktop App (Electron)
 - Install dependencies if you haven’t already: `npm install`
 - Launch the desktop shell with live reload: `npm run electron:dev`
   - Starts Vite and spins up Electron once the dev server is responding.
-  - Screen sharing defaults to include system audio on desktop; adjust under the screen share settings dialog.
+  - Screen sharing on desktop now offers application or full system audio capture (Windows, Linux, macOS). Pick your mode in the screen share settings; system audio still requires sharing an entire display.
 - Build native installers after bundling the renderer: `npm run electron:package`
   - Outputs are written to `client/release/` for macOS (DMG/ZIP), Windows (NSIS/ZIP), and Linux (AppImage/DEB).
   - Use `npm run electron:build` to generate unpacked artifacts when iterating on distribution.

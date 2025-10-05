@@ -1948,51 +1948,16 @@ class VoiceManager {
     };
 
     pc.ontrack = (event) => {
-      const track = event.track;
-      const trackStream = event.streams[0] ?? new MediaStream([track]);
-
-      if (track.kind === "audio") {
-        let existing = this.remoteAudioStreams.get(connectionId);
-        if (!existing) {
-          existing = new MediaStream();
-          this.remoteAudioStreams.set(connectionId, existing);
-        }
-
-        if (!existing.getAudioTracks().some((t) => t.id === track.id)) {
-          existing.addTrack(track);
-        }
-
-        this.startRemoteSpeakingMonitor(connectionId, existing);
-
-        const handleEnded = () => {
-          const current = this.remoteAudioStreams.get(connectionId);
-          if (current) {
-            current
-              .getAudioTracks()
-              .filter((t) => t.id === track.id)
-              .forEach((t) => {
-                try {
-                  current.removeTrack(t);
-                } catch {
-                  /* ignore */
-                }
-              });
-            if (current.getAudioTracks().length === 0) {
-              this.remoteAudioStreams.delete(connectionId);
-              this.stopRemoteSpeakingMonitor(connectionId);
-            } else {
-              this.startRemoteSpeakingMonitor(connectionId, current);
-            }
-          }
-          this.emit();
-        };
-        track.addEventListener("ended", handleEnded, { once: true });
-
+      const [trackStream] = event.streams;
+      if (!trackStream) return;
+      if (event.track.kind === "audio") {
+        this.remoteAudioStreams.set(connectionId, trackStream);
+        this.startRemoteSpeakingMonitor(connectionId, trackStream);
         this.emit();
         return;
       }
 
-      if (track.kind === "video") {
+      if (event.track.kind === "video") {
         const mediaType = this.detectVideoType(event.track);
         this.setRemoteVideoStream(connectionId, mediaType, trackStream);
         if (mediaType === "screen") {

@@ -65,6 +65,13 @@ export default function ScreenShareSettingsDialog({
   const [isLoadingSources, setIsLoadingSources] = useState(false);
   const [sourceError, setSourceError] = useState<string | null>(null);
 
+  const selectedSource = useMemo(() => {
+    if (!selectedSourceId) {
+      return null;
+    }
+    return sources.find((source) => source.id === selectedSourceId) ?? null;
+  }, [selectedSourceId, sources]);
+
   useEffect(() => {
     setResolutionId(getResolutionOptionForConstraints(initialConstraints).id);
   }, [initialConstraints]);
@@ -121,6 +128,21 @@ export default function ScreenShareSettingsDialog({
     };
   }, [open]);
 
+  useEffect(() => {
+    if (!isDesktopRuntime) {
+      return;
+    }
+    if (audioId !== "system") {
+      return;
+    }
+    if (!selectedSource || selectedSource.sourceType === "screen") {
+      return;
+    }
+
+    const fallbackAudioId =
+      (SCREEN_AUDIO_OPTIONS.find((option) => option.id === "application")?.id as ScreenShareAudioMode | undefined) ?? "none";
+    setAudioId(fallbackAudioId);
+  }, [audioId, selectedSource]);
   const selectedResolution = useMemo(() => {
     return (
       SCREEN_RESOLUTION_OPTIONS.find((option) => option.id === resolutionId) ||
@@ -141,6 +163,7 @@ export default function ScreenShareSettingsDialog({
       getAudioOptionForConstraints(initialConstraints)
     );
   }, [audioId, initialConstraints]);
+  const shouldDisableSystemAudio = isDesktopRuntime && selectedSource?.sourceType === "window";
 
   const handleConfirm = useCallback(async () => {
     const constraints: ScreenShareConstraints = {
@@ -416,7 +439,7 @@ export default function ScreenShareSettingsDialog({
                 <ToggleButton
                   key={option.id}
                   value={option.id}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || (option.id === "system" && shouldDisableSystemAudio)}
                   sx={{
                     justifyContent: "flex-start",
                     textTransform: "none",
@@ -459,3 +482,4 @@ export default function ScreenShareSettingsDialog({
     </Dialog>
   );
 }
+

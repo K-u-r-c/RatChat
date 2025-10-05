@@ -29,7 +29,7 @@ declare global {
       >;
       prepareScreenShare: (payload: {
         sourceId: string;
-        audioMode?: 'none' | 'system';
+        audioMode?: 'none' | 'system' | 'application';
       }) => Promise<{ success: boolean }>;
       clearPreparedScreenShare: (
         payload?: { sourceId?: string }

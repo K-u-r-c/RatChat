@@ -46,7 +46,7 @@ type DesktopApi = {
   }) => Promise<DesktopScreenSource[]>;
   prepareScreenShare: (payload: {
     sourceId: string;
-    audioMode?: "none" | "system";
+    audioMode?: "none" | "system" | "application";
   }) => Promise<{ success: boolean }>;
   clearPreparedScreenShare: (payload?: { sourceId?: string }) => Promise<void>;
   openScreenRecordingPreferences?: () => Promise<void>;

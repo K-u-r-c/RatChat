@@ -41,7 +41,12 @@ export const prepareDesktopScreenShare = async (
   }
 
   try {
-    const normalizedAudio = audioMode === "system" ? "system" : "none";
+    let normalizedAudio: "none" | "system" | "application" = "none";
+    if (audioMode === "system") {
+      normalizedAudio = "system";
+    } else if (audioMode === "application") {
+      normalizedAudio = "application";
+    }
     await api.prepareScreenShare({ sourceId, audioMode: normalizedAudio });
     return true;
   } catch (error) {
@@ -68,3 +73,6 @@ export const clearDesktopScreenSharePreparation = async (
     }
   }
 };
+
+
+

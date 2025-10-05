@@ -13,6 +13,41 @@ import path from "node:path";
 const isDev = !app.isPackaged;
 const PLATFORM = process.platform;
 
+const unsupportedAudioWarnings = new Set();
+
+const warnUnsupportedAudio = (key, message) => {
+  if (unsupportedAudioWarnings.has(key)) {
+    return;
+  }
+  unsupportedAudioWarnings.add(key);
+  console.warn(message);
+};
+
+const buildAudioResponseForSelection = (mode, source) => {
+  if (mode === "system") {
+    if (PLATFORM === "win32") {
+      return { audio: "loopbackWithMute", enableLocalEcho: false };
+    }
+    if (PLATFORM === "linux") {
+      return { audio: "loopback", enableLocalEcho: false };
+    }
+    if (PLATFORM === "darwin") {
+      return { audio: "loopback", enableLocalEcho: false };
+    }
+    return null;
+  }
+
+  if (mode === "application") {
+    if (PLATFORM === "win32" || PLATFORM === "linux" || PLATFORM === "darwin") {
+      return { audio: source, enableLocalEcho: false };
+    }
+    return null;
+  }
+
+  return null;
+};
+
+
 if (PLATFORM === "linux") {
   app.commandLine.appendSwitch("enable-features", "WebRTCPipeWireCapturer");
 }
@@ -171,7 +206,12 @@ const prepareScreenShareSelection = (webContentsId, payload) => {
     return { success: false, message: "Missing sourceId" };
   }
 
-  const normalizedAudio = audioMode === "system" ? "system" : "none";
+  let normalizedAudio = "none";
+  if (audioMode === "system") {
+    normalizedAudio = "system";
+  } else if (audioMode === "application") {
+    normalizedAudio = "application";
+  }
   const selection = {
     sourceId,
     audioMode: normalizedAudio,
@@ -276,9 +316,34 @@ const configureDisplayMediaHandling = () => {
         }
 
         const response = { video: match };
-        if (prepared.audioMode === "system" && process.platform === "win32") {
-          response.audio = "loopback";
-          response.enableLocalEcho = true;
+        if (request.audioRequested && prepared.audioMode && prepared.audioMode !== "none") {
+          const isScreenSource = typeof match.id === "string" && match.id.startsWith("screen:");
+          if (prepared.audioMode === "system" && !isScreenSource) {
+            warnUnsupportedAudio(
+              `system-${PLATFORM}`,
+              "System audio capture requires sharing an entire screen; falling back to window audio."
+            );
+            const fallbackResponse = buildAudioResponseForSelection("application", match);
+            if (fallbackResponse?.audio) {
+              response.audio = fallbackResponse.audio;
+              if (typeof fallbackResponse.enableLocalEcho === "boolean") {
+                response.enableLocalEcho = fallbackResponse.enableLocalEcho;
+              }
+            }
+          } else {
+            const audioResponse = buildAudioResponseForSelection(prepared.audioMode, match);
+            if (audioResponse?.audio) {
+              response.audio = audioResponse.audio;
+              if (typeof audioResponse.enableLocalEcho === "boolean") {
+                response.enableLocalEcho = audioResponse.enableLocalEcho;
+              }
+            } else {
+              warnUnsupportedAudio(
+                `${prepared.audioMode}-${PLATFORM}`,
+                `Screen share audio mode "${prepared.audioMode}" is not supported on ${PLATFORM}.`
+              );
+            }
+          }
         }
 
         callback(response);
