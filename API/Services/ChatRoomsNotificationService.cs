@@ -1,4 +1,3 @@
-using System;
 using Application.Interfaces;
 using Application.Messages.DTOs;
 using API.SignalR;

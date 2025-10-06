@@ -1,6 +1,5 @@
 using Application.ChatAppearances.DTOs;
 using Application.Interfaces;
-using System.Linq;
 using API.SignalR;
 using Microsoft.AspNetCore.SignalR;
 

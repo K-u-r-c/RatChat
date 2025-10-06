@@ -17,6 +17,7 @@ import AuthLayout from "../layout/AuthLayout";
 import EmptyPage from "../layout/EmptyPage";
 import DirectChatDetails from "../../features/directChats/DirectChatDetails";
 import EncryptedDirectChatDetails from "../../features/encryptedDirectChats/EncryptedDirectChatDetails";
+import DownloadPage from "../../features/download/DownloadPage";
 
 const isElectronFile =
   typeof navigator !== "undefined" &&
@@ -24,6 +25,7 @@ const isElectronFile =
   window.location.protocol === "file:";
 
 const routes = [
+  { path: "/download", element: <DownloadPage /> },
   {
     path: "/",
     element: <App />,

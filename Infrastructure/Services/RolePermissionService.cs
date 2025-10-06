@@ -1,4 +1,3 @@
-using System;
 using System.Data;
 using Application.ChatRoomRoles.DTOs;
 using Application.Core;
@@ -202,7 +201,7 @@ public class RolePermissionService(AppDbContext context) : IRolePermissionServic
 
         await context.SaveChangesAsync();
     }
-    
+
     private async Task EnsureChatRoomExistsAsync(string chatRoomId)
     {
         if (!await context.ChatRooms.AnyAsync(cr => cr.Id == chatRoomId))

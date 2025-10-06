@@ -1,4 +1,3 @@
-using System;
 using Application.ChatChannels.Helpers;
 using Application.ChatRooms.DTOs;
 using Application.Core;
