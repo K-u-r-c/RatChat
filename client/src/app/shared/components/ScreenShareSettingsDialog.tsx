@@ -72,17 +72,26 @@ export default function ScreenShareSettingsDialog({
     return sources.find((source) => source.id === selectedSourceId) ?? null;
   }, [selectedSourceId, sources]);
 
-  useEffect(() => {
-    setResolutionId(getResolutionOptionForConstraints(initialConstraints).id);
-  }, [initialConstraints]);
+  const { width, height, frameRate, audio: initialAudioMode } =
+    initialConstraints;
 
   useEffect(() => {
-    setFrameRateId(getFrameRateOptionForConstraints(initialConstraints).id);
-  }, [initialConstraints]);
+    if (!open) return;
+    const nextId = getResolutionOptionForConstraints({ width, height }).id;
+    setResolutionId(nextId);
+  }, [height, open, width]);
 
   useEffect(() => {
-    setAudioId(getAudioOptionForConstraints(initialConstraints).id);
-  }, [initialConstraints]);
+    if (!open) return;
+    const nextId = getFrameRateOptionForConstraints({ frameRate }).id;
+    setFrameRateId(nextId);
+  }, [frameRate, open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const nextId = getAudioOptionForConstraints({ audio: initialAudioMode }).id;
+    setAudioId(nextId);
+  }, [initialAudioMode, open]);
 
   useEffect(() => {
     if (!isDesktopRuntime) {
@@ -482,4 +491,3 @@ export default function ScreenShareSettingsDialog({
     </Dialog>
   );
 }
-
