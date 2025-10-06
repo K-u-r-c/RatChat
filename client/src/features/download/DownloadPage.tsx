@@ -14,16 +14,18 @@ import {
   Typography,
 } from "@mui/material";
 import {
+  ArrowBack,
+  BugReport,
+  CheckCircle,
   Download as DownloadIcon,
   KeyboardArrowDown,
   KeyboardArrowUp,
   LaptopMac,
   LaptopWindows,
-  Terminal,
-  CheckCircle,
-  BugReport,
   OpenInNew,
+  Terminal,
 } from "@mui/icons-material";
+import { useNavigate } from "react-router";
 
 const DOWNLOAD_BASE_URL =
   import.meta.env.VITE_DESKTOP_DOWNLOAD_BASE_URL ??
@@ -155,6 +157,7 @@ function buildDownloadUrl(filename: string) {
 
 export default function DownloadPage() {
   const [showAllDownloads, setShowAllDownloads] = useState(false);
+  const navigate = useNavigate();
 
   const detectedPlatform = useMemo(() => detectPlatform(), []);
 
@@ -178,6 +181,22 @@ export default function DownloadPage() {
         }}
       >
         <Container maxWidth="lg">
+          <Box sx={{ mb: { xs: 3, md: 4 } }}>
+            <Button
+              variant="text"
+              color="inherit"
+              startIcon={<ArrowBack />}
+              onClick={() => navigate(-1)}
+              sx={{
+                color: "rgba(212,216,255,0.8)",
+                textTransform: "none",
+                fontWeight: 600,
+                px: 0,
+              }}
+            >
+              Back
+            </Button>
+          </Box>
           <HeroSection
             detectedPlatform={detectedPlatform}
             primaryOption={primaryOption}

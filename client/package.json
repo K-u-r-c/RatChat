@@ -4,6 +4,22 @@
   "version": "0.0.0",
   "type": "module",
   "main": "electron/main.js",
+  "description": "RatChat desktop client for secure, realtime conversations with your team.",
+  "homepage": "https://github.com/K-u-r-c/RatChat",
+  "author": {
+    "name": "RatChat Team",
+    "email": "jakkurc.dev@gmail.com"
+  },
+  "contributors": [
+    {
+      "name": "Jakub Kurc (K-u-r-c)",
+      "url": "https://github.com/K-u-r-c"
+    },
+    {
+      "name": "Jan Kilar (Naxden)",
+      "url": "https://github.com/Naxden"
+    }
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -108,7 +124,8 @@
       ],
       "category": "Network",
       "artifactName": "RatChat-${version}.${ext}",
-      "icon": "electron/resources/icon.png"
+      "icon": "electron/resources/icon.png",
+      "maintainer": "RatChat Team <jakkurc.dev@gmail.com>"
     }
   }
 }

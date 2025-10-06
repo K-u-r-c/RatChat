@@ -9,6 +9,7 @@ import ChatRoomsProfileImageRealtimeProvider from "../shared/components/ChatRoom
 import NewChatRoomModal from "../../features/chatRooms/create/NewChatRoomModal";
 import MessagesRealtimeProvider from "../shared/components/MessagesRealtimeProvider";
 import VoiceAudioLayer from "../shared/components/VoiceAudioLayer";
+import DesktopDownloadBanner from "./DesktopDownloadBanner";
 
 function App() {
   const { currentUser } = useAccount();
@@ -38,6 +39,7 @@ function App() {
             flexDirection: "column",
           }}
         >
+          <DesktopDownloadBanner />
           <Outlet />
         </Box>
       </Box>
