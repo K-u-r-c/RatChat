@@ -43,6 +43,12 @@ export const useDirectMessages = (directChatId?: string) => {
         this.hubConnection = null;
       }
 
+      if (this.currentChatId !== directChatId) {
+        runInAction(() => {
+          this.reset();
+        });
+      }
+
       const initialPageSize = calculatePageSizeForMessages();
 
       this.hubConnection = new HubConnectionBuilder()
