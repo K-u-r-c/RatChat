@@ -398,12 +398,21 @@ export default function ChatMessageList(
                         textOverflow: "ellipsis",
                       }}
                     >
-                      {first.replyToType && first.replyToType !== "Text"
-                        ? `📎 ${
-                          first.replyToMediaOriginalFileName ||
-                          first.replyToType
-                        }`
-                        : first.replyToBody || ""}
+                      {(() => {
+                        const hasAttachment =
+                          !!first.replyToType && first.replyToType !== "Text";
+                        const trimmedBody = (first.replyToBody ?? "").trim();
+                        if (hasAttachment) {
+                          const fileName =
+                            (first.replyToMediaOriginalFileName ?? "").trim();
+                          return fileName.length > 0
+                            ? "[Attachment] " + fileName
+                            : "[Attachment] " + (first.replyToType ?? "Attachment");
+                        }
+                        return trimmedBody.length > 0
+                          ? trimmedBody
+                          : "Jump to original message";
+                      })()}
                     </Typography>
                   </Box>
                 )}
