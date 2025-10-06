@@ -340,8 +340,10 @@ public class DbInitializer
         {
             await chatRoomRoleService.InitializeDefaultRolesAsync(chatRoom.Id);
 
-            foreach (var user in users)
-                await chatRoomRoleService.AssignMemberRoleAsync(user.Id, chatRoom.Id, CancellationToken.None);
+            foreach (var chatRoomMember in chatRoom.Members)
+                if (chatRoomMember.UserId != null)
+                    await chatRoomRoleService.AssignMemberRoleAsync(chatRoomMember.UserId, chatRoom.Id,
+                        CancellationToken.None);
         }
 
         await context.SaveChangesAsync();
