@@ -1,4 +1,3 @@
-using System.Data;
 using Application.Core;
 using Application.Interfaces;
 using MediatR;

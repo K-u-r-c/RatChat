@@ -2,7 +2,6 @@ using Application.ChatRooms.DTOs;
 using Application.ChatRooms.Events;
 using Application.Core;
 using Application.Interfaces;
-using AutoMapper;
 using Domain.Enums;
 using Domain.Events;
 using MediatR;

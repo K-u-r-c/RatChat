@@ -1,5 +1,3 @@
-using System;
-using System.Linq;
 using Application.DirectMessages.DTOs;
 using Application.Interfaces;
 using API.SignalR;

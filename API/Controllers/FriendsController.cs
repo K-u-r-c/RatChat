@@ -1,4 +1,3 @@
-using Application.Core;
 using Application.Friends.Commands;
 using Application.Friends.DTOs;
 using Application.Friends.Queries;
