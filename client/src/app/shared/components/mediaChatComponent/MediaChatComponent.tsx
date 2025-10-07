@@ -498,7 +498,7 @@ const MediaChatComponent = observer(function MediaChatComponent(
         type="file"
         hidden
         multiple
-        accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.md,.js,.ts,.py,.java,.cs,.cpp,.c,.h,.php,.rb,.go,.rs,.swift,.kt,.scala,.yml,.yaml,.json,.xml,.html,.css,.sql,.sh,.bat,.ps1,.zip,.rar,.7z,.gz,.tar"
+        accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.rtf,.md,.html,.css,.json,.xml,.csv,.tsv,.js,.ts,.jsx,.tsx,.py,.java,.cs,.cpp,.c,.cc,.cxx,.h,.hh,.hpp,.hxx,.php,.rb,.go,.rs,.swift,.kt,.scala,.yml,.yaml,.toml,.ini,.env,.config,.dockerfile,.gitignore,.vue,.svelte,.sass,.scss,.less,.sql,.sh,.bash,.zsh,.bat,.ps1,.r,.m,.pl,.lua,.dart,.elm,.clj,.fs,.vb,.pas,.asm,.ipynb,.mm,.gradle,.groovy,.cmake,.erl,.ex,.exs,.hs,.zip,.rar,.7z,.gz,.tar"
         onChange={fileUpload.handleFileChange}
       />
 

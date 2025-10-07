@@ -1,9 +1,22 @@
+using System.Collections.Generic;
 using Application.Media.DTOs;
 
 namespace Application.Media.Helpers;
 
 public static class MediaHelpers
 {
+    private static readonly HashSet<string> DocumentExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".pdf", ".doc", ".docx", ".txt", ".rtf", ".md", ".html", ".css", ".json",
+        ".xml", ".csv", ".tsv", ".yml", ".yaml", ".toml", ".ini", ".config",
+        ".env", ".gitignore", ".dockerfile", ".ipynb", ".js", ".ts", ".jsx", ".tsx",
+        ".py", ".java", ".cs", ".cpp", ".c", ".cc", ".cxx", ".h", ".hh", ".hpp",
+        ".hxx", ".php", ".rb", ".go", ".rs", ".swift", ".kt", ".scala", ".dart",
+        ".elm", ".clj", ".fs", ".vb", ".pas", ".asm", ".r", ".m", ".pl", ".lua",
+        ".groovy", ".gradle", ".cmake", ".vue", ".svelte", ".sass", ".scss", ".less",
+        ".sql", ".sh", ".bash", ".zsh", ".bat", ".ps1", ".ex", ".exs", ".erl", ".hs"
+    };
+
     public static string GetFolderPath(MediaCategory category, string userId, string? chatRoomId = null, string? channelId = null)
     {
         return category switch
@@ -47,7 +60,7 @@ public static class MediaHelpers
             ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" => "image",
             ".mp4" or ".avi" or ".mov" or ".wmv" or ".flv" => "video",
             ".mp3" or ".wav" or ".flac" or ".aac" or ".ogg" => "audio",
-            ".pdf" or ".doc" or ".docx" or ".txt" or ".rtf" => "document",
+            _ when DocumentExtensions.Contains(extension) => "document",
             _ => "unknown"
         };
     }

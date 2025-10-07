@@ -83,7 +83,8 @@ public class MediaValidator : IMediaValidator
                 "application/x-yaml",
                 "text/yaml",
                 "application/toml",
-                "text/x-dockerfile"
+                "text/x-dockerfile",
+                "application/x-ipynb+json"
             ],
             MaxFileSize = 100 * 1024 * 1024, // 100MB
             AllowedExtensions = [
@@ -92,13 +93,15 @@ public class MediaValidator : IMediaValidator
                 // Text files
                 ".txt", ".csv", ".rtf", ".md", ".html", ".css", ".json", ".xml",
                 // Code files
-                ".js", ".ts", ".py", ".java", ".cs", ".cpp", ".c", ".h", ".hpp",
+                ".js", ".ts", ".py", ".java", ".cs", ".cpp", ".c", ".cc", ".h", ".hh", ".hpp",
                 ".php", ".rb", ".go", ".rs", ".swift", ".kt", ".scala", ".yml", ".yaml",
-                ".toml", ".dockerfile", ".gitignore", ".env", ".config", ".ini",
+                ".toml", ".dockerfile", ".gitignore", ".env", ".config", ".ini", ".tsv",
                 // Additional code file extensions
                 ".jsx", ".tsx", ".vue", ".svelte", ".sass", ".scss", ".less",
-                ".sql", ".sh", ".bat", ".ps1", ".r", ".m", ".pl", ".lua",
-                ".dart", ".elm", ".clj", ".fs", ".vb", ".pas", ".asm"
+                ".sql", ".sh", ".bash", ".zsh", ".bat", ".ps1", ".r", ".m", ".pl", ".lua",
+                ".dart", ".elm", ".clj", ".fs", ".vb", ".pas", ".asm",
+                ".ipynb", ".cxx", ".hxx", ".mm", ".gradle", ".groovy", ".cmake",
+                ".erl", ".ex", ".exs", ".hs"
             ]
         },
         [MediaCategory.ChatRoomOther] = new MediaConfig
