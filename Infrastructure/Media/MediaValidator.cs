@@ -143,18 +143,27 @@ public class MediaValidator : IMediaValidator
         }
     };
 
-    public bool IsValidMediaType(string contentType, MediaCategory category)
+    public bool IsValidMediaType(string? contentType, string? fileExtension, MediaCategory category)
     {
         if (!_mediaConfigs.TryGetValue(category, out var config))
             return false;
 
-        // Handle special cases for code files that might come as text/plain
-        if (contentType == "text/plain" && category == MediaCategory.ChatRoomDocument)
+        var normalizedContentType = NormalizeContentType(contentType);
+
+        // Allow common plain text fallbacks for code-style uploads
+        if (normalizedContentType == "text/plain" && category == MediaCategory.ChatRoomDocument)
         {
             return true;
         }
 
-        return config.AllowedTypes.Contains(contentType.ToLower());
+        if (!string.IsNullOrEmpty(normalizedContentType) && config.AllowedTypes.Contains(normalizedContentType))
+        {
+            return true;
+        }
+
+        var normalizedExtension = NormalizeExtension(fileExtension);
+
+        return !string.IsNullOrEmpty(normalizedExtension) && config.AllowedExtensions.Contains(normalizedExtension);
     }
 
     public bool IsValidFileSize(long fileSize, MediaCategory category)
@@ -202,5 +211,30 @@ public class MediaValidator : IMediaValidator
             MediaCategory.ChatRoomOther => "Archive",
             _ => "Unknown"
         };
+    }
+
+    private static string? NormalizeContentType(string? contentType)
+    {
+        if (string.IsNullOrWhiteSpace(contentType))
+            return null;
+
+        var type = contentType.Split(';', 2)[0].Trim();
+
+        return string.IsNullOrEmpty(type) ? null : type.ToLowerInvariant();
+    }
+
+    private static string? NormalizeExtension(string? fileExtension)
+    {
+        if (string.IsNullOrWhiteSpace(fileExtension))
+            return null;
+
+        var extension = fileExtension.Trim();
+
+        if (!extension.StartsWith('.'))
+        {
+            extension = $".{extension}";
+        }
+
+        return extension.ToLowerInvariant();
     }
 }

@@ -35,6 +35,8 @@ public class UploadMedia
             if (file == null || file.Length == 0)
                 return Result<MediaUploadResultDto>.Failure("No file provided", 400);
 
+            var fileExtension = Path.GetExtension(file.FileName);
+
             if (MediaHelpers.IsChatRoomMedia(category) && !string.IsNullOrEmpty(request.MediaUploadDto.ChatRoomId))
             {
                 var hasAccess = await context.ChatRoomMembers
@@ -45,7 +47,7 @@ public class UploadMedia
                     return Result<MediaUploadResultDto>.Failure("User does not have access to this chat room", 403);
             }
 
-            if (!mediaValidator.IsValidMediaType(file.ContentType, category))
+            if (!mediaValidator.IsValidMediaType(file.ContentType, fileExtension, category))
             {
                 var allowedExtensions = string.Join(", ", mediaValidator.GetAllowedExtensions(category));
                 return Result<MediaUploadResultDto>.Failure(
@@ -64,8 +66,6 @@ public class UploadMedia
                 user.Id,
                 request.MediaUploadDto.ChatRoomId,
                 request.MediaUploadDto.ChannelId);
-
-            var fileExtension = Path.GetExtension(file.FileName);
             var fileName = $"{Guid.NewGuid()}{fileExtension}";
 
             using var stream = file.OpenReadStream();
