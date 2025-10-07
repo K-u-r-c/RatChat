@@ -476,8 +476,15 @@ class VoiceManager {
         preserveMediaState: preserveLocalMedia,
       });
 
-      const stream = await this.ensureLocalMicrophoneStream();
-      if (!stream) throw new Error("Unable to access microphone");
+      let localMicStream: MediaStream | null = null;
+      let microphoneError: unknown = null;
+      try {
+        localMicStream = await this.ensureLocalMicrophoneStream({
+          suppressError: true,
+        });
+      } catch (err) {
+        microphoneError = err;
+      }
 
       const response: VoiceChannelJoinResponse = await joinVoiceChannelHub(
         channelId
@@ -489,12 +496,20 @@ class VoiceManager {
       }
 
       this.selfConnectionId = response.selfConnectionId;
+      const joinedWithoutMicrophone = !localMicStream;
+      if (joinedWithoutMicrophone && !this.selfMuted) {
+        this.selfMuted = true;
+        this.applyLocalMuteState();
+      }
       if (this.selfConnectionId) {
         this.applyParticipantMediaState(this.selfConnectionId, {
           isCameraEnabled: this.isCameraEnabled,
           isScreenSharing: this.isScreenSharing,
           isMuted: this.selfMuted,
         });
+      }
+      if (microphoneError) {
+        this.setError(this.describeMicrophoneFailure(microphoneError));
       }
 
       this.currentChannelId = response.channelId;
@@ -507,7 +522,10 @@ class VoiceManager {
       for (const participant of response.participants) {
         if (participant.connectionId === response.selfConnectionId) continue;
         try {
-          const pc = await this.createPeerConnection(participant.connectionId);
+          const pc = await this.createPeerConnection(participant.connectionId, {
+            prepareForOffer: true,
+            localStream: localMicStream,
+          });
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
           const payload: SessionDescriptionPayload = {
@@ -930,7 +948,9 @@ class VoiceManager {
     this.localMicrophoneStream = null;
   }
 
-  private async ensureLocalMicrophoneStream(): Promise<MediaStream | null> {
+  private async ensureLocalMicrophoneStream(
+    options: { suppressError?: boolean } = {}
+  ): Promise<MediaStream | null> {
     if (this.localMicrophoneStream) return this.localMicrophoneStream;
 
     try {
@@ -945,9 +965,30 @@ class VoiceManager {
       this.applyLocalMuteState();
       return stream;
     } catch (err) {
-      this.setError("Microphone access was denied");
+      if (!options.suppressError) {
+        this.setError(this.describeMicrophoneFailure(err));
+      }
       throw err;
     }
+  }
+
+
+  private describeMicrophoneFailure(err: unknown): string {
+    if (err instanceof DOMException) {
+      switch (err.name) {
+        case "NotAllowedError":
+        case "SecurityError":
+          return "Microphone access was denied. You're connected muted.";
+        case "NotFoundError":
+          return "No microphone was found on this device. You'll still be able to listen.";
+        case "NotReadableError":
+        case "AbortError":
+          return "Your microphone is currently in use by another application.";
+        default:
+          return "Unable to access the microphone.";
+      }
+    }
+    return "Unable to access the microphone.";
   }
 
   private cleanupConnection(connectionId: string, removeParticipant = false) {
@@ -2168,12 +2209,32 @@ class VoiceManager {
   }
 
   private async createPeerConnection(
-    connectionId: string
+    connectionId: string,
+    options: { prepareForOffer?: boolean; localStream?: MediaStream | null } = {}
   ): Promise<RTCPeerConnection> {
     const existing = this.peerConnections.get(connectionId);
     if (existing) return existing;
 
-    const stream = await this.ensureLocalMicrophoneStream();
+    const { prepareForOffer = false } = options;
+    let stream: MediaStream | null = this.localMicrophoneStream;
+
+    if (Object.prototype.hasOwnProperty.call(options, "localStream")) {
+      stream = options.localStream ?? null;
+    } else if (!stream) {
+      try {
+        stream = await this.ensureLocalMicrophoneStream({
+          suppressError: true,
+        });
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.warn(
+            "Unable to attach microphone stream while creating peer connection",
+            err
+          );
+        }
+        stream = null;
+      }
+    }
 
     const pc = new RTCPeerConnection({
       iceServers: ICE_SERVERS,
@@ -2188,6 +2249,14 @@ class VoiceManager {
           void this.applyScreenAudioMixToSender(connectionId, sender);
         }
       });
+    } else if (prepareForOffer) {
+      try {
+        pc.addTransceiver("audio", { direction: "recvonly" });
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.warn("Failed to add recvonly audio transceiver", err);
+        }
+      }
     }
 
     const addVideoTrack = (
