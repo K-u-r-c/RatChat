@@ -43,9 +43,49 @@ import type {
 
 export type { VoiceChannelState } from "../types/voiceChannel";
 
-const ICE_SERVERS: RTCConfiguration["iceServers"] = [
-  { urls: "stun:stun.l.google.com:19302" },
-];
+function parseIceServers(envValue: unknown): RTCIceServer[] | null {
+  if (typeof envValue !== "string" || envValue.trim().length === 0) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(envValue) as unknown;
+    if (!Array.isArray(parsed)) return null;
+
+    const servers: RTCIceServer[] = [];
+    for (const candidate of parsed) {
+      if (
+        candidate &&
+        typeof candidate === "object" &&
+        Array.isArray((candidate as RTCIceServer).urls)
+      ) {
+        servers.push(candidate as RTCIceServer);
+        continue;
+      }
+
+      if (
+        candidate &&
+        typeof candidate === "object" &&
+        typeof (candidate as RTCIceServer).urls === "string"
+      ) {
+        servers.push(candidate as RTCIceServer);
+        continue;
+      }
+    }
+
+    return servers.length > 0 ? servers : null;
+  } catch (err) {
+    if (import.meta.env.DEV) {
+      console.warn("Failed to parse VITE_VOICE_ICE_SERVERS", err);
+    }
+    return null;
+  }
+}
+
+const ICE_SERVERS: RTCConfiguration["iceServers"] =
+  parseIceServers(import.meta.env.VITE_VOICE_ICE_SERVERS) ?? [
+    { urls: "stun:stun.l.google.com:19302" },
+  ];
 const PING_REFRESH_INTERVAL_MS = 5000;
 const PING_HTTP_TIMEOUT_MS = 2000;
 
