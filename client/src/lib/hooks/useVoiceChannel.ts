@@ -86,6 +86,8 @@ const ICE_SERVERS: RTCConfiguration["iceServers"] =
   parseIceServers(import.meta.env.VITE_VOICE_ICE_SERVERS) ?? [
     { urls: "stun:stun.l.google.com:19302" },
   ];
+const CONNECTION_RECOVERY_DELAY_MS = 1500;
+const MAX_CONNECTION_RECOVERY_ATTEMPTS = 3;
 const PING_REFRESH_INTERVAL_MS = 5000;
 const PING_HTTP_TIMEOUT_MS = 2000;
 
@@ -153,6 +155,8 @@ class VoiceManager {
       pending: boolean;
     }
   >();
+  private connectionRecoveryTimers = new Map<string, number>();
+  private connectionRecoveryAttempts = new Map<string, number>();
   private isCameraEnabled = false;
   private isScreenSharing = false;
   private currentChannelId: string | null = null;
@@ -185,6 +189,7 @@ class VoiceManager {
   private hubHandlersAttached = false;
   private hubLifecycleHandlersAttached = false;
   private rejoinTargetChannelId: string | null = null;
+  private forcedRejoinPromise: Promise<void> | null = null;
 
   private handleHubReconnecting = () => {
     if (this.currentChannelId) {
@@ -953,12 +958,17 @@ class VoiceManager {
         pc.ontrack = null;
         pc.onnegotiationneeded = null;
         pc.onsignalingstatechange = null;
+        pc.onconnectionstatechange = null;
+        pc.oniceconnectionstatechange = null;
         pc.close();
       } catch {
         // ignore close errors
       }
       this.peerConnections.delete(connectionId);
     }
+
+    this.clearConnectionRecoveryTimer(connectionId);
+    this.connectionRecoveryAttempts.delete(connectionId);
 
     this.stopRemoteSpeakingMonitor(connectionId);
 
@@ -2334,13 +2344,11 @@ class VoiceManager {
     };
 
     pc.onconnectionstatechange = () => {
-      if (
-        pc.connectionState === "disconnected" ||
-        pc.connectionState === "failed" ||
-        pc.connectionState === "closed"
-      ) {
-        this.cleanupConnection(connectionId);
-      }
+      this.handlePeerConnectionStateChange(connectionId);
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      this.handlePeerConnectionStateChange(connectionId);
     };
 
     this.peerConnections.set(connectionId, pc);
@@ -2348,7 +2356,10 @@ class VoiceManager {
     return pc;
   }
 
-  private renegotiateConnection(connectionId: string) {
+  private renegotiateConnection(
+    connectionId: string,
+    options: { iceRestart?: boolean } = {}
+  ) {
     const pc = this.peerConnections.get(connectionId);
     if (!pc) return;
 
@@ -2374,7 +2385,9 @@ class VoiceManager {
 
     (async () => {
       try {
-        const offer = await pc.createOffer();
+        const offer = await pc.createOffer(
+          options.iceRestart ? { iceRestart: true } : undefined
+        );
         if (pc.signalingState !== "stable") {
           state.pending = true;
           return;
@@ -2393,7 +2406,7 @@ class VoiceManager {
         state.busy = false;
         if (state.pending) {
           state.pending = false;
-          this.renegotiateConnection(connectionId);
+          this.renegotiateConnection(connectionId, options);
         }
       }
     })();
@@ -2418,6 +2431,122 @@ class VoiceManager {
         this.renegotiateConnection(connectionId);
       }
     }
+  }
+
+  private handlePeerConnectionStateChange(connectionId: string) {
+    const pc = this.peerConnections.get(connectionId);
+    if (!pc) {
+      this.clearConnectionRecoveryTimer(connectionId);
+      this.connectionRecoveryAttempts.delete(connectionId);
+      return;
+    }
+
+    const state = pc.connectionState;
+    const iceState = pc.iceConnectionState;
+
+    if (state === "closed" || iceState === "closed") {
+      this.cleanupConnection(connectionId);
+      return;
+    }
+
+    if (
+      state === "connected" ||
+      iceState === "connected" ||
+      iceState === "completed"
+    ) {
+      this.clearConnectionRecoveryTimer(connectionId);
+      this.connectionRecoveryAttempts.delete(connectionId);
+      return;
+    }
+
+    if (state === "failed" || iceState === "failed") {
+      this.scheduleConnectionRecovery(connectionId, { forceRestart: true });
+      return;
+    }
+
+    if (state === "disconnected" || iceState === "disconnected") {
+      this.scheduleConnectionRecovery(connectionId, {});
+    }
+  }
+
+  private clearConnectionRecoveryTimer(connectionId: string) {
+    if (typeof window === "undefined") return;
+    const timerId = this.connectionRecoveryTimers.get(connectionId);
+    if (timerId != null) {
+      window.clearTimeout(timerId);
+      this.connectionRecoveryTimers.delete(connectionId);
+    }
+  }
+
+  private scheduleConnectionRecovery(
+    connectionId: string,
+    { forceRestart }: { forceRestart?: boolean }
+  ) {
+    if (typeof window === "undefined") return;
+    if (this.connectionRecoveryTimers.has(connectionId)) return;
+
+    const delay = forceRestart ? 0 : CONNECTION_RECOVERY_DELAY_MS;
+    const timerId = window.setTimeout(() => {
+      this.connectionRecoveryTimers.delete(connectionId);
+      void this.attemptConnectionRecovery(connectionId, Boolean(forceRestart));
+    }, delay);
+
+    this.connectionRecoveryTimers.set(connectionId, timerId);
+  }
+
+  private async attemptConnectionRecovery(
+    connectionId: string,
+    forceRestart: boolean
+  ) {
+    const pc = this.peerConnections.get(connectionId);
+    if (!pc) {
+      this.connectionRecoveryAttempts.delete(connectionId);
+      return;
+    }
+
+    const attempts = this.connectionRecoveryAttempts.get(connectionId) ?? 0;
+    if (attempts >= MAX_CONNECTION_RECOVERY_ATTEMPTS) {
+      this.connectionRecoveryAttempts.delete(connectionId);
+      this.triggerFullRejoin();
+      return;
+    }
+
+    this.connectionRecoveryAttempts.set(connectionId, attempts + 1);
+
+    try {
+      if (forceRestart && typeof pc.restartIce === "function") {
+        pc.restartIce();
+      }
+    } catch {
+      // restartIce is optional; ignore unsupported errors.
+    }
+
+    this.renegotiateConnection(connectionId, { iceRestart: true });
+  }
+
+  private triggerFullRejoin() {
+    if (this.forcedRejoinPromise) return;
+    const channelId = this.currentChannelId;
+    if (!channelId) return;
+    if (this.isJoining) return;
+
+    const preserveLocalMedia =
+      Boolean(this.localCameraStream) || Boolean(this.localScreenStream);
+
+    this.forcedRejoinPromise = (async () => {
+      try {
+        await this.performJoin(channelId, {
+          preserveLocalMedia,
+          failureMessage: "Unable to rejoin the voice channel",
+        });
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.error("Failed to recover voice connection", err);
+        }
+      } finally {
+        this.forcedRejoinPromise = null;
+      }
+    })();
   }
 
   private setChannelPresence(
