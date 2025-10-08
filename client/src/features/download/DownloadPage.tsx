@@ -98,7 +98,7 @@ const releaseHistory: ReleaseEntry[] = [
       "System sound sharing for desktop builds on Windows and MacOS, experimental for Linux",
     ],
     fixes: [
-      "Fixed dissapearing chat room profile images",
+      "Fixed vanishing chat room profile images",
       "Fixed errors during chat room joining",
     ],
   },
