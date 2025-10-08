@@ -132,7 +132,7 @@ builder.Services.AddValidatorsFromAssemblyContaining<SetChatAppearanceValidator>
 builder.Services.AddValidatorsFromAssemblyContaining<CreateChatRoomRoleValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<UpdateChatRoomRoleValidator>();
 builder.Services.AddTransient<ExceptionMiddleware>();
-builder.Services.AddHostedService<MediaCleanupService>();
+//builder.Services.AddHostedService<MediaCleanupService>();
 builder.Services.AddIdentityApiEndpoints<User>(opt =>
     {
         opt.User.RequireUniqueEmail = true;

@@ -155,6 +155,20 @@ Configuration
 - Development
   - API: `API/appsettings.Development.json` controls DB and MinIO
   - Client: `VITE_API_URL` must match API base (e.g., https://localhost:5001)
+  - Voice:
+    - `VITE_VOICE_URL` points the client to the SignalR voice hub (e.g., https://localhost:5001/voice)
+    - `VITE_VOICE_ICE_SERVERS` (optional) supplies a JSON array of [`RTCIceServer`](https://developer.mozilla.org/docs/Web/API/RTCIceServer) entries so you can add TURN relays, for example:
+
+      ```json
+      [
+        { "urls": "stun:stun.l.google.com:19302" },
+        {
+          "urls": ["turn:turn.example.com:3478"],
+          "username": "ratcat",
+          "credential": "super-secret"
+        }
+      ]
+      ```
 - Production
   - Storage: Azure Blob via `AzureStorage` connection string
   - Build SPA into `API/wwwroot` and serve from API
