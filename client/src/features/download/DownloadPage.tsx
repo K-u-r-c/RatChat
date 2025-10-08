@@ -107,16 +107,22 @@ const releaseHistory: ReleaseEntry[] = [
 
 const latestVersion = releaseHistory[0]?.version ?? "0.0.0";
 
-const DOWNLOAD_RELEASE_TARGETS: Record<PlatformId, string> = {
-  windows: `RatChat-${latestVersion}-windows`,
-  mac: `RatChat-${latestVersion}-mac`,
-  linux: `RatChat-${latestVersion}-linux`,
+const DOWNLOAD_FILE_EXTENSIONS: Record<PlatformId, string> = {
+  windows: ".exe",
+  mac: ".dmg",
+  linux: ".deb",
+};
+
+const DOWNLOAD_RELEASE_FILENAMES: Record<PlatformId, string> = {
+  windows: `RatChat-${latestVersion}-windows${DOWNLOAD_FILE_EXTENSIONS.windows}`,
+  mac: `RatChat-${latestVersion}-mac${DOWNLOAD_FILE_EXTENSIONS.mac}`,
+  linux: `RatChat-${latestVersion}-linux${DOWNLOAD_FILE_EXTENSIONS.linux}`,
 };
 
 function buildReleaseUrl(platform: PlatformId) {
   const baseUrl = DOWNLOAD_URLS[platform];
   const normalizedBase = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
-  return `${normalizedBase}/releases/${DOWNLOAD_RELEASE_TARGETS[platform]}`;
+  return `${normalizedBase}/releases/${DOWNLOAD_RELEASE_FILENAMES[platform]}`;
 }
 
 const windowsExtras: DownloadExtra[] = [];
@@ -152,7 +158,7 @@ const downloadOptions: DownloadOption[] = [
     label: "Windows Installer",
     description: "Compatible with Windows 10 & 11 (x64)",
     icon: <LaptopWindows sx={{fontSize: 36}}/>,
-    filename: `RatChat-Setup-${latestVersion}.exe`,
+    filename: DOWNLOAD_RELEASE_FILENAMES.windows,
     url: buildReleaseUrl("windows"),
     size: "117 MB",
     footnote: "Supports auto-updates and background patching",
@@ -163,7 +169,7 @@ const downloadOptions: DownloadOption[] = [
     label: "macOS Universal DMG",
     description: "Works on Apple silicon & Intel Macs (13.0+)",
     icon: <LaptopMac sx={{fontSize: 36}}/>,
-    filename: `RatChat-${latestVersion}-mac.dmg`,
+    filename: DOWNLOAD_RELEASE_FILENAMES.mac,
     url: buildReleaseUrl("mac"),
     size: "124 MB",
     footnote: "Notarized and signed — drag & drop into Applications",
@@ -174,7 +180,7 @@ const downloadOptions: DownloadOption[] = [
     label: "Linux Builds",
     description: "AppImage + DEB packages (x64)",
     icon: <Terminal sx={{fontSize: 36}}/>,
-    filename: `RatChat-${latestVersion}.AppImage`,
+    filename: DOWNLOAD_RELEASE_FILENAMES.linux,
     url: buildReleaseUrl("linux"),
     size: "116 MB",
     footnote: "Make executable then run — integrates with most desktops",
