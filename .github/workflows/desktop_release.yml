@@ -3,8 +3,12 @@ name: Desktop Release
 on:
   push:
     tags:
-      - "v*.*.*"   # build on tags like v1.2.3
+      - "v*.*.*"   # e.g. v1.2.3
   workflow_dispatch:
+
+concurrency:
+  group: desktop-release-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -27,30 +31,34 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
 
       - name: Install deps
+        working-directory: client
         run: npm ci
 
       - name: Build web (Vite)
-        run: npm run build:web
+        working-directory: client
+        run: npm run build
 
-      # macOS needs extra entitlements if you code sign; this example skips signing/notarization
+      # Build full installers (not just --dir)
       - name: Build Electron (${{ matrix.platform }})
-        run: |
-          npm run build:electron
+        working-directory: client
+        run: npm run electron:package
 
       - name: Collect artifacts
         shell: bash
         run: |
           mkdir -p upload
-          # pick built files depending on OS
+          # Grab built files from client/release
           if [[ "${{ matrix.platform }}" == "windows" ]]; then
-            cp release/*.exe upload/ || true
+            cp client/release/*.exe upload/ || true
           elif [[ "${{ matrix.platform }}" == "mac" ]]; then
-            cp release/*.dmg upload/ || true
+            cp client/release/*.dmg upload/ || true
           else
-            cp release/*.AppImage upload/ || true
-            cp release/*.deb upload/ || true
+            cp client/release/*.AppImage upload/ || true
+            cp client/release/*.deb upload/ || true
           fi
           ls -l upload || true
 
@@ -67,9 +75,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Read version from package.json
+      - name: Read version from client/package.json
         id: ver
-        run: echo "VERSION=$(node -p \"require('./package.json').version\")" >> $GITHUB_ENV
+        run: echo "VERSION=$(node -p \"require('./client/package.json').version\")" >> $GITHUB_ENV
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -77,8 +85,7 @@ jobs:
           path: artifacts
 
       - name: Show artifacts tree
-        run: |
-          ls -R artifacts
+        run: ls -R artifacts
 
       - name: Set up SSH
         run: |
@@ -96,7 +103,8 @@ jobs:
           DOWNLOADS_USER: ${{ secrets.DOWNLOADS_USER }}
           DOWNLOADS_PATH: ${{ secrets.DOWNLOADS_PATH }}
         run: |
-          rsync -avz --progress artifacts/ "${DOWNLOADS_USER}@${DOWNLOADS_HOST}:${DOWNLOADS_PATH}/"
+          # Flatten artifacts/*/* into the target directory
+          rsync -avz --progress artifacts/*/* "${DOWNLOADS_USER}@${DOWNLOADS_HOST}:${DOWNLOADS_PATH}/"
 
       - name: Update latest symlinks + checksums on server
         env:
@@ -109,13 +117,13 @@ jobs:
           set -euo pipefail
           cd "${DOWNLOADS_PATH}"
 
-          # Build/refresh checksums
+          # Rebuild checksums
           rm -f SHA256SUMS.txt
           for f in RatChat-*; do
             [ -f "$f" ] && sha256sum "$f" >> SHA256SUMS.txt || true
           done
 
-          # Point "latest-*" to current version
+          # Update "latest-*" symlinks
           if ls RatChat-Setup-${VERSION}.exe >/dev/null 2>&1; then
             ln -sfn RatChat-Setup-${VERSION}.exe latest-windows.exe
           fi
@@ -125,12 +133,16 @@ jobs:
           if ls RatChat-${VERSION}.AppImage >/dev/null 2>&1; then
             ln -sfn RatChat-${VERSION}.AppImage latest-linux.AppImage
           fi
-          # optional deb
-          if ls RatChat_${VERSION}_amd64.deb >/dev/null 2>&1; then
-            ln -sfn RatChat_${VERSION}_amd64.deb latest-linux.deb
+
+          # Handle .deb whether you include arch or not
+          if ls RatChat-${VERSION}.deb >/dev/null 2>&1; then
+            ln -sfn RatChat-${VERSION}.deb latest-linux.deb
+          elif ls RatChat_${VERSION}_*.deb >/dev/null 2>&1; then
+            # e.g. RatChat_1.2.3_amd64.deb or _x86_64.deb
+            ln -sfn "$(ls -1 RatChat_${VERSION}_*.deb | head -n1)" latest-linux.deb
           fi
 
-          # Restrict perms a bit
+          # Permissions
           find . -type f -name 'RatChat-*' -exec chmod 0644 {} \;
           chmod 0644 SHA256SUMS.txt || true
           EOF

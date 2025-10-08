@@ -1,7 +1,7 @@
 {
   "name": "client",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "main": "electron/main.js",
   "description": "RatChat desktop client for secure, realtime conversations with your team.",
@@ -119,7 +119,10 @@
       "icon": "electron/resources/icon.ico"
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "category": "Network",
       "artifactName": "RatChat_${version}_${arch}.${ext}",
       "icon": "electron/resources/icon.png",
