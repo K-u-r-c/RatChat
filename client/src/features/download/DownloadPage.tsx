@@ -27,9 +27,34 @@ import {
 } from "@mui/icons-material";
 import { useNavigate } from "react-router";
 
-const DOWNLOAD_BASE_URL =
-  import.meta.env.VITE_DESKTOP_DOWNLOAD_BASE_URL ??
-  "https://downloads.ratchat.app";
+const DEFAULT_DOWNLOAD_URLS = {
+  latest: "https://download.ratchat.pl/latest",
+  windows: "https://download.ratchat.pl/windows",
+  mac: "https://download.ratchat.pl/mac",
+  linux: "https://download.ratchat.pl/linux",
+} as const;
+
+const DOWNLOAD_URLS = {
+  latest:
+    import.meta.env.VITE_DESKTOP_DOWNLOAD_URL_LATEST ??
+    DEFAULT_DOWNLOAD_URLS.latest,
+  windows:
+    import.meta.env.VITE_DESKTOP_DOWNLOAD_URL_WINDOWS ??
+    DEFAULT_DOWNLOAD_URLS.windows,
+  mac:
+    import.meta.env.VITE_DESKTOP_DOWNLOAD_URL_MAC ??
+    DEFAULT_DOWNLOAD_URLS.mac,
+  linux:
+    import.meta.env.VITE_DESKTOP_DOWNLOAD_URL_LINUX ??
+    DEFAULT_DOWNLOAD_URLS.linux,
+} as const;
+
+const DOWNLOAD_EXTRA_URLS = {
+  windowsPortable:
+    import.meta.env.VITE_DESKTOP_DOWNLOAD_URL_WINDOWS_PORTABLE ?? null,
+  macZip: import.meta.env.VITE_DESKTOP_DOWNLOAD_URL_MAC_ZIP ?? null,
+  linuxDeb: import.meta.env.VITE_DESKTOP_DOWNLOAD_URL_LINUX_DEB ?? null,
+} as const;
 
 type PlatformId = "windows" | "mac" | "linux";
 
@@ -39,15 +64,22 @@ const PLATFORM_LABELS: Record<PlatformId, string> = {
   linux: "Linux",
 };
 
+type DownloadExtra = {
+  label: string;
+  url: string;
+  filename?: string;
+};
+
 type DownloadOption = {
   id: PlatformId;
   label: string;
   description: string;
   icon: JSX.Element;
   filename: string;
+  url: string;
   size?: string;
   footnote?: string;
-  extras?: Array<{ label: string; filename: string }>;
+  extras?: DownloadExtra[];
 };
 
 type ReleaseEntry = {
@@ -74,6 +106,33 @@ const releaseHistory: ReleaseEntry[] = [
 
 const latestVersion = releaseHistory[0]?.version ?? "0.0.0";
 
+const windowsExtras: DownloadExtra[] = [];
+if (DOWNLOAD_EXTRA_URLS.windowsPortable) {
+  windowsExtras.push({
+    label: "Portable ZIP",
+    filename: `RatChat-Setup-${latestVersion}.zip`,
+    url: DOWNLOAD_EXTRA_URLS.windowsPortable,
+  });
+}
+
+const macExtras: DownloadExtra[] = [];
+if (DOWNLOAD_EXTRA_URLS.macZip) {
+  macExtras.push({
+    label: "ZIP Archive",
+    filename: `RatChat-${latestVersion}-mac.zip`,
+    url: DOWNLOAD_EXTRA_URLS.macZip,
+  });
+}
+
+const linuxExtras: DownloadExtra[] = [];
+if (DOWNLOAD_EXTRA_URLS.linuxDeb) {
+  linuxExtras.push({
+    label: "Debian / Ubuntu",
+    filename: `RatChat-${latestVersion}.deb`,
+    url: DOWNLOAD_EXTRA_URLS.linuxDeb,
+  });
+}
+
 const downloadOptions: DownloadOption[] = [
   {
     id: "windows",
@@ -81,14 +140,10 @@ const downloadOptions: DownloadOption[] = [
     description: "Compatible with Windows 10 & 11 (x64)",
     icon: <LaptopWindows sx={{ fontSize: 36 }} />,
     filename: `RatChat-Setup-${latestVersion}.exe`,
+    url: DOWNLOAD_URLS.windows,
     size: "117 MB",
     footnote: "Supports auto-updates and background patching",
-    extras: [
-      {
-        label: "Portable ZIP",
-        filename: `RatChat-Setup-${latestVersion}.zip`,
-      },
-    ],
+    extras: windowsExtras.length ? windowsExtras : undefined,
   },
   {
     id: "mac",
@@ -96,14 +151,10 @@ const downloadOptions: DownloadOption[] = [
     description: "Works on Apple silicon & Intel Macs (13.0+)",
     icon: <LaptopMac sx={{ fontSize: 36 }} />,
     filename: `RatChat-${latestVersion}-mac.dmg`,
+    url: DOWNLOAD_URLS.mac,
     size: "124 MB",
     footnote: "Notarized and signed — drag & drop into Applications",
-    extras: [
-      {
-        label: "ZIP Archive",
-        filename: `RatChat-${latestVersion}-mac.zip`,
-      },
-    ],
+    extras: macExtras.length ? macExtras : undefined,
   },
   {
     id: "linux",
@@ -111,14 +162,10 @@ const downloadOptions: DownloadOption[] = [
     description: "AppImage + DEB packages (x64)",
     icon: <Terminal sx={{ fontSize: 36 }} />,
     filename: `RatChat-${latestVersion}.AppImage`,
+    url: DOWNLOAD_URLS.linux,
     size: "116 MB",
     footnote: "Make executable then run — integrates with most desktops",
-    extras: [
-      {
-        label: "Debian / Ubuntu",
-        filename: `RatChat-${latestVersion}.deb`,
-      },
-    ],
+    extras: linuxExtras.length ? linuxExtras : undefined,
   },
 ];
 
@@ -149,10 +196,6 @@ function detectPlatform(): PlatformId | null {
   }
 
   return null;
-}
-
-function buildDownloadUrl(filename: string) {
-  return `${DOWNLOAD_BASE_URL.replace(/\/$/, "")}/${filename}`;
 }
 
 export default function DownloadPage() {
@@ -407,7 +450,7 @@ function PrimaryDownloadButton({ option }: PrimaryDownloadButtonProps) {
         size="large"
         variant="contained"
         color="primary"
-        href={buildDownloadUrl(downloadOptions[0].filename)}
+        href={DOWNLOAD_URLS.latest}
         startIcon={<DownloadIcon />}
       >
         Download for desktop
@@ -420,7 +463,7 @@ function PrimaryDownloadButton({ option }: PrimaryDownloadButtonProps) {
       size="large"
       variant="contained"
       color="primary"
-      href={buildDownloadUrl(option.filename)}
+      href={option.url}
       startIcon={<DownloadIcon />}
     >
       Download for {PLATFORM_LABELS[option.id]}
@@ -528,6 +571,8 @@ function DownloadOptions({
   showAllDownloads,
   onToggle,
 }: DownloadOptionsProps) {
+  const hasExtras = downloadOptions.some((option) => option.extras?.length);
+
   return (
     <Stack spacing={3}>
       <Typography component="h2" variant="h4" sx={{ fontWeight: 700 }}>
@@ -548,80 +593,85 @@ function DownloadOptions({
           </Grid>
         ))}
       </Grid>
-      <Box>
-        <Button
-          variant="text"
-          color="inherit"
-          endIcon={
-            showAllDownloads ? <KeyboardArrowUp /> : <KeyboardArrowDown />
-          }
-          onClick={onToggle}
-          sx={{ color: "rgba(212,216,255,0.8)", fontWeight: 600 }}
-        >
-          {showAllDownloads
-            ? "Hide additional formats"
-            : "See other download formats"}
-        </Button>
-        <Collapse in={showAllDownloads} timeout="auto" unmountOnExit>
-          <Paper
-            elevation={0}
-            sx={{
-              mt: 3,
-              p: 3,
-              borderRadius: 4,
-              bgcolor: "rgba(18,19,26,0.9)",
-              border: "1px solid rgba(255,255,255,0.06)",
-            }}
+      {hasExtras && (
+        <Box>
+          <Button
+            variant="text"
+            color="inherit"
+            endIcon={
+              showAllDownloads ? <KeyboardArrowUp /> : <KeyboardArrowDown />
+            }
+            onClick={onToggle}
+            sx={{ color: "rgba(212,216,255,0.8)", fontWeight: 600 }}
           >
-            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1.5 }}>
-              Additional downloads
-            </Typography>
-            <Stack spacing={1.5}>
-              {downloadOptions.flatMap(
-                (option) =>
-                  option.extras?.map((extra) => (
-                    <Stack
-                      key={`${option.id}-${extra.label}`}
-                      direction={{ xs: "column", sm: "row" }}
-                      spacing={1.5}
-                      justifyContent="space-between"
-                      sx={{
-                        p: { xs: 1.5, sm: 2 },
-                        borderRadius: 2,
-                        bgcolor: "rgba(255,255,255,0.02)",
-                      }}
-                    >
-                      <Stack>
-                        <Typography sx={{ fontWeight: 600 }}>
-                          {extra.label}
-                        </Typography>
-                        <Typography
-                          variant="body2"
-                          sx={{ color: "rgba(255,255,255,0.6)" }}
-                        >
-                          {option.label}
-                        </Typography>
-                      </Stack>
-                      <Link
-                        href={buildDownloadUrl(extra.filename)}
-                        underline="none"
+            {showAllDownloads
+              ? "Hide additional formats"
+              : "See other download formats"}
+          </Button>
+          <Collapse in={showAllDownloads} timeout="auto" unmountOnExit>
+            <Paper
+              elevation={0}
+              sx={{
+                mt: 3,
+                p: 3,
+                borderRadius: 4,
+                bgcolor: "rgba(18,19,26,0.9)",
+                border: "1px solid rgba(255,255,255,0.06)",
+              }}
+            >
+              <Typography
+                variant="subtitle1"
+                sx={{ fontWeight: 600, mb: 1.5 }}
+              >
+                Additional downloads
+              </Typography>
+              <Stack spacing={1.5}>
+                {downloadOptions.flatMap(
+                  (option) =>
+                    option.extras?.map((extra) => (
+                      <Stack
+                        key={`${option.id}-${extra.label}`}
+                        direction={{ xs: "column", sm: "row" }}
+                        spacing={1.5}
+                        justifyContent="space-between"
                         sx={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 1,
-                          color: "primary.main",
-                          fontWeight: 600,
+                          p: { xs: 1.5, sm: 2 },
+                          borderRadius: 2,
+                          bgcolor: "rgba(255,255,255,0.02)",
                         }}
                       >
-                        Download <OpenInNew sx={{ fontSize: 18 }} />
-                      </Link>
-                    </Stack>
-                  )) ?? [],
-              )}
-            </Stack>
-          </Paper>
-        </Collapse>
-      </Box>
+                        <Stack>
+                          <Typography sx={{ fontWeight: 600 }}>
+                            {extra.label}
+                          </Typography>
+                          <Typography
+                            variant="body2"
+                            sx={{ color: "rgba(255,255,255,0.6)" }}
+                          >
+                            {option.label}
+                          </Typography>
+                        </Stack>
+                        <Link
+                          href={extra.url}
+                          underline="none"
+                          sx={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 1,
+                            color: "primary.main",
+                            fontWeight: 600,
+                          }}
+                        >
+                          Download <OpenInNew sx={{ fontSize: 18 }} />
+                        </Link>
+                      </Stack>
+                    )) ?? [],
+                )}
+              </Stack>
+            </Paper>
+          </Collapse>
+        </Box>
+      )}
     </Stack>
   );
 }
@@ -701,7 +751,7 @@ function DownloadCard({ option, highlight }: DownloadCardProps) {
       <Button
         variant={highlight ? "contained" : "outlined"}
         color="primary"
-        href={buildDownloadUrl(option.filename)}
+        href={option.url}
         startIcon={<DownloadIcon />}
         sx={{ mt: "auto", fontWeight: 600 }}
       >
