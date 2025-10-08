@@ -1,7 +1,7 @@
 {
   "name": "client",
   "private": true,
-  "version": "0.1.2",
+  "version": "0.1.3",
   "type": "module",
   "main": "electron/main.js",
   "description": "RatChat desktop client for secure, realtime conversations with your team.",
@@ -80,6 +80,10 @@
     "vite": "^6.3.5",
     "vite-plugin-mkcert": "^1.17.8",
     "wait-on": "^9.0.1"
+  },
+  "scripts": {
+    "electron:build": "npm run build -- --base=./ && electron-builder --dir --publish=never",
+    "electron:package": "npm run build -- --base=./ && electron-builder --publish=never"
   },
   "build": {
     "appId": "com.ratchat.desktop",
