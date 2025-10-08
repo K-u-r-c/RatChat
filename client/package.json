@@ -1,7 +1,7 @@
 {
   "name": "client",
   "private": true,
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "main": "electron/main.js",
   "description": "RatChat desktop client for secure, realtime conversations with your team.",
@@ -82,7 +82,6 @@
     "wait-on": "^9.0.1"
   },
   "build": {
-    "publish": "never",
     "appId": "com.ratchat.desktop",
     "productName": "RatChat",
     "asar": true,
