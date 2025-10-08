@@ -107,6 +107,18 @@ const releaseHistory: ReleaseEntry[] = [
 
 const latestVersion = releaseHistory[0]?.version ?? "0.0.0";
 
+const DOWNLOAD_RELEASE_TARGETS: Record<PlatformId, string> = {
+  windows: `RatChat-${latestVersion}-windows`,
+  mac: `RatChat-${latestVersion}-mac`,
+  linux: `RatChat-${latestVersion}-linux`,
+};
+
+function buildReleaseUrl(platform: PlatformId) {
+  const baseUrl = DOWNLOAD_URLS[platform];
+  const normalizedBase = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
+  return `${normalizedBase}/releases/${DOWNLOAD_RELEASE_TARGETS[platform]}`;
+}
+
 const windowsExtras: DownloadExtra[] = [];
 if (DOWNLOAD_EXTRA_URLS.windowsPortable) {
   windowsExtras.push({
@@ -141,7 +153,7 @@ const downloadOptions: DownloadOption[] = [
     description: "Compatible with Windows 10 & 11 (x64)",
     icon: <LaptopWindows sx={{fontSize: 36}}/>,
     filename: `RatChat-Setup-${latestVersion}.exe`,
-    url: DOWNLOAD_URLS.windows,
+    url: buildReleaseUrl("windows"),
     size: "117 MB",
     footnote: "Supports auto-updates and background patching",
     extras: windowsExtras.length ? windowsExtras : undefined,
@@ -152,7 +164,7 @@ const downloadOptions: DownloadOption[] = [
     description: "Works on Apple silicon & Intel Macs (13.0+)",
     icon: <LaptopMac sx={{fontSize: 36}}/>,
     filename: `RatChat-${latestVersion}-mac.dmg`,
-    url: DOWNLOAD_URLS.mac,
+    url: buildReleaseUrl("mac"),
     size: "124 MB",
     footnote: "Notarized and signed — drag & drop into Applications",
     extras: macExtras.length ? macExtras : undefined,
@@ -163,7 +175,7 @@ const downloadOptions: DownloadOption[] = [
     description: "AppImage + DEB packages (x64)",
     icon: <Terminal sx={{fontSize: 36}}/>,
     filename: `RatChat-${latestVersion}.AppImage`,
-    url: DOWNLOAD_URLS.linux,
+    url: buildReleaseUrl("linux"),
     size: "116 MB",
     footnote: "Make executable then run — integrates with most desktops",
     extras: linuxExtras.length ? linuxExtras : undefined,
