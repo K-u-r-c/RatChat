@@ -1,4 +1,15 @@
-import { type JSX, useMemo, useState } from "react";
+import {
+  ArrowBack,
+  BugReport,
+  CheckCircle,
+  Download as DownloadIcon,
+  KeyboardArrowDown,
+  KeyboardArrowUp,
+  LaptopMac,
+  LaptopWindows,
+  OpenInNew,
+  Terminal,
+} from "@mui/icons-material";
 import {
   Box,
   Button,
@@ -13,19 +24,8 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import {
-  ArrowBack,
-  BugReport,
-  CheckCircle,
-  Download as DownloadIcon,
-  KeyboardArrowDown,
-  KeyboardArrowUp,
-  LaptopMac,
-  LaptopWindows,
-  OpenInNew,
-  Terminal,
-} from "@mui/icons-material";
-import { useNavigate } from "react-router";
+import {type JSX, useMemo, useState} from "react";
+import {useNavigate} from "react-router";
 
 const DEFAULT_DOWNLOAD_URLS = {
   latest: "https://download.ratchat.pl/latest",
@@ -96,6 +96,7 @@ const releaseHistory: ReleaseEntry[] = [
     features: [
       "New confirm prompt for important actions",
       "System sound sharing for desktop builds on Windows and MacOS, experimental for Linux",
+      "Encrypted chats for direct messages",
     ],
     fixes: [
       "Fixed vanishing chat room profile images",
@@ -138,7 +139,7 @@ const downloadOptions: DownloadOption[] = [
     id: "windows",
     label: "Windows Installer",
     description: "Compatible with Windows 10 & 11 (x64)",
-    icon: <LaptopWindows sx={{ fontSize: 36 }} />,
+    icon: <LaptopWindows sx={{fontSize: 36}}/>,
     filename: `RatChat-Setup-${latestVersion}.exe`,
     url: DOWNLOAD_URLS.windows,
     size: "117 MB",
@@ -149,7 +150,7 @@ const downloadOptions: DownloadOption[] = [
     id: "mac",
     label: "macOS Universal DMG",
     description: "Works on Apple silicon & Intel Macs (13.0+)",
-    icon: <LaptopMac sx={{ fontSize: 36 }} />,
+    icon: <LaptopMac sx={{fontSize: 36}}/>,
     filename: `RatChat-${latestVersion}-mac.dmg`,
     url: DOWNLOAD_URLS.mac,
     size: "124 MB",
@@ -160,7 +161,7 @@ const downloadOptions: DownloadOption[] = [
     id: "linux",
     label: "Linux Builds",
     description: "AppImage + DEB packages (x64)",
-    icon: <Terminal sx={{ fontSize: 36 }} />,
+    icon: <Terminal sx={{fontSize: 36}}/>,
     filename: `RatChat-${latestVersion}.AppImage`,
     url: DOWNLOAD_URLS.linux,
     size: "116 MB",
@@ -213,22 +214,22 @@ export default function DownloadPage() {
 
   return (
     <>
-      <CssBaseline />
+      <CssBaseline/>
       <Box
         sx={{
           bgcolor:
             "linear-gradient(160deg, #1c1d21 0%, #101117 45%, #1f2350 100%)",
           minHeight: "100vh",
-          py: { xs: 8, md: 12 },
+          py: {xs: 8, md: 12},
           color: "text.primary",
         }}
       >
         <Container maxWidth="lg">
-          <Box sx={{ mb: { xs: 3, md: 4 } }}>
+          <Box sx={{mb: {xs: 3, md: 4}}}>
             <Button
               variant="text"
               color="inherit"
-              startIcon={<ArrowBack />}
+              startIcon={<ArrowBack/>}
               onClick={() => navigate(-1)}
               sx={{
                 color: "rgba(212,216,255,0.8)",
@@ -246,14 +247,14 @@ export default function DownloadPage() {
           />
           <Divider
             sx={{
-              my: { xs: 6, md: 10 },
+              my: {xs: 6, md: 10},
               borderColor: "rgba(255,255,255,0.08)",
             }}
           />
-          <WhatIsRatChat />
+          <WhatIsRatChat/>
           <Divider
             sx={{
-              my: { xs: 6, md: 10 },
+              my: {xs: 6, md: 10},
               borderColor: "rgba(255,255,255,0.08)",
             }}
           />
@@ -264,11 +265,11 @@ export default function DownloadPage() {
           />
           <Divider
             sx={{
-              my: { xs: 6, md: 10 },
+              my: {xs: 6, md: 10},
               borderColor: "rgba(255,255,255,0.08)",
             }}
           />
-          <ReleaseHighlights />
+          <ReleaseHighlights/>
         </Container>
       </Box>
     </>
@@ -280,23 +281,23 @@ type HeroSectionProps = {
   primaryOption: DownloadOption | null;
 };
 
-function HeroSection({ detectedPlatform, primaryOption }: HeroSectionProps) {
+function HeroSection({detectedPlatform, primaryOption}: HeroSectionProps) {
   return (
     <Grid
       container
-      spacing={{ xs: 4, md: 6 }}
+      spacing={{xs: 4, md: 6}}
       alignItems="center"
       sx={{
         background:
           "linear-gradient(135deg, rgba(34,36,43,0.92), rgba(18,20,32,0.88))",
         borderRadius: 6,
-        px: { xs: 4, md: 8 },
-        py: { xs: 6, md: 10 },
+        px: {xs: 4, md: 8},
+        py: {xs: 6, md: 10},
         boxShadow: "0 40px 120px rgba(11,14,40,0.35)",
         border: "1px solid rgba(138, 147, 255, 0.18)",
       }}
     >
-      <Grid size={{ xs: 12, md: 7 }}>
+      <Grid size={{xs: 12, md: 7}}>
         <Stack spacing={3}>
           <Chip
             label={
@@ -318,13 +319,13 @@ function HeroSection({ detectedPlatform, primaryOption }: HeroSectionProps) {
           <Typography
             component="h1"
             variant="h2"
-            sx={{ fontWeight: 700, lineHeight: 1.1 }}
+            sx={{fontWeight: 700, lineHeight: 1.1}}
           >
             Chat faster with the RatChat desktop app
           </Typography>
           <Typography
             variant="subtitle1"
-            sx={{ color: "rgba(255,255,255,0.72)", maxWidth: 520 }}
+            sx={{color: "rgba(255,255,255,0.72)", maxWidth: 520}}
           >
             Experience RatChat with native notifications, streamlined keyboard
             support, and deep integration for calls. Built with privacy in mind
@@ -336,7 +337,7 @@ function HeroSection({ detectedPlatform, primaryOption }: HeroSectionProps) {
             alignItems="center"
             flexWrap="wrap"
           >
-            <PrimaryDownloadButton option={primaryOption} />
+            <PrimaryDownloadButton option={primaryOption}/>
             <Typography
               variant="body2"
               sx={{
@@ -359,7 +360,7 @@ function HeroSection({ detectedPlatform, primaryOption }: HeroSectionProps) {
           </Stack>
         </Stack>
       </Grid>
-      <Grid size={{ xs: 12, md: 5 }}>
+      <Grid size={{xs: 12, md: 5}}>
         <Paper
           elevation={0}
           sx={{
@@ -373,7 +374,7 @@ function HeroSection({ detectedPlatform, primaryOption }: HeroSectionProps) {
           }}
         >
           <Stack spacing={1.5}>
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            <Typography variant="h6" sx={{fontWeight: 600}}>
               Why desktop?
             </Typography>
             <Stack spacing={1.2}>
@@ -398,12 +399,12 @@ function HeroSection({ detectedPlatform, primaryOption }: HeroSectionProps) {
                     {benefit.icon}
                   </Box>
                   <Box>
-                    <Typography sx={{ fontWeight: 600 }}>
+                    <Typography sx={{fontWeight: 600}}>
                       {benefit.title}
                     </Typography>
                     <Typography
                       variant="body2"
-                      sx={{ color: "rgba(255,255,255,0.65)" }}
+                      sx={{color: "rgba(255,255,255,0.65)"}}
                     >
                       {benefit.description}
                     </Typography>
@@ -423,19 +424,19 @@ const desktopBenefits = [
     title: "Stay focused",
     description:
       "Dedicated desktop notifications, badge counts, and quick reply shortcuts.",
-    icon: <CheckCircle sx={{ color: "#5865f2" }} fontSize="small" />,
+    icon: <CheckCircle sx={{color: "#5865f2"}} fontSize="small"/>,
   },
   {
     title: "True low-latency",
     description:
       "Optimized voice and screen share pipeline tuned for long-lived sessions.",
-    icon: <CheckCircle sx={{ color: "#5865f2" }} fontSize="small" />,
+    icon: <CheckCircle sx={{color: "#5865f2"}} fontSize="small"/>,
   },
   {
     title: "Secure by default",
     description:
       "Encrypted storage on disk with automatic session locking on idle.",
-    icon: <CheckCircle sx={{ color: "#5865f2" }} fontSize="small" />,
+    icon: <CheckCircle sx={{color: "#5865f2"}} fontSize="small"/>,
   },
 ];
 
@@ -443,7 +444,7 @@ type PrimaryDownloadButtonProps = {
   option: DownloadOption | null;
 };
 
-function PrimaryDownloadButton({ option }: PrimaryDownloadButtonProps) {
+function PrimaryDownloadButton({option}: PrimaryDownloadButtonProps) {
   if (!option) {
     return (
       <Button
@@ -451,7 +452,7 @@ function PrimaryDownloadButton({ option }: PrimaryDownloadButtonProps) {
         variant="contained"
         color="primary"
         href={DOWNLOAD_URLS.latest}
-        startIcon={<DownloadIcon />}
+        startIcon={<DownloadIcon/>}
       >
         Download for desktop
       </Button>
@@ -464,7 +465,7 @@ function PrimaryDownloadButton({ option }: PrimaryDownloadButtonProps) {
       variant="contained"
       color="primary"
       href={option.url}
-      startIcon={<DownloadIcon />}
+      startIcon={<DownloadIcon/>}
     >
       Download for {PLATFORM_LABELS[option.id]}
     </Button>
@@ -473,12 +474,12 @@ function PrimaryDownloadButton({ option }: PrimaryDownloadButtonProps) {
 
 function WhatIsRatChat() {
   return (
-    <Grid container spacing={{ xs: 4, md: 6 }} alignItems="stretch">
-      <Grid size={{ xs: 12, md: 5 }}>
-        <Typography component="h2" variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
+    <Grid container spacing={{xs: 4, md: 6}} alignItems="stretch">
+      <Grid size={{xs: 12, md: 5}}>
+        <Typography component="h2" variant="h4" sx={{fontWeight: 700, mb: 2}}>
           What is RatChat?
         </Typography>
-        <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.7)" }}>
+        <Typography variant="body1" sx={{color: "rgba(255,255,255,0.7)"}}>
           RatChat is a discord like text and voice communicator designed for
           groups of friends and small communities. We balance modern
           collaboration features with a focus on trust, transparency, and
@@ -487,11 +488,11 @@ function WhatIsRatChat() {
           desktop.
         </Typography>
       </Grid>
-      <Grid size={{ xs: 12, md: 7 }}>
+      <Grid size={{xs: 12, md: 7}}>
         <Paper
           elevation={0}
           sx={{
-            p: { xs: 4, md: 5 },
+            p: {xs: 4, md: 5},
             borderRadius: 5,
             bgcolor: "rgba(19,20,27,0.85)",
             border: "1px solid rgba(255,255,255,0.05)",
@@ -520,12 +521,12 @@ function WhatIsRatChat() {
                   {highlight.icon}
                 </Box>
                 <Box>
-                  <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.8 }}>
+                  <Typography variant="h6" sx={{fontWeight: 600, mb: 0.8}}>
                     {highlight.title}
                   </Typography>
                   <Typography
                     variant="body2"
-                    sx={{ color: "rgba(255,255,255,0.65)" }}
+                    sx={{color: "rgba(255,255,255,0.65)"}}
                   >
                     {highlight.description}
                   </Typography>
@@ -544,19 +545,19 @@ const ratchatHighlights = [
     title: "Encrypted where it matters",
     description:
       "Message bodies are encrypted at rest with AES-256-GCM and optional end-to-end direct chats.",
-    icon: <CheckCircle sx={{ color: "#d1d7ff" }} fontSize="small" />,
+    icon: <CheckCircle sx={{color: "#d1d7ff"}} fontSize="small"/>,
   },
   {
     title: "Real-time by design",
     description:
       "SignalR-powered updates keep chats, presence, and voice status instantly in sync.",
-    icon: <CheckCircle sx={{ color: "#d1d7ff" }} fontSize="small" />,
+    icon: <CheckCircle sx={{color: "#d1d7ff"}} fontSize="small"/>,
   },
   {
     title: "Crafted for teams",
     description:
       "Role-based permissions, channel threads, and focused notifications help teams stay organized.",
-    icon: <CheckCircle sx={{ color: "#d1d7ff" }} fontSize="small" />,
+    icon: <CheckCircle sx={{color: "#d1d7ff"}} fontSize="small"/>,
   },
 ];
 
@@ -567,25 +568,25 @@ type DownloadOptionsProps = {
 };
 
 function DownloadOptions({
-  primaryOption,
-  showAllDownloads,
-  onToggle,
-}: DownloadOptionsProps) {
+                           primaryOption,
+                           showAllDownloads,
+                           onToggle,
+                         }: DownloadOptionsProps) {
   const hasExtras = downloadOptions.some((option) => option.extras?.length);
 
   return (
     <Stack spacing={3}>
-      <Typography component="h2" variant="h4" sx={{ fontWeight: 700 }}>
+      <Typography component="h2" variant="h4" sx={{fontWeight: 700}}>
         Choose your build
       </Typography>
-      <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.65)" }}>
+      <Typography variant="body1" sx={{color: "rgba(255,255,255,0.65)"}}>
         We detected {primaryOption ? `${primaryOption.label}.` : "your device."}{" "}
         Need something else? You can grab installers for every supported
         platform below.
       </Typography>
       <Grid container spacing={3}>
         {downloadOptions.map((option) => (
-          <Grid key={option.id} size={{ xs: 12, md: 4 }}>
+          <Grid key={option.id} size={{xs: 12, md: 4}}>
             <DownloadCard
               option={option}
               highlight={primaryOption?.id === option.id}
@@ -599,10 +600,10 @@ function DownloadOptions({
             variant="text"
             color="inherit"
             endIcon={
-              showAllDownloads ? <KeyboardArrowUp /> : <KeyboardArrowDown />
+              showAllDownloads ? <KeyboardArrowUp/> : <KeyboardArrowDown/>
             }
             onClick={onToggle}
-            sx={{ color: "rgba(212,216,255,0.8)", fontWeight: 600 }}
+            sx={{color: "rgba(212,216,255,0.8)", fontWeight: 600}}
           >
             {showAllDownloads
               ? "Hide additional formats"
@@ -621,7 +622,7 @@ function DownloadOptions({
             >
               <Typography
                 variant="subtitle1"
-                sx={{ fontWeight: 600, mb: 1.5 }}
+                sx={{fontWeight: 600, mb: 1.5}}
               >
                 Additional downloads
               </Typography>
@@ -631,22 +632,22 @@ function DownloadOptions({
                     option.extras?.map((extra) => (
                       <Stack
                         key={`${option.id}-${extra.label}`}
-                        direction={{ xs: "column", sm: "row" }}
+                        direction={{xs: "column", sm: "row"}}
                         spacing={1.5}
                         justifyContent="space-between"
                         sx={{
-                          p: { xs: 1.5, sm: 2 },
+                          p: {xs: 1.5, sm: 2},
                           borderRadius: 2,
                           bgcolor: "rgba(255,255,255,0.02)",
                         }}
                       >
                         <Stack>
-                          <Typography sx={{ fontWeight: 600 }}>
+                          <Typography sx={{fontWeight: 600}}>
                             {extra.label}
                           </Typography>
                           <Typography
                             variant="body2"
-                            sx={{ color: "rgba(255,255,255,0.6)" }}
+                            sx={{color: "rgba(255,255,255,0.6)"}}
                           >
                             {option.label}
                           </Typography>
@@ -662,7 +663,7 @@ function DownloadOptions({
                             fontWeight: 600,
                           }}
                         >
-                          Download <OpenInNew sx={{ fontSize: 18 }} />
+                          Download <OpenInNew sx={{fontSize: 18}}/>
                         </Link>
                       </Stack>
                     )) ?? [],
@@ -681,7 +682,7 @@ type DownloadCardProps = {
   highlight: boolean;
 };
 
-function DownloadCard({ option, highlight }: DownloadCardProps) {
+function DownloadCard({option, highlight}: DownloadCardProps) {
   return (
     <Paper
       elevation={0}
@@ -719,30 +720,30 @@ function DownloadCard({ option, highlight }: DownloadCardProps) {
           {option.icon}
         </Box>
         <Box>
-          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+          <Typography variant="h6" sx={{fontWeight: 600}}>
             {option.label}
           </Typography>
-          <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.6)" }}>
+          <Typography variant="body2" sx={{color: "rgba(255,255,255,0.6)"}}>
             {option.description}
           </Typography>
         </Box>
       </Stack>
       <Stack spacing={1.2}>
         <Stack direction="row" spacing={1.5} alignItems="center">
-          <DownloadIcon sx={{ color: "rgba(255,255,255,0.5)" }} />
-          <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)" }}>
+          <DownloadIcon sx={{color: "rgba(255,255,255,0.5)"}}/>
+          <Typography variant="body2" sx={{color: "rgba(255,255,255,0.7)"}}>
             {option.filename}
           </Typography>
         </Stack>
         {option.size && (
-          <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.5)" }}>
+          <Typography variant="body2" sx={{color: "rgba(255,255,255,0.5)"}}>
             Approx. {option.size}
           </Typography>
         )}
         {option.footnote && (
           <Typography
             variant="caption"
-            sx={{ color: "rgba(255,255,255,0.45)" }}
+            sx={{color: "rgba(255,255,255,0.45)"}}
           >
             {option.footnote}
           </Typography>
@@ -752,8 +753,8 @@ function DownloadCard({ option, highlight }: DownloadCardProps) {
         variant={highlight ? "contained" : "outlined"}
         color="primary"
         href={option.url}
-        startIcon={<DownloadIcon />}
-        sx={{ mt: "auto", fontWeight: 600 }}
+        startIcon={<DownloadIcon/>}
+        sx={{mt: "auto", fontWeight: 600}}
       >
         Download
       </Button>
@@ -764,12 +765,12 @@ function DownloadCard({ option, highlight }: DownloadCardProps) {
 function ReleaseHighlights() {
   return (
     <Stack spacing={3.5}>
-      <Typography component="h2" variant="h4" sx={{ fontWeight: 700 }}>
+      <Typography component="h2" variant="h4" sx={{fontWeight: 700}}>
         Release notes
       </Typography>
       <Typography
         variant="body1"
-        sx={{ color: "rgba(255,255,255,0.65)", maxWidth: 720 }}
+        sx={{color: "rgba(255,255,255,0.65)", maxWidth: 720}}
       >
         Every RatChat release ships with improvements driven by our community.
         Catch up on what changed recently and what to expect when you update.
@@ -780,7 +781,7 @@ function ReleaseHighlights() {
             key={entry.version}
             elevation={0}
             sx={{
-              p: { xs: 3, md: 4 },
+              p: {xs: 3, md: 4},
               borderRadius: 4,
               bgcolor: "rgba(19,20,27,0.88)",
               border: "1px solid rgba(255,255,255,0.05)",
@@ -788,22 +789,22 @@ function ReleaseHighlights() {
           >
             <Stack spacing={2.5}>
               <Stack
-                direction={{ xs: "column", sm: "row" }}
+                direction={{xs: "column", sm: "row"}}
                 spacing={1.5}
                 justifyContent="space-between"
               >
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                <Typography variant="h6" sx={{fontWeight: 600}}>
                   RatChat {entry.version}
                 </Typography>
                 <Typography
                   variant="body2"
-                  sx={{ color: "rgba(255,255,255,0.5)" }}
+                  sx={{color: "rgba(255,255,255,0.5)"}}
                 >
                   Released {entry.releaseDate}
                 </Typography>
               </Stack>
               <Grid container spacing={3}>
-                <Grid size={{ xs: 12, md: 6 }}>
+                <Grid size={{xs: 12, md: 6}}>
                   <Typography
                     sx={{
                       fontWeight: 600,
@@ -812,27 +813,27 @@ function ReleaseHighlights() {
                       gap: 1,
                     }}
                   >
-                    <CheckCircle sx={{ color: "#7dd6ff" }} fontSize="small" />
+                    <CheckCircle sx={{color: "#7dd6ff"}} fontSize="small"/>
                     New features
                   </Typography>
                   <Stack
                     component="ul"
                     spacing={1.2}
-                    sx={{ m: 0, mt: 1.5, pl: 2.5 }}
+                    sx={{m: 0, mt: 1.5, pl: 2.5}}
                   >
                     {entry.features.map((feature) => (
                       <Typography
                         key={feature}
                         component="li"
                         variant="body2"
-                        sx={{ color: "rgba(255,255,255,0.68)" }}
+                        sx={{color: "rgba(255,255,255,0.68)"}}
                       >
                         {feature}
                       </Typography>
                     ))}
                   </Stack>
                 </Grid>
-                <Grid size={{ xs: 12, md: 6 }}>
+                <Grid size={{xs: 12, md: 6}}>
                   <Typography
                     sx={{
                       fontWeight: 600,
@@ -841,20 +842,20 @@ function ReleaseHighlights() {
                       gap: 1,
                     }}
                   >
-                    <BugReport sx={{ color: "#ffa392" }} fontSize="small" />
+                    <BugReport sx={{color: "#ffa392"}} fontSize="small"/>
                     Bug fixes & polish
                   </Typography>
                   <Stack
                     component="ul"
                     spacing={1.2}
-                    sx={{ m: 0, mt: 1.5, pl: 2.5 }}
+                    sx={{m: 0, mt: 1.5, pl: 2.5}}
                   >
                     {entry.fixes.map((fix) => (
                       <Typography
                         key={fix}
                         component="li"
                         variant="body2"
-                        sx={{ color: "rgba(255,255,255,0.68)" }}
+                        sx={{color: "rgba(255,255,255,0.68)"}}
                       >
                         {fix}
                       </Typography>
