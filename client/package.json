@@ -82,6 +82,7 @@
     "wait-on": "^9.0.1"
   },
   "build": {
+    "publish": "never",
     "appId": "com.ratchat.desktop",
     "productName": "RatChat",
     "asar": true,
@@ -96,7 +97,7 @@
     },
     "mac": {
       "category": "public.app-category.social-networking",
-      "artifactName": "RatChat-${version}-mac.${ext}",
+      "artifactName": "RatChat-${version}.dmg",
       "icon": "electron/resources/icon.icns"
     },
     "win": {
@@ -118,12 +119,9 @@
       "icon": "electron/resources/icon.ico"
     },
     "linux": {
-      "target": [
-        "AppImage",
-        "deb"
-      ],
+      "target": ["AppImage", "deb"],
       "category": "Network",
-      "artifactName": "RatChat-${version}.${ext}",
+      "artifactName": "RatChat_${version}_${arch}.${ext}",
       "icon": "electron/resources/icon.png",
       "maintainer": "RatChat Team <jakkurc.dev@gmail.com>"
     }

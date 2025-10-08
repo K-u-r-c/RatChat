@@ -1,0 +1,139 @@
+name: Desktop Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"   # build on tags like v1.2.3
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+          - os: macos-latest
+            platform: mac
+          - os: windows-latest
+            platform: windows
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build web (Vite)
+        run: npm run build:web
+
+      # macOS needs extra entitlements if you code sign; this example skips signing/notarization
+      - name: Build Electron (${{ matrix.platform }})
+        run: |
+          npm run build:electron
+
+      - name: Collect artifacts
+        shell: bash
+        run: |
+          mkdir -p upload
+          # pick built files depending on OS
+          if [[ "${{ matrix.platform }}" == "windows" ]]; then
+            cp release/*.exe upload/ || true
+          elif [[ "${{ matrix.platform }}" == "mac" ]]; then
+            cp release/*.dmg upload/ || true
+          else
+            cp release/*.AppImage upload/ || true
+            cp release/*.deb upload/ || true
+          fi
+          ls -l upload || true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }}-artifacts
+          path: upload/*
+
+  deploy:
+    name: Deploy to downloads server
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version from package.json
+        id: ver
+        run: echo "VERSION=$(node -p \"require('./package.json').version\")" >> $GITHUB_ENV
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Show artifacts tree
+        run: |
+          ls -R artifacts
+
+      - name: Set up SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          printf "%s" "${SSH_PRIVATE_KEY}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${DOWNLOADS_HOST}" >> ~/.ssh/known_hosts
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          DOWNLOADS_HOST: ${{ secrets.DOWNLOADS_HOST }}
+
+      - name: Upload files to server
+        env:
+          DOWNLOADS_HOST: ${{ secrets.DOWNLOADS_HOST }}
+          DOWNLOADS_USER: ${{ secrets.DOWNLOADS_USER }}
+          DOWNLOADS_PATH: ${{ secrets.DOWNLOADS_PATH }}
+        run: |
+          rsync -avz --progress artifacts/ "${DOWNLOADS_USER}@${DOWNLOADS_HOST}:${DOWNLOADS_PATH}/"
+
+      - name: Update latest symlinks + checksums on server
+        env:
+          DOWNLOADS_HOST: ${{ secrets.DOWNLOADS_HOST }}
+          DOWNLOADS_USER: ${{ secrets.DOWNLOADS_USER }}
+          DOWNLOADS_PATH: ${{ secrets.DOWNLOADS_PATH }}
+          VERSION: ${{ env.VERSION }}
+        run: |
+          ssh "${DOWNLOADS_USER}@${DOWNLOADS_HOST}" bash -s <<'EOF'
+          set -euo pipefail
+          cd "${DOWNLOADS_PATH}"
+
+          # Build/refresh checksums
+          rm -f SHA256SUMS.txt
+          for f in RatChat-*; do
+            [ -f "$f" ] && sha256sum "$f" >> SHA256SUMS.txt || true
+          done
+
+          # Point "latest-*" to current version
+          if ls RatChat-Setup-${VERSION}.exe >/dev/null 2>&1; then
+            ln -sfn RatChat-Setup-${VERSION}.exe latest-windows.exe
+          fi
+          if ls RatChat-${VERSION}.dmg >/dev/null 2>&1; then
+            ln -sfn RatChat-${VERSION}.dmg latest-macos.dmg
+          fi
+          if ls RatChat-${VERSION}.AppImage >/dev/null 2>&1; then
+            ln -sfn RatChat-${VERSION}.AppImage latest-linux.AppImage
+          fi
+          # optional deb
+          if ls RatChat_${VERSION}_amd64.deb >/dev/null 2>&1; then
+            ln -sfn RatChat_${VERSION}_amd64.deb latest-linux.deb
+          fi
+
+          # Restrict perms a bit
+          find . -type f -name 'RatChat-*' -exec chmod 0644 {} \;
+          chmod 0644 SHA256SUMS.txt || true
+          EOF
+
+      - name: Done
+        run: echo "Deployed version $VERSION to ${DOWNLOADS_PATH}"
