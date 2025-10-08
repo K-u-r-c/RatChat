@@ -1,7 +1,7 @@
 {
   "name": "client",
   "private": true,
-  "version": "0.1.2",
+  "version": "0.1.0",
   "type": "module",
   "main": "electron/main.js",
   "description": "RatChat desktop client for secure, realtime conversations with your team.",
@@ -96,7 +96,7 @@
     },
     "mac": {
       "category": "public.app-category.social-networking",
-      "artifactName": "RatChat-${version}.dmg",
+      "artifactName": "RatChat-${version}-mac.${ext}",
       "icon": "electron/resources/icon.icns"
     },
     "win": {
@@ -123,7 +123,7 @@
         "deb"
       ],
       "category": "Network",
-      "artifactName": "RatChat_${version}_${arch}.${ext}",
+      "artifactName": "RatChat-${version}.${ext}",
       "icon": "electron/resources/icon.png",
       "maintainer": "RatChat Team <jakkurc.dev@gmail.com>"
     }

@@ -45,6 +45,8 @@ jobs:
       # Build full installers (not just --dir)
       - name: Build Electron (${{ matrix.platform }})
         working-directory: client
+        env:
+          GH_TOKEN: ""
         run: npm run electron:package
 
       - name: Collect artifacts
