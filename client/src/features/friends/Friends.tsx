@@ -25,7 +25,9 @@ function TabPanel(props: TabPanelProps) {
       aria-labelledby={`friends-tab-${index}`}
       {...other}
     >
-      {value === index && <Box sx={{p: 3}}>{children}</Box>}
+      {value === index && (
+        <Box sx={{ p: { xs: 1.5, sm: 3 } }}>{children}</Box>
+      )}
     </div>
   );
 }
@@ -152,7 +154,8 @@ export default function Friends() {
   return (
     <Box
       sx={{
-        height: "calc(100vh - var(--desktop-download-banner-height, 0px))",
+        height:
+          "calc(100vh - var(--desktop-download-banner-height, 0px) - var(--mobile-topbar-height, 0px) - var(--mobile-action-ribbon-height, 0px))",
         width: "100%",
         display: "flex",
         flexDirection: "column",

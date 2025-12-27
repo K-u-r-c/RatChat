@@ -3,13 +3,18 @@ import {
   Badge,
   Box,
   Divider,
+  Drawer,
+  IconButton,
   List,
   ListItemAvatar,
   ListItemButton,
   ListItemText,
   TextField,
   Typography,
+  useMediaQuery,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+import { Close, People } from "@mui/icons-material";
 import {observer} from "mobx-react-lite";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useNavigate, useParams} from "react-router";
@@ -26,6 +31,8 @@ import ChatRoomScreenSharePanel from "./ChatRoomScreenSharePanel.tsx";
 const ChatRoomDetails = observer(function ChatRoomDetails() {
   const {slug} = useParams();
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const {currentUser} = useAccount();
   const {uiStore} = useStore();
   const {chatRoom, isLoadingChatRoom} = useChatRooms(slug);
@@ -119,6 +126,7 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
       : DEFAULT_RIGHT_PANEL_WIDTH;
   });
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
+  const [membersOpen, setMembersOpen] = useState(false);
 
   const resetRightPanel = () => {
     setRightPanelWidth(DEFAULT_RIGHT_PANEL_WIDTH);
@@ -174,6 +182,12 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
     }
   }, [anchorEl, selectedMember]);
 
+  useEffect(() => {
+    if (!isMobile) {
+      setMembersOpen(false);
+    }
+  }, [isMobile]);
+
   const activeTextChannelId =
     chatRoom?.id != null
       ? uiStore.getSelectedTextChannel(chatRoom.id) ?? textChannels[0]?.id
@@ -182,10 +196,134 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
   if (isLoadingChatRoom) return <Typography>Loading...</Typography>;
   if (!chatRoom) return <Typography>Activity not found</Typography>;
 
+  const membersPanel = (
+    <>
+      <Typography
+        variant="subtitle2"
+        sx={{fontWeight: 700, px: 2, mb: 0.5}}
+      >
+        Online - {onlineMembers.length}
+      </Typography>
+      <Box sx={{flex: 1, overflowY: "auto"}}>
+        <List dense>
+          {onlineMembers.length === 0 && (
+            <Typography variant="body2" color="text.secondary" sx={{px: 2}}>
+              No one is online right now
+            </Typography>
+          )}
+          {onlineMembers.map((m) => {
+            const accentColor = resolveMemberAccent(m.id);
+            return (
+              <ListItemButton
+                key={m.id}
+                onClick={(e) => {
+                  setSelectedMemberId(m.id);
+                  setAnchorEl(e.currentTarget);
+                }}
+              >
+                <ListItemAvatar>
+                  <Badge
+                    variant="dot"
+                    overlap="circular"
+                    anchorOrigin={{vertical: "bottom", horizontal: "right"}}
+                    sx={{
+                      "& .MuiBadge-badge": {
+                        bgcolor: statusColor(m.status, m.isOnline),
+                        width: 12,
+                        height: 12,
+                        borderRadius: "50%",
+                        border: "2px solid",
+                        borderColor: "background.paper",
+                      },
+                    }}
+                  >
+                    <Avatar src={m.imageUrl}>{m.displayName?.[0]}</Avatar>
+                  </Badge>
+                </ListItemAvatar>
+                <ListItemText
+                  primary={m.displayName}
+                  secondary={statusLabel(m.status, m.isOnline)}
+                  primaryTypographyProps={{
+                    noWrap: true,
+                    sx: {
+                      color: accentColor ?? "text.primary",
+                      fontWeight: accentColor ? 600 : 500,
+                    },
+                  }}
+                  secondaryTypographyProps={{
+                    sx: {color: "text.secondary"},
+                  }}
+                />
+              </ListItemButton>
+            );
+          })}
+        </List>
+        <Divider sx={{my: 1}}/>
+
+        <Typography
+          variant="subtitle2"
+          sx={{fontWeight: 700, px: 2, mb: 0.5}}
+        >
+          Offline - {offlineMembers.length}
+        </Typography>
+        <List dense>
+          {offlineMembers.map((m) => {
+            const accentColor = resolveMemberAccent(m.id);
+            return (
+              <ListItemButton
+                key={m.id}
+                onClick={(e) => {
+                  setSelectedMemberId(m.id);
+                  setAnchorEl(e.currentTarget);
+                }}
+                sx={{opacity: 0.6}}
+              >
+                <ListItemAvatar>
+                  <Badge
+                    variant="dot"
+                    overlap="circular"
+                    anchorOrigin={{vertical: "bottom", horizontal: "right"}}
+                    sx={{
+                      "& .MuiBadge-badge": {
+                        bgcolor: statusColor(m.status, m.isOnline),
+                        width: 12,
+                        height: 12,
+                        borderRadius: "50%",
+                        border: "2px solid",
+                        borderColor: "background.paper",
+                      },
+                    }}
+                  >
+                    <Avatar src={m.imageUrl}>{m.displayName?.[0]}</Avatar>
+                  </Badge>
+                </ListItemAvatar>
+                <ListItemText
+                  primary={m.displayName}
+                  secondary={statusLabel(m.status, m.isOnline)}
+                  primaryTypographyProps={{
+                    noWrap: true,
+                    sx: {
+                      color: accentColor ?? "text.primary",
+                      fontWeight: accentColor ? 600 : 500,
+                    },
+                  }}
+                  secondaryTypographyProps={{
+                    sx: {color: "text.secondary"},
+                  }}
+                />
+              </ListItemButton>
+            );
+          })}
+        </List>
+      </Box>
+    </>
+  );
+
   return (
     <Box
       sx={{
-        height: "calc(100vh - var(--desktop-download-banner-height, 0px))",
+        height:
+          "calc(100vh - var(--desktop-download-banner-height, 0px) - var(--mobile-topbar-height, 0px) - var(--mobile-action-ribbon-height, 0px))",
         display: "flex",
         flexDirection: "row",
         overflow: "hidden",
@@ -205,23 +343,43 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
           <Box
             sx={{
               display: "flex",
-              alignItems: "center",
+              alignItems: { xs: "stretch", sm: "center" },
               justifyContent: "space-between",
               borderBottom: "1px solid",
               borderColor: "divider",
               p: 1,
               gap: 1,
               flexWrap: "wrap",
+              flexDirection: { xs: "column", sm: "row" },
             }}
           >
-            <Typography variant="h6" fontWeight="bold" noWrap>
-              {chatRoom.title}
-            </Typography>
-            <Box sx={{display: "flex", alignItems: "center", gap: 1}}>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 1,
+                width: "100%",
+              }}
+            >
+              <Typography variant="h6" fontWeight="bold" noWrap>
+                {chatRoom.title}
+              </Typography>
+              {isMobile && (
+                <IconButton
+                  aria-label="View members"
+                  onClick={() => setMembersOpen(true)}
+                  size="small"
+                >
+                  <People />
+                </IconButton>
+              )}
+            </Box>
+            <Box sx={{display: "flex", alignItems: "center", gap: 1, width: "100%"}}>
               <TextField
                 size="small"
                 placeholder="Search (dummy)"
-                sx={{width: 320}}
+                sx={{width: { xs: "100%", sm: 320 }}}
                 disabled
               />
             </Box>
@@ -257,157 +415,83 @@ const ChatRoomDetails = observer(function ChatRoomDetails() {
 
       </Box>
 
-      {/* Resize handle */}
-      <Box
-        role="separator"
-        aria-orientation="vertical"
-        onMouseDown={startResize}
-        onDoubleClick={resetRightPanel}
-        sx={{
-          width: 4,
-          cursor: "col-resize",
-          flex: "0 0 4px",
-          alignSelf: "stretch",
-          bgcolor: "divider",
-          "&:hover": {bgcolor: "action.hover"},
-        }}
-      />
+      {!isMobile && (
+        <>
+          <Box
+            role="separator"
+            aria-orientation="vertical"
+            onMouseDown={startResize}
+            onDoubleClick={resetRightPanel}
+            sx={{
+              width: 4,
+              cursor: "col-resize",
+              flex: "0 0 4px",
+              alignSelf: "stretch",
+              bgcolor: "divider",
+              "&:hover": {bgcolor: "action.hover"},
+            }}
+          />
 
-      {/* Right panel */}
-      <Box
-        sx={{
-          width: rightPanelWidth,
-          flexShrink: 0,
-          p: 2,
-          boxSizing: "border-box",
-          bgcolor: "background.paper",
-          borderLeft: "1px solid",
-          borderColor: "divider",
-          display: "flex",
-          flexDirection: "column",
-          gap: 1,
-          overflow: "hidden",
-        }}
-      >
-        <Typography
-          variant="subtitle2"
-          sx={{fontWeight: 700, px: 2, mb: 0.5}}
-        >
-          Online - {onlineMembers.length}
-        </Typography>
-        <Box sx={{flex: 1, overflowY: "auto"}}>
-          <List dense>
-            {onlineMembers.length === 0 && (
-              <Typography variant="body2" color="text.secondary" sx={{px: 2}}>
-                No one is online right now
-              </Typography>
-            )}
-            {onlineMembers.map((m) => {
-              const accentColor = resolveMemberAccent(m.id);
-              return (
-                <ListItemButton
-                  key={m.id}
-                  onClick={(e) => {
-                    setSelectedMemberId(m.id);
-                    setAnchorEl(e.currentTarget);
-                  }}
-                >
-                  <ListItemAvatar>
-                    <Badge
-                      variant="dot"
-                      overlap="circular"
-                      anchorOrigin={{vertical: "bottom", horizontal: "right"}}
-                      sx={{
-                        "& .MuiBadge-badge": {
-                          bgcolor: statusColor(m.status, m.isOnline),
-                          width: 12,
-                          height: 12,
-                          borderRadius: "50%",
-                          border: "2px solid",
-                          borderColor: "background.paper",
-                        },
-                      }}
-                    >
-                      <Avatar src={m.imageUrl}>{m.displayName?.[0]}</Avatar>
-                    </Badge>
-                  </ListItemAvatar>
-                  <ListItemText
-                    primary={m.displayName}
-                    secondary={statusLabel(m.status, m.isOnline)}
-                    primaryTypographyProps={{
-                      noWrap: true,
-                      sx: {
-                        color: accentColor ?? "text.primary",
-                        fontWeight: accentColor ? 600 : 500,
-                      },
-                    }}
-                    secondaryTypographyProps={{
-                      sx: {color: "text.secondary"},
-                    }}
-                  />
-                </ListItemButton>
-              );
-            })}
-          </List>
-          <Divider sx={{my: 1}}/>
-
-          <Typography
-            variant="subtitle2"
-            sx={{fontWeight: 700, px: 2, mb: 0.5}}
+          <Box
+            sx={{
+              width: rightPanelWidth,
+              flexShrink: 0,
+              p: 2,
+              boxSizing: "border-box",
+              bgcolor: "background.paper",
+              borderLeft: "1px solid",
+              borderColor: "divider",
+              display: "flex",
+              flexDirection: "column",
+              gap: 1,
+              overflow: "hidden",
+            }}
           >
-            Offline - {offlineMembers.length}
-          </Typography>
-          <List dense>
-            {offlineMembers.map((m) => {
-              const accentColor = resolveMemberAccent(m.id);
-              return (
-                <ListItemButton
-                  key={m.id}
-                  onClick={(e) => {
-                    setSelectedMemberId(m.id);
-                    setAnchorEl(e.currentTarget);
-                  }}
-                  sx={{opacity: 0.6}}
-                >
-                  <ListItemAvatar>
-                    <Badge
-                      variant="dot"
-                      overlap="circular"
-                      anchorOrigin={{vertical: "bottom", horizontal: "right"}}
-                      sx={{
-                        "& .MuiBadge-badge": {
-                          bgcolor: statusColor(m.status, m.isOnline),
-                          width: 12,
-                          height: 12,
-                          borderRadius: "50%",
-                          border: "2px solid",
-                          borderColor: "background.paper",
-                        },
-                      }}
-                    >
-                      <Avatar src={m.imageUrl}>{m.displayName?.[0]}</Avatar>
-                    </Badge>
-                  </ListItemAvatar>
-                  <ListItemText
-                    primary={m.displayName}
-                    secondary={statusLabel(m.status, m.isOnline)}
-                    primaryTypographyProps={{
-                      noWrap: true,
-                      sx: {
-                        color: accentColor ?? "text.primary",
-                        fontWeight: accentColor ? 600 : 500,
-                      },
-                    }}
-                    secondaryTypographyProps={{
-                      sx: {color: "text.secondary"},
-                    }}
-                  />
-                </ListItemButton>
-              );
-            })}
-          </List>
+            {membersPanel}
+          </Box>
+        </>
+      )}
+      <Drawer
+        anchor="right"
+        open={membersOpen}
+        onClose={() => setMembersOpen(false)}
+        ModalProps={{ keepMounted: true }}
+        PaperProps={{
+          sx: {
+            width: "min(320px, 100vw)",
+            bgcolor: "background.paper",
+          },
+        }}
+        sx={{ display: { xs: "block", sm: "none" } }}
+      >
+        <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              px: 2,
+              py: 1.5,
+              borderBottom: "1px solid",
+              borderColor: "divider",
+            }}
+          >
+            <Typography variant="subtitle1" fontWeight={700}>
+              Members
+            </Typography>
+            <IconButton
+              aria-label="Close members"
+              onClick={() => setMembersOpen(false)}
+              size="small"
+            >
+              <Close />
+            </IconButton>
+          </Box>
+          <Box sx={{ flex: 1, p: 2, pt: 1, overflowY: "auto" }}>
+            {membersPanel}
+          </Box>
         </Box>
-      </Box>
+      </Drawer>
       <ChatRoomMemberPopover
         open={Boolean(anchorEl)}
         anchorEl={anchorEl}

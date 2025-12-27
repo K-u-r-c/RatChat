@@ -1,24 +1,35 @@
 import { Link, useParams } from "react-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { observer } from "mobx-react-lite";
 import { useDirectMessages } from "../../lib/hooks/useDirectMessages";
 import { useDirectChats } from "../../lib/hooks/useDirectChats";
-import { Typography, Box, Alert, IconButton, Button } from "@mui/material";
+import {
+  Typography,
+  Box,
+  Alert,
+  IconButton,
+  Button,
+  Drawer,
+  useMediaQuery,
+} from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import MediaChatComponent from "../../app/shared/components/mediaChatComponent/MediaChatComponent";
 import type { MessageType, MediaUploadResult } from "../../lib/types";
 import EmojiSettingsDialog from "../../app/shared/components/EmojiSettingsDialog";
 import AvatarWithStatus from "../../app/shared/components/AvatarWithStatus";
-import { MoreHoriz } from "@mui/icons-material";
+import { Close, MoreHoriz } from "@mui/icons-material";
 
 const DirectChatDetails = observer(function DirectChatDetails() {
   const { userSlug } = useParams();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { directChats } = useDirectChats();
   const currentChat = directChats?.find(
     (chat) => chat.otherUserSlug === userSlug
   );
   const directChatId = currentChat?.id;
   const { directMessageStore } = useDirectMessages(directChatId);
-  const [rightPanelOpen, setRightPanelOpen] = useState(true);
+  const [rightPanelOpen, setRightPanelOpen] = useState(() => !isMobile);
   const [emojiDialogOpen, setEmojiDialogOpen] = useState(false);
 
   const DEFAULT_RIGHT_PANEL_WIDTH = 300;
@@ -31,6 +42,12 @@ const DirectChatDetails = observer(function DirectChatDetails() {
   const dragStateRef = useRef<{ startX: number; startWidth: number } | null>(
     null
   );
+
+  useEffect(() => {
+    if (isMobile) {
+      setRightPanelOpen(false);
+    }
+  }, [isMobile]);
 
   const resetRightPanel = () => {
     setRightPanelWidth(DEFAULT_RIGHT_PANEL_WIDTH);
@@ -104,10 +121,17 @@ const DirectChatDetails = observer(function DirectChatDetails() {
     return <Typography>Direct chat not found</Typography>;
   }
 
+  const optionsContent = (
+    <Button variant="outlined" onClick={() => setEmojiDialogOpen(true)}>
+      Customize appearance
+    </Button>
+  );
+
   return (
     <Box
       sx={{
-        height: "calc(100vh - var(--desktop-download-banner-height, 0px))",
+        height:
+          "calc(100vh - var(--desktop-download-banner-height, 0px) - var(--mobile-topbar-height, 0px) - var(--mobile-action-ribbon-height, 0px))",
         display: "flex",
         flexDirection: "row",
         overflow: "hidden",
@@ -115,14 +139,15 @@ const DirectChatDetails = observer(function DirectChatDetails() {
       }}
     >
       {/* Main chat area */}
-      <Box
-        sx={{
-          flex: rightPanelOpen
-            ? `1 1 calc(100% - ${rightPanelWidth}px)`
-            : "1 1 100%",
-          display: "flex",
-          flexDirection: "column",
-          minWidth: 0,
+        <Box
+          sx={{
+            flex:
+              !isMobile && rightPanelOpen
+                ? `1 1 calc(100% - ${rightPanelWidth}px)`
+                : "1 1 100%",
+            display: "flex",
+            flexDirection: "column",
+            minWidth: 0,
           transition: "flex-basis 200ms cubic-bezier(.4,0,.2,1)",
         }}
       >
@@ -130,14 +155,24 @@ const DirectChatDetails = observer(function DirectChatDetails() {
         <Box
           sx={{
             display: "flex",
-            alignItems: "center",
+            alignItems: { xs: "stretch", sm: "center" },
             justifyContent: "space-between",
             borderBottom: "1px solid",
             borderColor: "divider",
             p: 1,
+            gap: 1,
+            flexWrap: "wrap",
+            flexDirection: { xs: "column", sm: "row" },
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 2,
+              minWidth: 0,
+            }}
+          >
             <AvatarWithStatus
               src={currentChat.otherUserImageUrl}
               alt={currentChat.otherUserDisplayName}
@@ -167,6 +202,7 @@ const DirectChatDetails = observer(function DirectChatDetails() {
           <IconButton
             aria-label="More options"
             onClick={() => setRightPanelOpen((v) => !v)}
+            sx={{ alignSelf: { xs: "flex-end", sm: "center" } }}
           >
             <MoreHoriz />
           </IconButton>
@@ -195,7 +231,7 @@ const DirectChatDetails = observer(function DirectChatDetails() {
       </Box>
 
       {/* Right side panel */}
-      {rightPanelOpen && (
+      {!isMobile && rightPanelOpen && (
         <>
           {/* Resize handle */}
           <Box
@@ -228,12 +264,49 @@ const DirectChatDetails = observer(function DirectChatDetails() {
             <Typography variant="h6" sx={{ mb: 2 }}>
               Conversation Options
             </Typography>
-            <Button variant="outlined" onClick={() => setEmojiDialogOpen(true)}>
-              Customize appearance
-            </Button>
+            {optionsContent}
           </Box>
         </>
       )}
+      <Drawer
+        anchor="right"
+        open={isMobile && rightPanelOpen}
+        onClose={() => setRightPanelOpen(false)}
+        ModalProps={{ keepMounted: true }}
+        PaperProps={{
+          sx: {
+            width: "min(320px, 100vw)",
+            bgcolor: "background.paper",
+          },
+        }}
+        sx={{ display: { xs: "block", sm: "none" } }}
+      >
+        <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              px: 2,
+              py: 1.5,
+              borderBottom: "1px solid",
+              borderColor: "divider",
+            }}
+          >
+            <Typography variant="subtitle1" fontWeight={700}>
+              Conversation Options
+            </Typography>
+            <IconButton
+              aria-label="Close options"
+              onClick={() => setRightPanelOpen(false)}
+              size="small"
+            >
+              <Close />
+            </IconButton>
+          </Box>
+          <Box sx={{ flex: 1, p: 2 }}>{optionsContent}</Box>
+        </Box>
+      </Drawer>
 
       {/* Emoji settings dialog triggered from right panel */}
       <EmojiSettingsDialog

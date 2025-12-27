@@ -10,10 +10,13 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Drawer,
   IconButton,
   Typography,
+  useMediaQuery,
 } from "@mui/material";
-import { Lock, LockOpen, MoreHoriz } from "@mui/icons-material";
+import { Lock, LockOpen, MoreHoriz, Close } from "@mui/icons-material";
+import { useTheme } from "@mui/material/styles";
 import AvatarWithStatus from "../../app/shared/components/AvatarWithStatus";
 import EmojiSettingsDialog from "../../app/shared/components/EmojiSettingsDialog";
 import MediaChatComponent from "../../app/shared/components/mediaChatComponent/MediaChatComponent";
@@ -203,6 +206,8 @@ async function buildBaseMessage(
 const EncryptedDirectChatDetails = observer(
   function EncryptedDirectChatDetails() {
     const { userSlug } = useParams();
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
     const { encryptedDirectChats } = useEncryptedDirectChats();
     const currentChat = useMemo(
       () =>
@@ -219,7 +224,7 @@ const EncryptedDirectChatDetails = observer(
     const [passphraseInput, setPassphraseInput] = useState("");
     const [passphraseBusy, setPassphraseBusy] = useState(false);
     const [passphraseError, setPassphraseError] = useState<string | null>(null);
-    const [rightPanelOpen, setRightPanelOpen] = useState(true);
+    const [rightPanelOpen, setRightPanelOpen] = useState(() => !isMobile);
     const DEFAULT_RIGHT_PANEL_WIDTH = 300;
     const STORAGE_KEY = "encryptedDirectRightPanelWidth";
     const [rightPanelWidth, setRightPanelWidth] = useState<number>(() => {
@@ -243,6 +248,7 @@ const EncryptedDirectChatDetails = observer(
     };
 
     const startResize = (e: React.MouseEvent) => {
+      if (isMobile) return;
       dragStateRef.current = {
         startX: e.clientX,
         startWidth: rightPanelWidth,
@@ -329,6 +335,12 @@ const EncryptedDirectChatDetails = observer(
         mounted = false;
       };
     }, [encryptedDirectChatId, messageViewStore]);
+
+    useEffect(() => {
+      if (isMobile) {
+        setRightPanelOpen(false);
+      }
+    }, [isMobile]);
 
     useEffect(() => {
       const dispose = reaction(
@@ -510,11 +522,82 @@ const EncryptedDirectChatDetails = observer(
       }
     };
 
+    const optionsContent = (
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+        <Box>
+          <Typography variant="subtitle2" color="text.secondary">
+            Encryption
+          </Typography>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              mt: 1,
+            }}
+          >
+            {cryptoKey ? (
+              <>
+                <Lock sx={{ fontSize: 20, color: "success.main" }} />
+                <Typography variant="body2" color="text.secondary">
+                  Passphrase stored on this device.
+                </Typography>
+              </>
+            ) : (
+              <>
+                <LockOpen sx={{ fontSize: 20, color: "warning.main" }} />
+                <Typography variant="body2" color="text.secondary">
+                  Set the shared passphrase to unlock messages.
+                </Typography>
+              </>
+            )}
+          </Box>
+          <Box
+            sx={{
+              display: "flex",
+              gap: 1,
+              mt: 1.5,
+              flexWrap: "wrap",
+            }}
+          >
+            <Button variant="contained" onClick={handleOpenPassphraseDialog}>
+              {cryptoKey ? "Update passphrase" : "Set passphrase"}
+            </Button>
+            {cryptoKey && (
+              <Button
+                color="warning"
+                variant="outlined"
+                onClick={handleClearPassphrase}
+              >
+                Clear passphrase
+              </Button>
+            )}
+          </Box>
+        </Box>
+        <Box>
+          <Typography variant="subtitle2" color="text.secondary">
+            Appearance
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            Choose the default reaction emoji for this encrypted conversation.
+          </Typography>
+          <Button
+            variant="outlined"
+            sx={{ mt: 1.5 }}
+            onClick={() => setEmojiDialogOpen(true)}
+          >
+            Customize appearance
+          </Button>
+        </Box>
+      </Box>
+    );
+
     return (
       <>
         <Box
           sx={{
-            height: "calc(100vh - var(--desktop-download-banner-height, 0px))",
+            height:
+              "calc(100vh - var(--desktop-download-banner-height, 0px) - var(--mobile-topbar-height, 0px) - var(--mobile-action-ribbon-height, 0px))",
             display: "flex",
             flexDirection: "row",
             overflow: "hidden",
@@ -523,9 +606,10 @@ const EncryptedDirectChatDetails = observer(
         >
           <Box
             sx={{
-              flex: rightPanelOpen
-                ? `1 1 calc(100% - ${rightPanelWidth}px)`
-                : "1 1 100%",
+              flex:
+                !isMobile && rightPanelOpen
+                  ? `1 1 calc(100% - ${rightPanelWidth}px)`
+                  : "1 1 100%",
               display: "flex",
               flexDirection: "column",
               minWidth: 0,
@@ -535,11 +619,14 @@ const EncryptedDirectChatDetails = observer(
             <Box
               sx={{
                 display: "flex",
-                alignItems: "center",
+                alignItems: { xs: "stretch", sm: "center" },
                 justifyContent: "space-between",
                 borderBottom: "1px solid",
                 borderColor: "divider",
                 p: 1.5,
+                gap: 1,
+                flexWrap: "wrap",
+                flexDirection: { xs: "column", sm: "row" },
               }}
             >
               <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -577,6 +664,7 @@ const EncryptedDirectChatDetails = observer(
               <IconButton
                 aria-label="Conversation options"
                 onClick={() => setRightPanelOpen((open) => !open)}
+                sx={{ alignSelf: { xs: "flex-end", sm: "center" } }}
               >
                 <MoreHoriz />
               </IconButton>
@@ -603,7 +691,7 @@ const EncryptedDirectChatDetails = observer(
             </Box>
           </Box>
 
-          {rightPanelOpen && (
+          {!isMobile && rightPanelOpen && (
             <>
               <Box
                 role="separator"
@@ -636,87 +724,52 @@ const EncryptedDirectChatDetails = observer(
                 }}
               >
                 <Typography variant="h6">Conversation Options</Typography>
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                  <Box>
-                    <Typography variant="subtitle2" color="text.secondary">
-                      Encryption
-                    </Typography>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 1,
-                        mt: 1,
-                      }}
-                    >
-                      {cryptoKey ? (
-                        <>
-                          <Lock sx={{ fontSize: 20, color: "success.main" }} />
-                          <Typography variant="body2" color="text.secondary">
-                            Passphrase stored on this device.
-                          </Typography>
-                        </>
-                      ) : (
-                        <>
-                          <LockOpen
-                            sx={{ fontSize: 20, color: "warning.main" }}
-                          />
-                          <Typography variant="body2" color="text.secondary">
-                            Set the shared passphrase to unlock messages.
-                          </Typography>
-                        </>
-                      )}
-                    </Box>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        gap: 1,
-                        mt: 1.5,
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <Button
-                        variant="contained"
-                        onClick={handleOpenPassphraseDialog}
-                      >
-                        {cryptoKey ? "Update passphrase" : "Set passphrase"}
-                      </Button>
-                      {cryptoKey && (
-                        <Button
-                          color="warning"
-                          variant="outlined"
-                          onClick={handleClearPassphrase}
-                        >
-                          Clear passphrase
-                        </Button>
-                      )}
-                    </Box>
-                  </Box>
-                  <Box>
-                    <Typography variant="subtitle2" color="text.secondary">
-                      Appearance
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ mt: 1 }}
-                    >
-                      Choose the default reaction emoji for this encrypted
-                      conversation.
-                    </Typography>
-                    <Button
-                      variant="outlined"
-                      sx={{ mt: 1.5 }}
-                      onClick={() => setEmojiDialogOpen(true)}
-                    >
-                      Customize appearance
-                    </Button>
-                  </Box>
-                </Box>
+                {optionsContent}
               </Box>
             </>
           )}
         </Box>
+        <Drawer
+          anchor="right"
+          open={isMobile && rightPanelOpen}
+          onClose={() => setRightPanelOpen(false)}
+          ModalProps={{ keepMounted: true }}
+          PaperProps={{
+            sx: {
+              width: "min(320px, 100vw)",
+              bgcolor: "background.paper",
+            },
+          }}
+          sx={{ display: { xs: "block", sm: "none" } }}
+        >
+          <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                px: 2,
+                py: 1.5,
+                borderBottom: "1px solid",
+                borderColor: "divider",
+              }}
+            >
+              <Typography variant="subtitle1" fontWeight={700}>
+                Conversation Options
+              </Typography>
+              <IconButton
+                aria-label="Close options"
+                onClick={() => setRightPanelOpen(false)}
+                size="small"
+              >
+                <Close />
+              </IconButton>
+            </Box>
+            <Box sx={{ flex: 1, p: 2, overflowY: "auto" }}>
+              {optionsContent}
+            </Box>
+          </Box>
+        </Drawer>
 
         <Dialog
           open={passphraseDialogOpen}

@@ -12,7 +12,11 @@ import {useVoiceChannel} from "../../../lib/hooks/useVoiceChannel";
 import {BASE_USER_ACTION_RIBBON_HEIGHT, VOICE_CARD_EXTRA_HEIGHT} from "../UserActionRibbon";
 import {buildGifBackgroundStyles, parseGifCropFromUrl,} from "../../../features/chatRooms/utils/gifCrop";
 
-const SideNav = observer(function SideNav() {
+type SideNavProps = {
+  variant?: "desktop" | "drawer";
+};
+
+const SideNav = observer(function SideNav({ variant = "desktop" }: SideNavProps) {
   const {
     chatRooms,
     isLoading,
@@ -102,6 +106,7 @@ const SideNav = observer(function SideNav() {
 
   const friendInvitesCount = friendRequests?.received?.length || 0;
   const navPaddingBottom = `${BASE_USER_ACTION_RIBBON_HEIGHT + (isVoiceConnected ? VOICE_CARD_EXTRA_HEIGHT : 0)}px`;
+  const isDrawer = variant === "drawer";
 
   return (
     <Box
@@ -111,15 +116,15 @@ const SideNav = observer(function SideNav() {
         flex: `0 0 ${NAV_WIDTH}px`,
         bgcolor: "#1e1f24",
         borderRight: "1px solid rgba(255,255,255,0.08)",
-        height: "100vh",
-        position: "sticky",
-        top: 0,
-        display: {xs: "none", sm: "flex"},
+        height: isDrawer ? "100%" : "100vh",
+        position: isDrawer ? "relative" : "sticky",
+        top: isDrawer ? "auto" : 0,
+        display: isDrawer ? "flex" : {xs: "none", sm: "flex"},
         flexDirection: "column",
         alignItems: "center",
         gap: 1,
         pt: 1.5,
-        pb: navPaddingBottom,
+        pb: isDrawer ? 1.5 : navPaddingBottom,
       }}
     >
       {/* Direct Messages entry */}
@@ -347,5 +352,4 @@ const SideNav = observer(function SideNav() {
 });
 
 export default SideNav;
-
 

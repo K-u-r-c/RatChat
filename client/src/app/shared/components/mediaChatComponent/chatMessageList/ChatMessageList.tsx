@@ -360,7 +360,7 @@ export default function ChatMessageList(
                   bgcolor: isOwn ? "primary.main" : "background.paper",
                   color: isOwn ? "#fff" : "inherit",
                   borderRadius: 2,
-                  maxWidth: "75%",
+                  maxWidth: { xs: "90%", sm: "75%" },
                 }}
               >
                 {/* Grid of images / videos */}

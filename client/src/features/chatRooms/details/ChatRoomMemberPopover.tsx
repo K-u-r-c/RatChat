@@ -69,7 +69,7 @@ export default function ChatRoomMemberPopover(
             sx: {
               borderRadius: 2,
               overflow: "hidden",
-              width: 340,
+              width: { xs: "min(320px, 90vw)", sm: 340 },
               bgcolor: "background.paper",
               position: "relative",
             },
@@ -77,7 +77,7 @@ export default function ChatRoomMemberPopover(
         }}
       >
         {member && (
-          <Box sx={{width: 340}}>
+          <Box sx={{ width: { xs: "min(320px, 90vw)", sm: 340 } }}>
             {/* Banner */}
             <Box
               sx={{

@@ -68,7 +68,7 @@ export default function GroupedMediaRow({
             bgcolor: isOwn ? "primary.main" : "action.hover",
             color: isOwn ? "#fff" : "inherit",
             borderRadius: 2,
-            maxWidth: "75%",
+            maxWidth: { xs: "90%", sm: "75%" },
           }}
         >
           <GroupedMediaMessage

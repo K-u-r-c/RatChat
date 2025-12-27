@@ -8,9 +8,18 @@ import {NAV_WIDTH} from "../../../lib/types/constants";
 
 export const DIRECT_SIDEBAR_WIDTH = 280;
 
-export default function SecondarySidebar() {
+type SecondarySidebarProps = {
+  variant?: "desktop" | "drawer";
+  showActionRibbon?: boolean;
+};
+
+export default function SecondarySidebar({
+  variant = "desktop",
+  showActionRibbon = true,
+}: SecondarySidebarProps) {
   const location = useLocation();
   const showDefaultContent = !location.pathname.startsWith("/chat-rooms");
+  const isDrawer = variant === "drawer";
 
   const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
     const saved = Number(localStorage.getItem("secondarySidebarWidth"));
@@ -25,6 +34,7 @@ export default function SecondarySidebar() {
   };
 
   const startResize = (e: React.MouseEvent) => {
+    if (isDrawer) return;
     dragRef.current = {startX: e.clientX, startWidth: sidebarWidth};
     const onMove = (ev: MouseEvent) => {
       if (!dragRef.current) return;
@@ -53,13 +63,13 @@ export default function SecondarySidebar() {
     <Box
       component="aside"
       sx={{
-        width: {xs: 0, sm: sidebarWidth},
-        flex: {xs: "0 0 0px", sm: `0 0 ${sidebarWidth}px`},
-        display: {xs: "none", sm: "flex"},
+        width: isDrawer ? "100%" : {xs: 0, sm: sidebarWidth},
+        flex: isDrawer ? "1 1 auto" : {xs: "0 0 0px", sm: `0 0 ${sidebarWidth}px`},
+        display: isDrawer ? "flex" : {xs: "none", sm: "flex"},
         flexDirection: "column",
-        height: "100vh",
-        position: "sticky",
-        top: 0,
+        height: isDrawer ? "100%" : "100vh",
+        position: isDrawer ? "relative" : "sticky",
+        top: isDrawer ? "auto" : 0,
         bgcolor: "#1e1f24",
         borderRight: "1px solid rgba(255,255,255,0.08)",
         overflow: "visible",
@@ -80,32 +90,35 @@ export default function SecondarySidebar() {
           <ChatRoomSidebarContent/>
         )}
       </Box>
-      <Box
-        sx={{
-          width: {xs: "100%", sm: `${ribbonTotalWidth}px`},
-          ml: {xs: 0, sm: `-${NAV_WIDTH}px`},
-          alignSelf: {xs: "stretch", sm: "flex-start"},
-        }}
-      >
-        <UserActionRibbon/>
-      </Box>
-      {/* Resize handle */}
-      <Box
-        role="separator"
-        aria-orientation="vertical"
-        onMouseDown={startResize}
-        onDoubleClick={resetToDefault}
-        sx={{
-          position: "absolute",
-          top: 0,
-          right: 0,
-          width: 4,
-          height: "100%",
-          cursor: "col-resize",
-          bgcolor: "rgba(255,255,255,0.06)",
-          "&:hover": {bgcolor: "rgba(255,255,255,0.12)"},
-        }}
-      />
+      {showActionRibbon && (
+        <Box
+          sx={{
+            width: {xs: "100%", sm: `${ribbonTotalWidth}px`},
+            ml: {xs: 0, sm: `-${NAV_WIDTH}px`},
+            alignSelf: {xs: "stretch", sm: "flex-start"},
+          }}
+        >
+          <UserActionRibbon/>
+        </Box>
+      )}
+      {!isDrawer && (
+        <Box
+          role="separator"
+          aria-orientation="vertical"
+          onMouseDown={startResize}
+          onDoubleClick={resetToDefault}
+          sx={{
+            position: "absolute",
+            top: 0,
+            right: 0,
+            width: 4,
+            height: "100%",
+            cursor: "col-resize",
+            bgcolor: "rgba(255,255,255,0.06)",
+            "&:hover": {bgcolor: "rgba(255,255,255,0.12)"},
+          }}
+        />
+      )}
     </Box>
   );
 }

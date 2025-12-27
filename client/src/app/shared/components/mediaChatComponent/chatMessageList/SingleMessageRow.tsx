@@ -99,7 +99,7 @@ export default function SingleMessageRow({
             alignItems: "center",
             gap: 0.75,
             flexDirection: isOwn ? "row-reverse" : "row",
-            maxWidth: "75%",
+            maxWidth: { xs: "90%", sm: "75%" },
           }}
         >
           <MessageBubble
