@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Box, Button, IconButton, Stack, Typography } from "@mui/material";
 import { Close } from "@mui/icons-material";
 import { Link as RouterLink } from "react-router";
@@ -6,6 +6,16 @@ import { isRunningInDesktopShell } from "./desktopDownloadPromo";
 
 export default function DesktopDownloadBanner() {
   const [visible, setVisible] = useState(false);
+  const bannerRef = useRef<HTMLDivElement | null>(null);
+
+  const setBannerHeight = (height: number) => {
+    if (typeof document === "undefined") return;
+    const value = Number.isFinite(height) ? Math.max(0, Math.round(height)) : 0;
+    document.documentElement.style.setProperty(
+      "--desktop-download-banner-height",
+      `${value}px`
+    );
+  };
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -15,6 +25,37 @@ export default function DesktopDownloadBanner() {
     setVisible(true);
   }, []);
 
+  useEffect(() => {
+    if (!visible) {
+      setBannerHeight(0);
+      return;
+    }
+
+    const element = bannerRef.current;
+    if (!element || typeof window === "undefined") return;
+
+    const updateHeight = () => {
+      setBannerHeight(element.getBoundingClientRect().height);
+    };
+
+    updateHeight();
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateHeight);
+      return () => {
+        window.removeEventListener("resize", updateHeight);
+        setBannerHeight(0);
+      };
+    }
+
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+      setBannerHeight(0);
+    };
+  }, [visible]);
+
   if (!visible) return null;
 
   const handleDismiss = () => {
@@ -23,6 +64,7 @@ export default function DesktopDownloadBanner() {
 
   return (
     <Box
+      ref={bannerRef}
       sx={{
         bgcolor: "rgba(88,101,242,0.12)",
         borderBottom: "1px solid rgba(138,147,255,0.4)",

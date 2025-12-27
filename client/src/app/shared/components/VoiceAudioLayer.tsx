@@ -6,9 +6,17 @@ type RemoteAudioProps = {
   stream: MediaStream;
   volume: number;
   muted: boolean;
+  outputDeviceId: string | null;
+  outputVolume: number;
 };
 
-function RemoteAudio({ stream, volume, muted }: RemoteAudioProps) {
+function RemoteAudio({
+  stream,
+  volume,
+  muted,
+  outputDeviceId,
+  outputVolume,
+}: RemoteAudioProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
@@ -26,9 +34,18 @@ function RemoteAudio({ stream, volume, muted }: RemoteAudioProps) {
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-    audio.volume = Math.min(Math.max(volume, 0), 1);
+    audio.volume = Math.min(Math.max(volume * outputVolume, 0), 1);
     audio.muted = muted;
-  }, [muted, volume]);
+  }, [muted, volume, outputVolume]);
+
+  useEffect(() => {
+    const audio = audioRef.current as HTMLAudioElement & {
+      setSinkId?: (id: string) => Promise<void>;
+    };
+    if (!audio?.setSinkId) return;
+    const targetId = outputDeviceId ?? "default";
+    audio.setSinkId(targetId).catch(() => {});
+  }, [outputDeviceId]);
 
   return (
     <audio ref={audioRef} autoPlay playsInline style={{ display: "none" }} />
@@ -46,6 +63,8 @@ export default function VoiceAudioLayer() {
     participantVolumes,
     remoteAudioStreams,
     isSelfDeafened,
+    outputVolume,
+    audioOutputDeviceId,
   } = voice;
 
   useEffect(() => {
@@ -70,6 +89,8 @@ export default function VoiceAudioLayer() {
             stream={stream}
             volume={volume}
             muted={muted}
+            outputDeviceId={audioOutputDeviceId}
+            outputVolume={outputVolume}
           />
         );
       })}

@@ -5,14 +5,16 @@ import Grow from "@mui/material/Grow";
 import MenuItem from "@mui/material/MenuItem";
 import { useState } from "react";
 import { Link } from "react-router";
-import { Password, Person, Logout } from "@mui/icons-material";
+import { Password, Person, Logout, Settings } from "@mui/icons-material";
 import { useAccount } from "../../lib/hooks/useAccount";
 import StatusSelector from "../shared/components/StatusSelector";
 import AvatarWithStatus from "../shared/components/AvatarWithStatus";
+import AudioSettingsDialog from "../shared/components/AudioSettingsDialog";
 
 export default function UserMenu() {
   const { currentUser, logoutUser } = useAccount();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const open = Boolean(anchorEl);
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -79,6 +81,17 @@ export default function UserMenu() {
           </ListItemIcon>
           <ListItemText>My profile</ListItemText>
         </MenuItem>
+        <MenuItem
+          onClick={() => {
+            handleClose();
+            setSettingsOpen(true);
+          }}
+        >
+          <ListItemIcon>
+            <Settings />
+          </ListItemIcon>
+          <ListItemText>Settings</ListItemText>
+        </MenuItem>
         {currentUser?.hasPassword && (
           <MenuItem
             component={Link}
@@ -104,6 +117,10 @@ export default function UserMenu() {
           <ListItemText>Logout</ListItemText>
         </MenuItem>
       </Menu>
+      <AudioSettingsDialog
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+      />
     </>
   );
 }

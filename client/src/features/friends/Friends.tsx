@@ -152,10 +152,11 @@ export default function Friends() {
   return (
     <Box
       sx={{
-        height: "100%",
+        height: "calc(100vh - var(--desktop-download-banner-height, 0px))",
         width: "100%",
         display: "flex",
         flexDirection: "column",
+        minHeight: 0,
       }}
     >
       <Box sx={{px: 2, py: 1.5}}>

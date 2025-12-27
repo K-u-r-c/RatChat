@@ -2,12 +2,13 @@
 import Grow from "@mui/material/Grow";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
-import {Logout, Person} from "@mui/icons-material";
+import {Logout, Person, Settings} from "@mui/icons-material";
 import {type MouseEvent, type ReactNode, useState} from "react";
 import {Link} from "react-router";
 import {useAccount} from "../../lib/hooks/useAccount";
 import StatusSelector from "../shared/components/StatusSelector";
 import AvatarWithStatus from "../shared/components/AvatarWithStatus";
+import AudioSettingsDialog from "../shared/components/AudioSettingsDialog";
 
 type UserMenuIconProps = {
   renderTrigger?: (handlers: {
@@ -25,6 +26,7 @@ export default function UserMenuIcon(
   }: UserMenuIconProps) {
   const {currentUser, logoutUser} = useAccount();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const open = Boolean(anchorEl);
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -100,6 +102,17 @@ export default function UserMenuIcon(
           </ListItemIcon>
           <ListItemText>My profile</ListItemText>
         </MenuItem>
+        <MenuItem
+          onClick={() => {
+            handleClose();
+            setSettingsOpen(true);
+          }}
+        >
+          <ListItemIcon>
+            <Settings/>
+          </ListItemIcon>
+          <ListItemText>Settings</ListItemText>
+        </MenuItem>
         <Divider/>
         <MenuItem
           onClick={() => {
@@ -113,6 +126,10 @@ export default function UserMenuIcon(
           <ListItemText>Logout</ListItemText>
         </MenuItem>
       </Menu>
+      <AudioSettingsDialog
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+      />
     </>
   );
 }

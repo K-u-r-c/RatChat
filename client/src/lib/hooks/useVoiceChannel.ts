@@ -186,6 +186,35 @@ class VoiceManager {
   private screenShareConstraints: ScreenShareConstraints = {
     ...DEFAULT_SCREEN_SHARE_CONSTRAINTS,
   };
+  private audioInputDevices: MediaDeviceInfo[] = [];
+  private audioOutputDevices: MediaDeviceInfo[] = [];
+  private isAudioDeviceLoading = false;
+  private audioDeviceError: string | null = null;
+  private audioInputDeviceId: string | null = null;
+  private audioOutputDeviceId: string | null = null;
+  private outputVolume = 1;
+  private inputGain = 1;
+  private noiseGateThresholdDb = -50;
+  private microphoneLevel = 0;
+  private isTestingMicrophone = false;
+  private microphoneTestStream: MediaStream | null = null;
+  private microphoneProcessing: {
+    source: MediaStreamAudioSourceNode;
+    analyser: AnalyserNode;
+    gateGain: GainNode;
+    inputGain: GainNode;
+    destination: MediaStreamAudioDestinationNode;
+    rafId: number;
+    stream: MediaStream;
+    lastEmit: number;
+    lastLevel: number;
+  } | null = null;
+  private audioSettingsLoaded = false;
+  private audioDeviceListenerAttached = false;
+  private supportsOutputDeviceSelection =
+    typeof HTMLMediaElement !== "undefined" &&
+    typeof (HTMLMediaElement.prototype as HTMLMediaElement & { setSinkId?: (id: string) => Promise<void> })
+      .setSinkId === "function";
 
   private listeners = new Set<() => void>();
 
@@ -239,6 +268,22 @@ class VoiceManager {
     screenShareConstraints: {
       ...DEFAULT_SCREEN_SHARE_CONSTRAINTS,
     },
+    audioInputDevices: [],
+    audioOutputDevices: [],
+    audioInputDeviceId: null,
+    audioOutputDeviceId: null,
+    outputVolume: 1,
+    inputGain: 1,
+    noiseGateThresholdDb: -50,
+    microphoneLevel: 0,
+    isTestingMicrophone: false,
+    microphoneTestStream: null,
+    isAudioDeviceLoading: false,
+    audioDeviceError: null,
+    supportsOutputDeviceSelection:
+      typeof HTMLMediaElement !== "undefined" &&
+      typeof (HTMLMediaElement.prototype as HTMLMediaElement & { setSinkId?: (id: string) => Promise<void> })
+        .setSinkId === "function",
   };
 
   subscribe = (listener: () => void) => {
@@ -273,6 +318,19 @@ class VoiceManager {
         screenShareConstraints: {
           ...this.screenShareConstraints,
         },
+        audioInputDevices: this.audioInputDevices,
+        audioOutputDevices: this.audioOutputDevices,
+        audioInputDeviceId: this.audioInputDeviceId,
+        audioOutputDeviceId: this.audioOutputDeviceId,
+        outputVolume: this.outputVolume,
+        inputGain: this.inputGain,
+        noiseGateThresholdDb: this.noiseGateThresholdDb,
+        microphoneLevel: this.microphoneLevel,
+        isTestingMicrophone: this.isTestingMicrophone,
+        microphoneTestStream: this.microphoneTestStream,
+        isAudioDeviceLoading: this.isAudioDeviceLoading,
+        audioDeviceError: this.audioDeviceError,
+        supportsOutputDeviceSelection: this.supportsOutputDeviceSelection,
       };
       this._snapshotVersion = this._version;
     }
@@ -280,6 +338,7 @@ class VoiceManager {
   };
 
   setCurrentUser = (userId: string | null) => {
+    this.ensureAudioSettingsLoaded();
     if (this.currentUserId === userId) return;
     if (this.currentUserId && this.currentUserId !== userId) {
       this.updateActiveSpeaker(this.currentUserId, false);
@@ -844,6 +903,187 @@ class VoiceManager {
     return this.audioContext;
   }
 
+  private ensureAudioSettingsLoaded() {
+    if (this.audioSettingsLoaded || typeof window === "undefined") return;
+    this.audioSettingsLoaded = true;
+    this.loadAudioSettings();
+    void this.refreshAudioDevices();
+    this.attachAudioDeviceListener();
+  }
+
+  private attachAudioDeviceListener() {
+    if (this.audioDeviceListenerAttached) return;
+    if (typeof navigator === "undefined") return;
+    const devices = navigator.mediaDevices;
+    if (!devices?.addEventListener) return;
+    devices.addEventListener("devicechange", () => {
+      void this.refreshAudioDevices();
+    });
+    this.audioDeviceListenerAttached = true;
+  }
+
+  private loadAudioSettings() {
+    if (typeof window === "undefined") return;
+    const outputVolume = Number.parseFloat(
+      window.localStorage.getItem("voiceOutputVolume") ?? ""
+    );
+    if (Number.isFinite(outputVolume)) {
+      this.outputVolume = Math.min(Math.max(outputVolume, 0), 1);
+    }
+    const inputGain = Number.parseFloat(
+      window.localStorage.getItem("voiceInputGain") ?? ""
+    );
+    if (Number.isFinite(inputGain)) {
+      this.inputGain = Math.min(Math.max(inputGain, 0), 2);
+    }
+    const thresholdDb = Number.parseFloat(
+      window.localStorage.getItem("voiceNoiseGateThresholdDb") ?? ""
+    );
+    if (Number.isFinite(thresholdDb)) {
+      this.noiseGateThresholdDb = Math.min(Math.max(thresholdDb, -80), -10);
+    }
+    const inputDeviceId = window.localStorage.getItem(
+      "voiceAudioInputDeviceId"
+    );
+    this.audioInputDeviceId = inputDeviceId?.trim() ? inputDeviceId : null;
+    const outputDeviceId = window.localStorage.getItem(
+      "voiceAudioOutputDeviceId"
+    );
+    this.audioOutputDeviceId = outputDeviceId?.trim() ? outputDeviceId : null;
+    this.emit();
+  }
+
+  private persistAudioSettings() {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(
+      "voiceOutputVolume",
+      this.outputVolume.toString()
+    );
+    window.localStorage.setItem("voiceInputGain", this.inputGain.toString());
+    window.localStorage.setItem(
+      "voiceNoiseGateThresholdDb",
+      this.noiseGateThresholdDb.toString()
+    );
+    if (this.audioInputDeviceId) {
+      window.localStorage.setItem(
+        "voiceAudioInputDeviceId",
+        this.audioInputDeviceId
+      );
+    } else {
+      window.localStorage.removeItem("voiceAudioInputDeviceId");
+    }
+    if (this.audioOutputDeviceId) {
+      window.localStorage.setItem(
+        "voiceAudioOutputDeviceId",
+        this.audioOutputDeviceId
+      );
+    } else {
+      window.localStorage.removeItem("voiceAudioOutputDeviceId");
+    }
+  }
+
+  refreshAudioDevices = async () => {
+    if (typeof navigator === "undefined") return;
+    if (!navigator.mediaDevices?.enumerateDevices) {
+      this.audioDeviceError = "Audio device controls are not supported here.";
+      this.emit();
+      return;
+    }
+    this.isAudioDeviceLoading = true;
+    this.emit();
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      this.audioInputDevices = devices.filter(
+        (device) => device.kind === "audioinput"
+      );
+      this.audioOutputDevices = devices.filter(
+        (device) => device.kind === "audiooutput"
+      );
+      this.audioDeviceError = null;
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        console.error("Failed to enumerate audio devices", err);
+      }
+      this.audioDeviceError = "Unable to load audio devices.";
+    } finally {
+      this.isAudioDeviceLoading = false;
+      this.emit();
+    }
+  };
+
+  setAudioInputDevice = async (deviceId: string | null) => {
+    const normalized = deviceId?.trim() ? deviceId : null;
+    if (this.audioInputDeviceId === normalized) return;
+    const previous = this.audioInputDeviceId;
+    this.audioInputDeviceId = normalized;
+    this.persistAudioSettings();
+    try {
+      await this.refreshMicrophoneStream();
+    } catch (err) {
+      this.audioInputDeviceId = previous;
+      this.persistAudioSettings();
+      if (import.meta.env.DEV) {
+        console.warn("Failed to switch input device", err);
+      }
+    }
+    this.emit();
+  };
+
+  setAudioOutputDevice = (deviceId: string | null) => {
+    const normalized = deviceId?.trim() ? deviceId : null;
+    if (this.audioOutputDeviceId === normalized) return;
+    this.audioOutputDeviceId = normalized;
+    this.persistAudioSettings();
+    this.emit();
+  };
+
+  setOutputVolume = (volume: number) => {
+    const clamped = Math.min(Math.max(volume, 0), 1);
+    if (this.outputVolume === clamped) return;
+    this.outputVolume = clamped;
+    this.persistAudioSettings();
+    this.emit();
+  };
+
+  setInputGain = (gain: number) => {
+    const clamped = Math.min(Math.max(gain, 0), 2);
+    if (this.inputGain === clamped) return;
+    this.inputGain = clamped;
+    if (this.microphoneProcessing) {
+      this.microphoneProcessing.inputGain.gain.value = clamped;
+    }
+    this.persistAudioSettings();
+    this.emit();
+  };
+
+  setNoiseGateThresholdDb = (thresholdDb: number) => {
+    const clamped = Math.min(Math.max(thresholdDb, -80), -10);
+    if (this.noiseGateThresholdDb === clamped) return;
+    this.noiseGateThresholdDb = clamped;
+    this.persistAudioSettings();
+    this.emit();
+  };
+
+  setMicTestEnabled = async (enabled: boolean) => {
+    const next = Boolean(enabled);
+    if (this.isTestingMicrophone === next) return;
+    this.isTestingMicrophone = next;
+    if (next) {
+      try {
+        const stream = await this.ensureLocalMicrophoneStream();
+        if (!stream) {
+          this.isTestingMicrophone = false;
+        }
+      } catch {
+        this.isTestingMicrophone = false;
+      }
+    }
+    this.microphoneTestStream = this.isTestingMicrophone
+      ? this.getMicrophoneSendStream()
+      : null;
+    this.emit();
+  };
+
   private updateActiveSpeaker(userId: string, speaking: boolean) {
     const set = this.activeSpeakers;
     let changed = false;
@@ -951,35 +1191,220 @@ class VoiceManager {
     detect();
   }
 
-  private releaseLocalMicrophoneStream() {
-    this.stopLocalSpeakingMonitor();
-    if (!this.localMicrophoneStream) return;
-    this.localMicrophoneStream.getTracks().forEach((track) => track.stop());
-    this.localMicrophoneStream = null;
+  private buildMicrophoneConstraints(): MediaTrackConstraints {
+    const constraints: MediaTrackConstraints = {
+      echoCancellation: true,
+      noiseSuppression: true,
+    };
+    if (this.audioInputDeviceId) {
+      constraints.deviceId = { exact: this.audioInputDeviceId };
+    }
+    return constraints;
   }
 
-  private async ensureLocalMicrophoneStream(
+  private getMicrophoneSendStream(): MediaStream | null {
+    if (this.microphoneProcessing?.stream) {
+      return this.microphoneProcessing.destination.stream;
+    }
+    if (!this.localMicrophoneStream) return null;
+    this.ensureMicrophoneProcessing(this.localMicrophoneStream);
+    return this.microphoneProcessing?.destination.stream ?? this.localMicrophoneStream;
+  }
+
+  private ensureMicrophoneProcessing(stream: MediaStream) {
+    if (this.microphoneProcessing?.stream === stream) {
+      return;
+    }
+
+    this.stopMicrophoneProcessing();
+
+    const audioContext = this.ensureAudioContext();
+    const source = audioContext.createMediaStreamSource(stream);
+    const analyser = audioContext.createAnalyser();
+    analyser.fftSize = 512;
+    source.connect(analyser);
+
+    const gateGain = audioContext.createGain();
+    const inputGain = audioContext.createGain();
+    const destination = audioContext.createMediaStreamDestination();
+
+    gateGain.gain.value = 1;
+    inputGain.gain.value = this.inputGain;
+
+    source.connect(gateGain);
+    gateGain.connect(inputGain).connect(destination);
+
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    const processing = {
+      source,
+      analyser,
+      gateGain,
+      inputGain,
+      destination,
+      rafId: 0,
+      stream,
+      lastEmit: 0,
+      lastLevel: 0,
+    };
+
+    const updateLevel = () => {
+      analyser.getByteTimeDomainData(data);
+      let sum = 0;
+      for (let i = 0; i < data.length; i++) {
+        const value = (data[i] - 128) / 128;
+        sum += value * value;
+      }
+      const rms = Math.sqrt(sum / data.length);
+      const threshold = Math.pow(10, this.noiseGateThresholdDb / 20);
+      const target = rms >= threshold ? 1 : 0;
+      gateGain.gain.setTargetAtTime(
+        target,
+        audioContext.currentTime,
+        0.02
+      );
+
+      const now = performance.now();
+      if (
+        Math.abs(rms - processing.lastLevel) > 0.01 ||
+        now - processing.lastEmit > 150
+      ) {
+        this.microphoneLevel = rms;
+        processing.lastLevel = rms;
+        processing.lastEmit = now;
+        this.emit();
+      }
+
+      processing.rafId = window.requestAnimationFrame(updateLevel);
+    };
+
+    processing.rafId = window.requestAnimationFrame(updateLevel);
+    this.microphoneProcessing = processing;
+    if (this.isTestingMicrophone) {
+      this.microphoneTestStream = destination.stream;
+    }
+  }
+
+  private stopMicrophoneProcessing() {
+    const processing = this.microphoneProcessing;
+    if (!processing) return;
+    cancelAnimationFrame(processing.rafId);
+    try {
+      processing.source.disconnect();
+    } catch {
+      /* ignore cleanup errors */
+    }
+    try {
+      processing.analyser.disconnect();
+    } catch {
+      /* ignore cleanup errors */
+    }
+    try {
+      processing.gateGain.disconnect();
+    } catch {
+      /* ignore cleanup errors */
+    }
+    try {
+      processing.inputGain.disconnect();
+    } catch {
+      /* ignore cleanup errors */
+    }
+    this.microphoneProcessing = null;
+    this.microphoneLevel = 0;
+    if (this.isTestingMicrophone) {
+      this.microphoneTestStream = null;
+    }
+    this.emit();
+  }
+
+  private async refreshMicrophoneStream(
     options: { suppressError?: boolean } = {}
   ): Promise<MediaStream | null> {
-    if (this.localMicrophoneStream) return this.localMicrophoneStream;
-
+    this.ensureAudioSettingsLoaded();
+    if (typeof navigator === "undefined") return null;
+    if (!navigator.mediaDevices?.getUserMedia) return null;
+    const previousStream = this.localMicrophoneStream;
+    let nextStream: MediaStream;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-        },
+      nextStream = await navigator.mediaDevices.getUserMedia({
+        audio: this.buildMicrophoneConstraints(),
       });
-      this.localMicrophoneStream = stream;
-      this.startLocalSpeakingMonitor(stream);
-      this.applyLocalMuteState();
-      return stream;
     } catch (err) {
       if (!options.suppressError) {
         this.setError(this.describeMicrophoneFailure(err));
       }
       throw err;
     }
+
+    this.localMicrophoneStream = nextStream;
+    this.startLocalSpeakingMonitor(nextStream);
+    this.applyLocalMuteState();
+    this.ensureMicrophoneProcessing(nextStream);
+    if (this.screenAudioMix) {
+      await this.restartScreenAudioMix();
+    } else {
+      this.replaceMicrophoneTrackForSenders();
+    }
+    this.microphoneTestStream = this.isTestingMicrophone
+      ? this.getMicrophoneSendStream()
+      : null;
+
+    if (previousStream && previousStream !== nextStream) {
+      previousStream.getTracks().forEach((track) => track.stop());
+    }
+
+    return this.getMicrophoneSendStream();
+  }
+
+  private replaceMicrophoneTrackForSenders() {
+    const stream = this.getMicrophoneSendStream();
+    const track = stream?.getAudioTracks()[0] ?? null;
+    this.microphoneSenders.forEach((sender, connectionId) => {
+      Promise.resolve(sender.replaceTrack(track))
+        .then(() => {
+          this.updateSenderStreams(sender, stream);
+          this.renegotiateConnection(connectionId);
+        })
+        .catch((err) => {
+          if (import.meta.env.DEV) {
+            console.warn("Failed to replace microphone track", err);
+          }
+        });
+    });
+  }
+
+  private async restartScreenAudioMix() {
+    const mix = this.screenAudioMix;
+    if (!mix) return;
+    const screenTrack = mix.screenTrack;
+    this.stopScreenAudioMix();
+    try {
+      await this.startScreenAudioMix(screenTrack);
+    } catch {
+      // ignore restart errors
+    }
+  }
+
+  private releaseLocalMicrophoneStream() {
+    this.stopLocalSpeakingMonitor();
+    this.stopMicrophoneProcessing();
+    this.isTestingMicrophone = false;
+    this.microphoneTestStream = null;
+    if (!this.localMicrophoneStream) return;
+    this.localMicrophoneStream.getTracks().forEach((track) => track.stop());
+    this.localMicrophoneStream = null;
+    this.emit();
+  }
+
+  private async ensureLocalMicrophoneStream(
+    options: { suppressError?: boolean } = {}
+  ): Promise<MediaStream | null> {
+    this.ensureAudioSettingsLoaded();
+    if (this.localMicrophoneStream) {
+      this.ensureMicrophoneProcessing(this.localMicrophoneStream);
+      return this.getMicrophoneSendStream();
+    }
+
+    return this.refreshMicrophoneStream(options);
   }
 
 
@@ -1602,7 +2027,7 @@ class VoiceManager {
     mix.mixedTrack.removeEventListener("ended", mix.onEnded);
     mix.screenTrack.removeEventListener("ended", mix.onEnded);
 
-    const micStream = this.localMicrophoneStream;
+    const micStream = this.getMicrophoneSendStream();
 
     this.microphoneSenders.forEach((sender, connectionId) => {
       const originalTrack =
@@ -2265,7 +2690,7 @@ class VoiceManager {
     if (existing) return existing;
 
     const { prepareForOffer = false } = options;
-    let stream: MediaStream | null = this.localMicrophoneStream;
+    let stream: MediaStream | null = this.getMicrophoneSendStream();
 
     if (Object.prototype.hasOwnProperty.call(options, "localStream")) {
       stream = options.localStream ?? null;
@@ -3168,5 +3593,12 @@ export function useVoiceChannel(
     setScreenShareConstraints: voiceManager.setScreenShareConstraints,
     join: voiceManager.join,
     leave: voiceManager.leave,
+    refreshAudioDevices: voiceManager.refreshAudioDevices,
+    setAudioInputDevice: voiceManager.setAudioInputDevice,
+    setAudioOutputDevice: voiceManager.setAudioOutputDevice,
+    setOutputVolume: voiceManager.setOutputVolume,
+    setInputGain: voiceManager.setInputGain,
+    setNoiseGateThresholdDb: voiceManager.setNoiseGateThresholdDb,
+    setMicTestEnabled: voiceManager.setMicTestEnabled,
   };
 }

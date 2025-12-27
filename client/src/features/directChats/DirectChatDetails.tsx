@@ -107,10 +107,11 @@ const DirectChatDetails = observer(function DirectChatDetails() {
   return (
     <Box
       sx={{
-        height: "100vh",
+        height: "calc(100vh - var(--desktop-download-banner-height, 0px))",
         display: "flex",
         flexDirection: "row",
         overflow: "hidden",
+        minHeight: 0,
       }}
     >
       {/* Main chat area */}

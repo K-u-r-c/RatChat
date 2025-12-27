@@ -23,7 +23,7 @@ import { PersonalSection } from "./PersonalSection";
 import { SecuritySection } from "./SecuritySection";
 import { VisitorSection } from "./VisitorSection";
 
-type SectionValue = "personal" | "settings" | "notifications" | "security";
+type SectionValue = "personal" | "security";
 
 type ProfileWithFriends = Profile & {
   friends?: Friend[];
@@ -236,8 +236,6 @@ export default function ProfilePage() {
             }}
           >
             <Tab value="personal" label="Personal" />
-            <Tab value="settings" label="Settings" disabled />
-            <Tab value="notifications" label="Notifications" disabled />
             <Tab value="security" label="Security" />
           </Tabs>
 

@@ -61,6 +61,19 @@ export type VoiceChannelSnapshot = {
   isSelfDeafened: boolean;
   pingMs: number | null;
   screenShareConstraints: ScreenShareConstraints;
+  audioInputDevices: MediaDeviceInfo[];
+  audioOutputDevices: MediaDeviceInfo[];
+  audioInputDeviceId: string | null;
+  audioOutputDeviceId: string | null;
+  outputVolume: number;
+  inputGain: number;
+  noiseGateThresholdDb: number;
+  microphoneLevel: number;
+  isTestingMicrophone: boolean;
+  microphoneTestStream: MediaStream | null;
+  isAudioDeviceLoading: boolean;
+  audioDeviceError: string | null;
+  supportsOutputDeviceSelection: boolean;
 };
 
 export type VoiceChannelState = VoiceChannelSnapshot & {
@@ -82,4 +95,11 @@ export type VoiceChannelState = VoiceChannelSnapshot & {
     options?: ScreenShareStartOptions
   ) => Promise<void>;
   setScreenShareConstraints: (constraints: ScreenShareConstraints) => void;
+  refreshAudioDevices: () => Promise<void>;
+  setAudioInputDevice: (deviceId: string | null) => Promise<void>;
+  setAudioOutputDevice: (deviceId: string | null) => void;
+  setOutputVolume: (volume: number) => void;
+  setInputGain: (gain: number) => void;
+  setNoiseGateThresholdDb: (thresholdDb: number) => void;
+  setMicTestEnabled: (enabled: boolean) => Promise<void>;
 };
