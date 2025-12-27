@@ -153,6 +153,10 @@ class VoiceManager {
     {
       busy: boolean;
       pending: boolean;
+      makingOffer: boolean;
+      ignoreOffer: boolean;
+      polite: boolean;
+      pendingIce: RTCIceCandidateInit[];
     }
   >();
   private connectionRecoveryTimers = new Map<string, number>();
@@ -526,13 +530,19 @@ class VoiceManager {
             prepareForOffer: true,
             localStream: localMicStream,
           });
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-          const payload: SessionDescriptionPayload = {
-            type: offer.type,
-            sdp: offer.sdp ?? "",
-          };
-          await sendOffer(participant.connectionId, payload);
+          const state = this.getNegotiationState(participant.connectionId);
+          state.makingOffer = true;
+          try {
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            const payload: SessionDescriptionPayload = {
+              type: offer.type,
+              sdp: offer.sdp ?? "",
+            };
+            await sendOffer(participant.connectionId, payload);
+          } finally {
+            state.makingOffer = false;
+          }
         } catch (err) {
           if (import.meta.env.DEV) {
             console.error("Failed to send offer", err);
@@ -1177,10 +1187,49 @@ class VoiceManager {
   private getNegotiationState(connectionId: string) {
     let state = this.negotiationStates.get(connectionId);
     if (!state) {
-      state = { busy: false, pending: false };
+      state = {
+        busy: false,
+        pending: false,
+        makingOffer: false,
+        ignoreOffer: false,
+        polite: this.isPolitePeer(connectionId),
+        pendingIce: [],
+      };
       this.negotiationStates.set(connectionId, state);
+    } else {
+      state.polite = this.isPolitePeer(connectionId);
     }
     return state;
+  }
+
+  private isPolitePeer(connectionId: string) {
+    if (!this.selfConnectionId) return true;
+    return this.selfConnectionId.localeCompare(connectionId) < 0;
+  }
+
+  private queueIceCandidate(connectionId: string, candidate: RTCIceCandidateInit) {
+    const state = this.getNegotiationState(connectionId);
+    state.pendingIce.push(candidate);
+  }
+
+  private async flushPendingIceCandidates(
+    connectionId: string,
+    pc: RTCPeerConnection
+  ) {
+    if (!pc.remoteDescription) return;
+    const state = this.negotiationStates.get(connectionId);
+    if (!state || state.pendingIce.length === 0) return;
+    const pending = state.pendingIce;
+    state.pendingIce = [];
+    for (const candidate of pending) {
+      try {
+        await pc.addIceCandidate(candidate);
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.error("Failed to add queued ICE candidate", err);
+        }
+      }
+    }
   }
 
   private updateSenderStreams(
@@ -2454,6 +2503,7 @@ class VoiceManager {
 
     (async () => {
       try {
+        state.makingOffer = true;
         const offer = await pc.createOffer(
           options.iceRestart ? { iceRestart: true } : undefined
         );
@@ -2472,6 +2522,7 @@ class VoiceManager {
         }
         state.pending = true;
       } finally {
+        state.makingOffer = false;
         state.busy = false;
         if (state.pending) {
           state.pending = false;
@@ -2495,9 +2546,12 @@ class VoiceManager {
 
     if (pc.signalingState === "stable") {
       const state = this.negotiationStates.get(connectionId);
-      if (state && state.pending && !state.busy) {
-        state.pending = false;
-        this.renegotiateConnection(connectionId);
+      if (state) {
+        state.ignoreOffer = false;
+        if (state.pending && !state.busy) {
+          state.pending = false;
+          this.renegotiateConnection(connectionId);
+        }
       }
     }
   }
@@ -2933,6 +2987,19 @@ class VoiceManager {
         update.participant.connectionId,
         update.participant
       );
+      if (update.participant.connectionId !== this.selfConnectionId) {
+        const localStream = this.localMicrophoneStream ?? null;
+        void this.createPeerConnection(update.participant.connectionId, {
+          prepareForOffer: true,
+          localStream,
+        })
+          .then(() => this.renegotiateConnection(update.participant.connectionId))
+          .catch((err) => {
+            if (import.meta.env.DEV) {
+              console.error("Failed to prepare peer connection", err);
+            }
+          });
+      }
       dirty = true;
     }
     if (this.isWatchingChatRoom) {
@@ -2957,12 +3024,41 @@ class VoiceManager {
   private handleOffer = (message: VoiceSignalMessage) => {
     if (message.channelId !== this.currentChannelId) return;
     (async () => {
+      const description = message.description;
+      if (description.type !== "offer") return;
       try {
         const pc = await this.createPeerConnection(message.fromConnectionId);
+        const state = this.getNegotiationState(message.fromConnectionId);
+        const offerCollision =
+          state.makingOffer || pc.signalingState !== "stable";
+
+        if (offerCollision && !state.polite) {
+          state.ignoreOffer = true;
+          return;
+        }
+
+        state.ignoreOffer = false;
+
+        if (offerCollision && pc.signalingState !== "stable") {
+          if (
+            pc.signalingState === "have-local-offer" ||
+            pc.signalingState === "have-local-pranswer"
+          ) {
+            try {
+              await pc.setLocalDescription({ type: "rollback" });
+            } catch (err) {
+              if (import.meta.env.DEV) {
+                console.warn("Failed to rollback local offer", err);
+              }
+            }
+          }
+        }
+
         await pc.setRemoteDescription({
-          type: message.description.type as RTCSdpType,
-          sdp: message.description.sdp,
+          type: description.type as RTCSdpType,
+          sdp: description.sdp,
         });
+        await this.flushPendingIceCandidates(message.fromConnectionId, pc);
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         await sendAnswer(message.fromConnectionId, {
@@ -2981,26 +3077,36 @@ class VoiceManager {
     if (message.channelId !== this.currentChannelId) return;
     const pc = this.peerConnections.get(message.fromConnectionId);
     if (!pc) return;
+    const state = this.getNegotiationState(message.fromConnectionId);
+    state.ignoreOffer = false;
     pc.setRemoteDescription({
       type: message.description.type as RTCSdpType,
       sdp: message.description.sdp,
-    }).catch((err) => {
-      if (import.meta.env.DEV) {
-        console.error("Failed to apply answer", err);
-      }
-    });
+    })
+      .then(() => this.flushPendingIceCandidates(message.fromConnectionId, pc))
+      .catch((err) => {
+        if (import.meta.env.DEV) {
+          console.error("Failed to apply answer", err);
+        }
+      });
   };
 
   private handleIceCandidate = (message: VoiceIceCandidateMessage) => {
     if (message.channelId !== this.currentChannelId) return;
     const pc = this.peerConnections.get(message.fromConnectionId);
-    if (!pc) return;
     const candidate = {
       candidate: message.candidate.candidate,
       sdpMid: message.candidate.sdpMid ?? undefined,
       sdpMLineIndex: message.candidate.sdpMLineIndex ?? undefined,
     };
+    const state = this.getNegotiationState(message.fromConnectionId);
+    const ignoreErrors = state.ignoreOffer;
+    if (!pc || !pc.remoteDescription) {
+      this.queueIceCandidate(message.fromConnectionId, candidate);
+      return;
+    }
     pc.addIceCandidate(candidate as RTCIceCandidateInit).catch((err) => {
+      if (ignoreErrors) return;
       if (import.meta.env.DEV) {
         console.error("Failed to add ICE candidate", err);
       }
