@@ -1,5 +1,7 @@
 RatChat — Learning-First Chat App
 
+![Ratchat 1920x1080](https://github.com/user-attachments/assets/6c6a48b2-6111-44d0-9aec-43b0a0802849)
+
 Overview
 
 - Purpose: A learning-first, full-stack chat application focused on clean code, maintainability, and modern practices over raw feature velocity.
