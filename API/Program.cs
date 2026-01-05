@@ -28,6 +28,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
 using Minio;
 using Persistance;
 using Persistance.Security;
@@ -40,6 +41,15 @@ builder.Services.AddControllers(opt =>
     var policy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build();
     opt.Filters.Add(new AuthorizeFilter(policy));
 });
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddSwaggerGen(options =>
+    {
+        options.SwaggerDoc("v1", new OpenApiInfo { Title = "RatChat API", Version = "v1" });
+        options.CustomSchemaIds(type => type.FullName);
+    });
+}
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
@@ -209,6 +219,16 @@ app.UseCors(policy =>
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+if (app.Environment.IsDevelopment())
+{
+    const int swaggerPort = 5002;
+    app.UseWhen(ctx => ctx.Connection.LocalPort == swaggerPort, swaggerApp =>
+    {
+        swaggerApp.UseSwagger();
+        swaggerApp.UseSwaggerUI();
+    });
+}
 
 app.MapControllers();
 app.MapGroup("api").MapIdentityApi<User>();
